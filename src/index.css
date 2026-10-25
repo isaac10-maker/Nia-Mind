@@ -1,0 +1,399 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --nia-orange: #F97316;
+  --nia-orange-deep: #EA580C;
+  --nia-bordeaux: #7F1D3F;
+  --nia-bordeaux-dark: #57152D;
+  --nia-gray-dark: #374151;
+  --nia-gray-mid: #6B7280;
+  --nia-gray-light: #E5E7EB;
+  --nia-bg-light: #FFF5EE;
+  --nia-white: #FFFFFF;
+  --nia-bg-dark: #111318;
+  --nia-surface-dark: #1B1D24;
+  --nia-border-dark: #343741;
+  --nia-text-dark: #F5F5F5;
+
+  --surface-bg: var(--nia-bg-light);
+  --surface-card: var(--nia-white);
+  --surface-border: var(--nia-gray-light);
+  --text-primary: var(--nia-gray-dark);
+  --text-secondary: var(--nia-gray-mid);
+}
+
+.dark {
+  --surface-bg: var(--nia-bg-dark);
+  --surface-card: var(--nia-surface-dark);
+  --surface-border: var(--nia-border-dark);
+  --text-primary: var(--nia-text-dark);
+  --text-secondary: #9CA3AF;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: var(--surface-bg);
+  background-image:
+    radial-gradient(circle at 12% 16%, rgba(249, 115, 22, 0.16) 0%, transparent 42%),
+    radial-gradient(circle at 88% 22%, rgba(127, 29, 63, 0.16) 0%, transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(249, 115, 22, 0.13) 0%, rgba(127, 29, 63, 0.10) 38%, transparent 70%),
+    linear-gradient(135deg, #FFF6EE 0%, #FDF0F4 48%, #FFF4EB 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  transition: background-color 0.28s ease, color 0.28s ease;
+  overflow-x: hidden;
+}
+
+html.dark body {
+  background-color: #111318;
+  background-image:
+    radial-gradient(circle at 14% 18%, rgba(249, 115, 22, 0.18) 0%, transparent 42%),
+    radial-gradient(circle at 86% 24%, rgba(127, 29, 63, 0.28) 0%, transparent 46%),
+    radial-gradient(circle at 48% 88%, rgba(249, 115, 22, 0.12) 0%, rgba(87, 21, 45, 0.24) 42%, transparent 72%),
+    linear-gradient(135deg, #111318 0%, #1B121C 52%, #171419 100%);
+  background-attachment: fixed;
+}
+
+/* Harmonisation des surfaces : plus de blanc froid/opaque, mais un voile flottant Orange/Bordeaux */
+html:not(.dark) .bg-white {
+  background-color: rgba(255, 250, 246, 0.82) !important;
+  background-image: linear-gradient(
+    145deg,
+    rgba(255, 252, 249, 0.88) 0%,
+    rgba(255, 239, 227, 0.68) 52%,
+    rgba(250, 229, 237, 0.68) 100%
+  );
+  backdrop-filter: blur(12px);
+  border-color: rgba(249, 115, 22, 0.22);
+}
+
+html.dark .dark\:bg-nia-surface-dark {
+  background-color: rgba(27, 29, 36, 0.82) !important;
+  background-image: linear-gradient(
+    145deg,
+    rgba(27, 29, 36, 0.90) 0%,
+    rgba(56, 22, 38, 0.58) 54%,
+    rgba(52, 29, 19, 0.56) 100%
+  );
+  backdrop-filter: blur(12px);
+}
+
+.nia-glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 249, 244, 0.88) 0%,
+    rgba(254, 235, 220, 0.76) 50%,
+    rgba(249, 224, 234, 0.78) 100%
+  );
+  backdrop-filter: blur(16px);
+}
+
+html.dark .nia-glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(27, 29, 36, 0.92) 0%,
+    rgba(64, 22, 41, 0.76) 52%,
+    rgba(58, 30, 17, 0.76) 100%
+  );
+  backdrop-filter: blur(16px);
+}
+
+.nia-ambient-grid {
+  background-image:
+    linear-gradient(to right, rgba(249, 115, 22, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(127, 29, 63, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.nia-stroke-watermark {
+  color: transparent;
+  -webkit-text-stroke: 2px rgba(249, 115, 22, 0.18);
+  user-select: none;
+  pointer-events: none;
+}
+
+html.dark .nia-stroke-watermark {
+  -webkit-text-stroke: 2px rgba(249, 115, 22, 0.22);
+}
+
+/* ============================================================================
+   A. GLITCH DYNAMIQUE DE MARQUE NIA-MIND (Subtil, Orange #F97316 & Bordeaux #7F1D3F)
+   Ne jamais appliquer aux questionnaires, résultats de bien-être, messages ou alertes.
+   ============================================================================ */
+.nia-glitch {
+  position: relative;
+  display: inline-block;
+}
+
+.nia-glitch::before,
+.nia-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.nia-glitch::before {
+  color: var(--nia-orange);
+  z-index: -1;
+}
+
+.nia-glitch::after {
+  color: var(--nia-bordeaux);
+  z-index: -2;
+}
+
+.nia-glitch.is-glitching::before,
+.nia-glitch:hover::before {
+  opacity: 0.78;
+  animation: nia-glitch-shift-orange 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.nia-glitch.is-glitching::after,
+.nia-glitch:hover::after {
+  opacity: 0.78;
+  animation: nia-glitch-shift-bordeaux 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes nia-glitch-shift-orange {
+  0% {
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+  20% {
+    transform: translate(-2px, 1px);
+    clip-path: inset(12% 0 58% 0);
+  }
+  45% {
+    transform: translate(2px, -1px);
+    clip-path: inset(62% 0 14% 0);
+  }
+  70% {
+    transform: translate(-1.5px, 0.5px);
+    clip-path: inset(35% 0 40% 0);
+  }
+  100% {
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes nia-glitch-shift-bordeaux {
+  0% {
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+  25% {
+    transform: translate(2px, -1px);
+    clip-path: inset(54% 0 18% 0);
+  }
+  55% {
+    transform: translate(-2px, 1px);
+    clip-path: inset(18% 0 55% 0);
+  }
+  80% {
+    transform: translate(1.5px, -0.5px);
+    clip-path: inset(42% 0 30% 0);
+  }
+  100% {
+    transform: translate(0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ============================================================================
+   B. BANNIÈRE HORIZONTALE DÉFILANTE, TAGS FLOTTANTS & STYLE TACTILE MAMAORA
+   ============================================================================ */
+@keyframes nia-marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-nia-marquee {
+  display: flex;
+  width: max-content;
+  animation: nia-marquee 26s linear infinite;
+}
+
+.animate-nia-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes nia-float-slow {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) scale(1.03);
+  }
+}
+
+.animate-nia-float {
+  animation: nia-float-slow 8s ease-in-out infinite;
+}
+
+@keyframes nia-float-tag-kf {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(-1deg);
+  }
+  33% {
+    transform: translate3d(12px, -14px, 0) rotate(1.5deg);
+  }
+  66% {
+    transform: translate3d(-10px, 8px, 0) rotate(-1.5deg);
+  }
+}
+
+.animate-nia-float-tag {
+  animation: nia-float-tag-kf 16s ease-in-out infinite;
+}
+
+@keyframes nia-blob-drift-kf {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(35px, -28px, 0) scale(1.08);
+  }
+}
+
+.animate-nia-blob-drift {
+  animation: nia-blob-drift-kf 14s ease-in-out infinite;
+}
+
+.animate-nia-blob-drift-reverse {
+  animation: nia-blob-drift-kf 17s ease-in-out infinite reverse;
+}
+
+@keyframes nia-morph-kf {
+  0%, 100% {
+    border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
+    transform: rotate(0deg);
+  }
+  50% {
+    border-radius: 62% 38% 37% 63% / 56% 59% 41% 44%;
+    transform: rotate(25deg);
+  }
+}
+
+.animate-nia-morph {
+  animation: nia-morph-kf 12s ease-in-out infinite;
+}
+
+.animate-nia-morph-slow {
+  animation: nia-morph-kf 18s ease-in-out infinite reverse;
+}
+
+@keyframes nia-slide-in-kf {
+  0% {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-nia-slide-in {
+  animation: nia-slide-in-kf 0.32s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+/* Boutons et options tactiles inspirés de MAMAORA adaptés à Orange & Bordeaux */
+.nia-tactile-card {
+  transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.2, 1), box-shadow 0.22s ease;
+  box-shadow: 0 6px 0 rgba(127, 29, 63, 0.18);
+}
+
+.nia-tactile-card:hover {
+  transform: translateY(-3px) rotate(-0.6deg);
+  box-shadow: 0 10px 0 rgba(249, 115, 22, 0.28);
+}
+
+.nia-tactile-opt {
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.2s ease;
+  box-shadow: 0 4px 0 rgba(127, 29, 63, 0.25);
+}
+
+.nia-tactile-opt:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 6px 0 rgba(249, 115, 22, 0.45);
+}
+
+@keyframes nia-modal-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-nia-modal {
+  animation: nia-modal-enter 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes nia-page-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-nia-page {
+  animation: nia-page-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ============================================================================
+   C. RESPECT DE PREFERS-REDUCED-MOTION & ACCESSIBILITÉ MOBILE
+   ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .nia-glitch::before,
+  .nia-glitch::after {
+    display: none !important;
+  }
+}
+
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+html.reduce-motion .nia-glitch::before,
+html.reduce-motion .nia-glitch::after {
+  display: none !important;
+}
