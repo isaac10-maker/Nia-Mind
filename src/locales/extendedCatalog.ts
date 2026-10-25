@@ -16,6 +16,62 @@ export const EXTENDED_MULTILINGUAL_ENTRIES: FiveWayEntry[] = [
   // 1. LAYOUTS, BARRE SUPÉRIEURE, FOND AMBIANT & COMPOSANTS UI
   // ============================================================================
   [
+    'Conseils & Motivation du Jour',
+    'Daily Advice & Motivation',
+    'Consejos y Motivación del Día',
+    'Tagesimpulse & Motivation',
+    '今日建议与激励',
+  ],
+  [
+    'Assistance & Réflexion • 1/3',
+    'Assistance & Reflection • 1/3',
+    'Asistencia y Reflexión • 1/3',
+    'Assistenz & Reflexion • 1/3',
+    'AI助手与自省 • 1/3',
+  ],
+  [
+    'Démarrez votre réflexion sincère : déposez ce que vous ressentez sans filtre ni jugement dans une bulle 100 % privée.',
+    'Start your sincere reflection: express what you feel without filter or judgment inside a 100% private space.',
+    'Inicia tu reflexión sincera: expresa lo que sientes sin filtros ni juicios en un espacio 100 % privado.',
+    'Starte deine ehrliche Reflexion: Drücke in einem 100 % privaten Raum ungefiltert und urteilsfrei aus, was du fühlst.',
+    '开启真诚自省：在 100% 私密的空间里，毫无顾虑、不受评判地倾诉你的感受。',
+  ],
+  [
+    'Assistance & Réflexion • 2/3',
+    'Assistance & Reflection • 2/3',
+    'Asistencia y Reflexión • 2/3',
+    'Assistenz & Reflexion • 2/3',
+    'AI助手与自省 • 2/3',
+  ],
+  [
+    'L’assistant vous aide à mettre des mots sur votre fatigue, votre stress ou vos décisions grâce à des questions ouvertes.',
+    'The assistant helps you put words on your fatigue, stress, or decisions through open questions.',
+    'El asistente te ayuda a poner en palabras tu cansancio, tu estrés o tus decisiones mediante preguntas abiertas.',
+    'Der Assistent hilft dir durch offene Fragen, deine Erschöpfung, deinen Stress oder deine Entscheidungen in Worte zu fassen.',
+    '助手通过开放式提问，帮助你用语言梳理疲惫、压力或当下的抉择。',
+  ],
+  [
+    'Assistance & Réflexion • 3/3',
+    'Assistance & Reflection • 3/3',
+    'Asistencia y Reflexión • 3/3',
+    'Assistenz & Reflexion • 3/3',
+    'AI助手与自省 • 3/3',
+  ],
+  [
+    'Passez de l’IA à l’Écoute Humaine (Admin) en un clic ou consultez les numéros d’aide vérifiés à tout moment.',
+    'Switch from AI to Human Listening (Admin) in one click or view verified help numbers at any time.',
+    'Pasa de la IA a la Escucha Humana (Admin) en un clic o consulta los números de ayuda verificados en cualquier momento.',
+    'Wechsle mit einem Klick von der KI zum menschlichen Zuhören (Admin) oder sieh jederzeit geprüfte Hilfsnummern ein.',
+    '一键从 AI 切换至人工倾听（管理员），或随时查看已核实的援助热线。',
+  ],
+  [
+    'Afficher l’information suivante (Assistance & Réflexion)',
+    'Show next info slide (Assistance & Reflection)',
+    'Mostrar siguiente información (Asistencia y Reflexión)',
+    'Nächste Information anzeigen (Assistenz & Reflexion)',
+    '查看下一条提示（AI助手与自省）',
+  ],
+  [
     'Superadmin • Accès Intégral',
     'Superadmin • Full Access',
     'Superadmin • Acceso Integral',

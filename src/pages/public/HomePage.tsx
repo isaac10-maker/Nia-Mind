@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
@@ -9,15 +9,31 @@ import {
   HeartHandshake,
   Lock,
   MessageSquareHeart,
-  ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { GlitchText } from '../../components/ui/GlitchText';
 import { MarqueeBanner } from '../../components/ui/MarqueeBanner';
 import { ScrollReveal } from '../../components/ui/ScrollReveal';
-import { InlineSlidingGuideBanner } from '../../components/ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
-import { OFFICIAL_SLOGAN, STORIES_SIGNATURE } from '../../lib/securityEngine';
+import { STORIES_SIGNATURE } from '../../lib/securityEngine';
+
+const SYMBIOSE_AND_ASSISTANT_LOOP_SLIDES = [
+  {
+    badge: 'Symbiose Écoute & Clarté',
+    text: '« Déposer le masque social pour retrouver sa vraie voix intérieure. »',
+  },
+  {
+    badge: 'Assistance & Réflexion • 1/3',
+    text: 'Démarrez votre réflexion sincère : déposez ce que vous ressentez sans filtre ni jugement dans une bulle 100 % privée.',
+  },
+  {
+    badge: 'Assistance & Réflexion • 2/3',
+    text: 'L’assistant vous aide à mettre des mots sur votre fatigue, votre stress ou vos décisions grâce à des questions ouvertes.',
+  },
+  {
+    badge: 'Assistance & Réflexion • 3/3',
+    text: 'Passez de l’IA à l’Écoute Humaine (Admin) en un clic ou consultez les numéros d’aide vérifiés à tout moment.',
+  },
+];
 
 const SIX_PILLAR_CARDS = [
   {
@@ -120,7 +136,21 @@ const FIVE_AMBIANCES = [
 ];
 
 export const HomePage: React.FC = () => {
-  const { currentUser, publicStories, dailyTips, openDailyTipModal, openConsentModal } = useApp();
+  const { currentUser, publicStories, dailyTips, openConsentModal } = useApp();
+  const [activeSymbioseIdx, setActiveSymbioseIdx] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveSymbioseIdx(
+        (prev) => (prev + 1) % SYMBIOSE_AND_ASSISTANT_LOOP_SLIDES.length
+      );
+    }, 4800);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const currentSymbioseSlide =
+    SYMBIOSE_AND_ASSISTANT_LOOP_SLIDES[activeSymbioseIdx] ||
+    SYMBIOSE_AND_ASSISTANT_LOOP_SLIDES[0];
 
   const resolveToolLink = (target: string) => {
     if (target.startsWith('/espace') && !currentUser) {
@@ -130,12 +160,12 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-0">
+    <div className="space-y-0 overflow-x-hidden">
       {/* ====================================================================
-          SECTION PRINCIPALE (HERO) — Symbiose Orange & Bordeaux, Glitch & Arches
+          SECTION PRINCIPALE (HERO) — Mise en page équilibrée Mobile / Tablette / PC
           ==================================================================== */}
-      <section className="relative overflow-hidden pt-8 pb-16 sm:pt-14 sm:pb-22">
-        {/* Filigrane géant en contour inspiré de MAMAORA */}
+      <section className="relative overflow-hidden pt-6 pb-12 sm:pt-12 sm:pb-16">
+        {/* Filigrane géant en contour */}
         <div
           aria-hidden="true"
           className="nia-stroke-watermark hidden lg:block absolute right-4 -bottom-10 text-[11rem] font-black tracking-tighter leading-none opacity-60"
@@ -143,35 +173,26 @@ export const HomePage: React.FC = () => {
           VRAI
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative space-y-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            {/* Colonne Éditoriale Principale */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full nia-glass-card border-2 border-nia-orange/40 shadow-sm">
-                <span className="w-2.5 h-2.5 rounded-full bg-nia-orange animate-ping" />
-                <GlitchText
-                  text={`Nia-Mind — « ${OFFICIAL_SLOGAN} »`}
-                  className="text-xs sm:text-sm font-extrabold tracking-wide text-nia-bordeaux dark:text-amber-200"
-                  occasionalIntervalMs={9000}
-                />
-              </div>
-
-              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-nia-gray-dark dark:text-white leading-[1.04]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+            {/* Colonne Éditoriale Principale (la barre du slogan est désormais sous le logo dans le header) */}
+            <div className="lg:col-span-7 space-y-5 sm:space-y-6">
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-nia-gray-dark dark:text-white leading-[1.06]">
                 <span className="block">Tu n’es pas seul(e)</span>
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-nia-orange via-nia-orange-deep to-nia-bordeaux">
                   <GlitchText text="à être seul(e)." occasionalIntervalMs={11000} />
                 </span>
-                <span className="block text-2xl sm:text-4xl mt-2 text-nia-bordeaux dark:text-amber-200">
+                <span className="block text-xl sm:text-3xl lg:text-4xl mt-2 text-nia-bordeaux dark:text-amber-200">
                   Ici, tu peux déposer le masque.
                 </span>
               </h1>
 
-              <p className="text-base sm:text-xl text-nia-gray-dark/90 dark:text-gray-200 max-w-2xl leading-relaxed font-medium">
+              <p className="text-sm sm:text-lg lg:text-xl text-nia-gray-dark/90 dark:text-gray-200 max-w-2xl leading-relaxed font-medium">
                 Un espace chaleureux d’écoute, de franchise et de réflexion personnelle pour mettre des mots sur ce que tu traverses, écrire librement et avancer sans jouer de rôle.
               </p>
 
-              {/* Tags thématiques flottants cliquables */}
-              <div className="flex flex-wrap gap-2 pt-1">
+              {/* 5 repères thématiques disposés proprement sur Mobile, Tablette et PC */}
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 pt-1">
                 {[
                   '« Tu n’es pas seul(e) »',
                   'Parler sans jugement',
@@ -181,7 +202,9 @@ export const HomePage: React.FC = () => {
                 ].map((tag, i) => (
                   <span
                     key={tag}
-                    className={`px-3 py-1 rounded-full text-xs font-extrabold border backdrop-blur-sm ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-extrabold border backdrop-blur-sm text-center sm:text-left ${
+                      i === 4 ? 'col-span-2 sm:col-span-1' : ''
+                    } ${
                       i % 2 === 0
                         ? 'bg-nia-orange/15 border-nia-orange/40 text-nia-orange-deep dark:text-orange-300'
                         : 'bg-nia-bordeaux/15 border-nia-bordeaux/40 text-nia-bordeaux dark:text-rose-200'
@@ -192,131 +215,148 @@ export const HomePage: React.FC = () => {
                 ))}
               </div>
 
-              <div className="pt-3 flex flex-wrap items-center gap-4">
+              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                 <Link
                   to={resolveToolLink('/espace/assistant')}
-                  className="nia-tactile-card inline-flex items-center gap-2.5 px-7 py-4 rounded-full bg-gradient-to-r from-nia-orange via-nia-orange-deep to-nia-bordeaux text-white font-extrabold text-base shadow-lg"
+                  className="nia-tactile-card inline-flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full bg-gradient-to-r from-nia-orange via-nia-orange-deep to-nia-bordeaux text-white font-extrabold text-sm sm:text-base shadow-lg"
                 >
                   <span>
                     {currentUser ? 'Parler à l’Assistant Nia-Mind' : 'Commencer à m’exprimer'}
                   </span>
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-5 h-5 shrink-0" />
                 </Link>
                 <a
                   href="#cinq-ambiances"
-                  className="inline-flex items-center gap-2 px-6 py-4 rounded-full nia-glass-card border-2 border-nia-bordeaux/35 hover:border-nia-orange text-nia-gray-dark dark:text-white font-extrabold text-base transition-all"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 rounded-full nia-glass-card border-2 border-nia-bordeaux/35 hover:border-nia-orange text-nia-gray-dark dark:text-white font-extrabold text-sm sm:text-base transition-all"
                 >
                   <span>Découvrir les 5 ambiances</span>
                 </a>
               </div>
-
-              <div className="pt-3 flex flex-wrap items-center gap-5 text-xs font-bold text-nia-gray-dark dark:text-gray-300">
-                <span className="inline-flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-nia-orange" />
-                  Écoute bienveillante & sans jugement
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Lock className="w-4 h-4 text-nia-bordeaux dark:text-amber-300" />
-                  Confidentialité totale de tes écrits
-                </span>
-                <button
-                  type="button"
-                  onClick={openDailyTipModal}
-                  className="inline-flex items-center gap-1.5 text-nia-orange-deep dark:text-nia-orange hover:underline underline-offset-4 font-extrabold"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Ouvrir le conseil du jour
-                </button>
-              </div>
             </div>
 
-            {/* Colonne Visuelle Dynamique : Illustration PNG « Sans le masque » + Logo NiaMind + 5 Arches */}
-            <div className="lg:col-span-5">
-              <div className="relative rounded-3xl nia-glass-card border-2 border-nia-orange/35 dark:border-nia-border-dark p-5 sm:p-7 shadow-2xl overflow-hidden space-y-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
+            {/* Colonne Visuelle Dynamique : Charte « Parole libre & sincère » + Bouton (?) + Défilement en boucle Assistance & Réflexion + 5 Points */}
+            <div className="lg:col-span-5 w-full">
+              <div className="relative rounded-3xl nia-glass-card border-2 border-nia-orange/35 dark:border-nia-border-dark p-4 sm:p-6 shadow-2xl overflow-hidden space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <img
                       src="/images/nia-mind-logo.png"
                       alt="Logo Nia-Mind"
-                      className="w-8 h-8 rounded-xl object-cover ring-2 ring-nia-orange/50"
+                      className="w-8 h-8 rounded-xl object-cover ring-2 ring-nia-orange/50 shrink-0"
                     />
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-nia-bordeaux dark:text-amber-300">
+                    <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-nia-bordeaux dark:text-amber-300 truncate">
                       Écouter • Comprendre • Avancer
                     </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-700 dark:text-sky-300 text-[11px] font-extrabold">
-                    Parole libre & sincère
-                  </span>
+
+                  {/* Badge "Parole libre & sincère" conjoint avec le bouton (?) des infos */}
+                  <div className="inline-flex items-center gap-1.5 shrink-0">
+                    <span className="px-2.5 py-1 rounded-full bg-sky-500/15 text-sky-700 dark:text-sky-300 text-[11px] font-extrabold">
+                      Parole libre & sincère
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveSymbioseIdx(
+                          (prev) => (prev + 1) % SYMBIOSE_AND_ASSISTANT_LOOP_SLIDES.length
+                        )
+                      }
+                      title="Afficher l’information suivante (Assistance & Réflexion)"
+                      aria-label="Afficher l’information suivante (Assistance & Réflexion)"
+                      className="w-6 h-6 rounded-full bg-gradient-to-br from-nia-orange to-nia-bordeaux text-white text-xs font-black flex items-center justify-center shadow-sm hover:scale-105 transition-transform"
+                    >
+                      ?
+                    </button>
+                  </div>
                 </div>
 
-                {/* Illustration PNG générée sur mesure : Déposer le masque */}
+                {/* Illustration PNG + Phrase d'accroche "Symbiose Écoute & Clarté" où défilent en boucle les infos de l'onglet Assistance & Réflexion */}
                 <div className="relative rounded-2xl overflow-hidden border-2 border-nia-orange/35 shadow-lg group">
                   <img
                     src="/images/hero-reflection.png"
                     alt="Illustration Nia-Mind : déposer le masque social avec sérénité"
                     className="w-full h-48 sm:h-52 object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent flex flex-col justify-end p-4 text-white">
-                    <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-300">
-                      Symbiose Écoute & Clarté
-                    </span>
-                    <p className="text-sm font-bold leading-snug">
-                      « Déposer le masque social pour retrouver sa vraie voix intérieure. »
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent flex flex-col justify-end p-4 text-white">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-widest text-amber-300">
+                        <span className="w-2 h-2 rounded-full bg-nia-orange animate-pulse" />
+                        {currentSymbioseSlide.badge}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {SYMBIOSE_AND_ASSISTANT_LOOP_SLIDES.map((s, idx) => (
+                          <button
+                            key={s.badge}
+                            type="button"
+                            onClick={() => setActiveSymbioseIdx(idx)}
+                            aria-label={s.badge}
+                            className={`h-1.5 rounded-full transition-all ${
+                              idx === activeSymbioseIdx
+                                ? 'w-4 bg-nia-orange'
+                                : 'w-1.5 bg-white/45 hover:bg-white/75'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <p
+                      key={activeSymbioseIdx}
+                      className="text-xs sm:text-sm font-bold leading-snug animate-nia-slide-in"
+                    >
+                      {currentSymbioseSlide.text}
                     </p>
                   </div>
                 </div>
 
-                {/* 5 Arches vivantes (Écoute, Franchise, Réflexion, Bien-être, Authenticité) */}
-                <div className="flex items-end justify-center gap-2 h-36 pt-2 px-1">
+                {/* Les 5 points (01 à 05) parfaitement adaptés sur Mobile, Tablette et PC sans inclinaison ni débordement */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
                   {[
                     {
                       label: 'Écoute',
-                      h: 'h-24',
                       bg: 'from-sky-500/90 to-nia-bordeaux/90 text-white',
                     },
                     {
                       label: 'Franchise',
-                      h: 'h-28',
                       bg: 'from-nia-bordeaux/90 to-nia-bordeaux-dark/95 text-amber-100',
                     },
                     {
                       label: 'Vérité',
-                      h: 'h-32',
                       bg: 'from-nia-orange via-nia-orange-deep to-nia-bordeaux text-white',
                     },
                     {
                       label: 'Apaisement',
-                      h: 'h-28',
                       bg: 'from-nia-bordeaux/85 to-sky-600/85 text-white',
                     },
                     {
                       label: 'Respect',
-                      h: 'h-24',
                       bg: 'from-nia-orange/85 to-nia-bordeaux/85 text-white',
                     },
                   ].map((arch, idx) => (
                     <div
                       key={arch.label}
-                      style={{ animationDelay: `${idx * 180}ms` }}
-                      className={`flex-1 ${arch.h} rounded-t-full bg-gradient-to-b ${arch.bg} p-2 flex flex-col items-center justify-between shadow-lg animate-nia-float border border-white/25`}
+                      className={`${
+                        idx === 4 ? 'col-span-2 sm:col-span-1' : ''
+                      } rounded-2xl sm:rounded-t-full sm:rounded-b-2xl bg-gradient-to-b ${
+                        arch.bg
+                      } px-2.5 py-3 sm:py-3.5 flex sm:flex-col items-center justify-center sm:justify-between gap-2 shadow-md border border-white/25`}
                     >
-                      <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-[11px] font-black mt-2">
+                      <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-[11px] font-black shrink-0">
                         0{idx + 1}
                       </div>
-                      <span className="text-[10px] sm:text-xs font-extrabold tracking-tight pb-3 text-center">
+                      <span className="text-xs font-extrabold tracking-tight text-center truncate">
                         {arch.label}
                       </span>
                     </div>
                   ))}
                 </div>
 
-                {/* Ticket incliné façon pass MAMAORA */}
-                <div className="mt-5 p-4 rounded-2xl bg-gradient-to-r from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep text-white shadow-lg transform -rotate-1">
-                  <div className="flex items-center justify-between text-[11px] font-extrabold uppercase tracking-widest text-amber-200">
+                {/* Carte Pass Sincérité parfaitement droite (sans inclinaison) */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep text-white shadow-lg">
+                  <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-amber-200">
                     <span>Pass Sincérité Nia-Mind</span>
                     <span>Accès Libre & Confidentiel</span>
                   </div>
-                  <p className="text-base sm:text-lg font-black mt-1">
+                  <p className="text-sm sm:text-base font-black mt-1">
                     « Ton histoire compte. Tes silences aussi. »
                   </p>
                   <p className="text-xs text-amber-100/90 mt-1">
@@ -330,9 +370,9 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* ====================================================================
-          BANNIÈRE HORIZONTALE DÉFILANTE INCLINÉE
+          BANNIÈRE HORIZONTALE DÉFILANTE (Alignée droite sans inclinaison)
           ==================================================================== */}
-      <div className="transform -rotate-1 my-2">
+      <div className="my-2">
         <MarqueeBanner />
       </div>
 

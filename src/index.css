@@ -371,7 +371,7 @@ html.dark .nia-stroke-watermark {
 }
 
 .nia-tactile-card:hover {
-  transform: translateY(-3px) rotate(-0.6deg);
+  transform: translateY(-3px);
   box-shadow: 0 10px 0 rgba(249, 115, 22, 0.28);
 }
 

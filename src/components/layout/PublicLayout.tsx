@@ -12,7 +12,12 @@ import {
 } from 'lucide-react';
 import { BrandLogo } from '../ui/BrandLogo';
 import { NeuralChipIcon } from '../ui/NeuralChipIcon';
-import { RoleSwitcherBar, SUPERADMIN_EMAIL } from './RoleSwitcherBar';
+import {
+  BanNoticeModal,
+  HeaderLangAndThemeControls,
+  SUPERADMIN_EMAIL,
+  TvAnnouncementTicker,
+} from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
@@ -45,19 +50,26 @@ export const PublicLayout: React.FC = () => {
   return (
     <div className="relative min-h-screen flex flex-col text-nia-gray-dark dark:text-nia-text-dark">
       <AmbientBackground />
-      <RoleSwitcherBar />
+      <BanNoticeModal />
 
-      {/* En-tête officiel 100 % opaque au défilement : aucune transparence parasite ("entrevisible") quand on descend la page */}
-      <header className="sticky top-0 z-50 bg-[#FFF8F3] dark:bg-[#14161D] border-b border-nia-orange/30 dark:border-nia-border-dark shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-18 py-2.5 flex items-center justify-between gap-4">
-          {/* Logo et titre "Nia-Mind" toujours nets (sans répéter le slogan dans la barre) */}
-          <div className="relative z-50 shrink-0">
-            <BrandLogo showSlogan={false} size="md" />
+      {/* En-tête Orange unifié en haut (100 % opaque au défilement) + Bandeau d'annonce TV juste en dessous */}
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-nia-orange-deep via-nia-orange to-nia-bordeaux text-white shadow-lg border-b border-white/15">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
+          {/* Gauche : Logo + Barre du Slogan juste en dessous + Sigles de traduction (FR, EN, ES, DE, ZH) conjoints avec Thème sombre */}
+          <div className="relative z-50 flex flex-col items-start shrink-0">
+            <BrandLogo variant="header-orange" showSlogan={true} size="md" />
+            <div
+              className={`transition-all duration-300 ${
+                isAuthRoute ? 'blur-[6px] opacity-25 pointer-events-none select-none' : ''
+              }`}
+            >
+              <HeaderLangAndThemeControls />
+            </div>
           </div>
 
-          {/* Navigation centrale : floutée lorsque la page de connexion ou d'inscription est ouverte */}
+          {/* Centre : Onglets de navigation dans le header orange (floutés si /connexion ou /inscription est ouvert) */}
           <nav
-            className={`hidden lg:flex items-center gap-1.5 transition-all duration-300 ${
+            className={`hidden lg:flex items-center gap-1 xl:gap-1.5 transition-all duration-300 ${
               isAuthRoute ? 'blur-[6px] opacity-25 pointer-events-none select-none' : ''
             }`}
             aria-label="Navigation principale"
@@ -68,10 +80,10 @@ export const PublicLayout: React.FC = () => {
                 to={item.to}
                 end={item.to === '/'}
                 className={({ isActive }) =>
-                  `px-4 py-2 rounded-full text-sm font-extrabold transition-all ${
+                  `px-3.5 py-2 rounded-full text-xs xl:text-sm font-extrabold transition-all whitespace-nowrap ${
                     isActive
-                      ? 'bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white shadow-sm'
-                      : 'text-nia-gray-dark dark:text-gray-200 hover:text-nia-orange dark:hover:text-nia-orange hover:bg-nia-orange/10'
+                      ? 'bg-white text-nia-bordeaux shadow-md'
+                      : 'text-white/95 hover:text-white hover:bg-white/15'
                   }`
                 }
               >
@@ -82,20 +94,31 @@ export const PublicLayout: React.FC = () => {
             {/* Onglet Assistance & Espace avec icône cerveau + puce clignotante bleu/vert */}
             <Link
               to={currentUser ? '/espace/assistant' : '/inscription?from=assistant'}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-extrabold bg-nia-bordeaux/12 dark:bg-nia-bordeaux/30 text-nia-bordeaux dark:text-amber-200 hover:bg-nia-bordeaux hover:text-white transition-all border border-nia-bordeaux/25 whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs xl:text-sm font-extrabold bg-black/25 hover:bg-black/40 text-white transition-all border border-white/25 whitespace-nowrap shadow-sm"
             >
               <NeuralChipIcon className="w-4 h-4 shrink-0" />
               <span>{tUi(currentLanguage, 'navAssistant')}</span>
             </Link>
           </nav>
 
-          {/* Bouton en haut à droite : toujours net (sur /connexion et /inscription, affiche uniquement le bouton principal à droite) */}
-          <div className="relative z-50 flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Droite aérée : uniquement le bouton avec le pseudo (+ Superadmin si autorisé), sans doublon */}
+          <div className="relative z-50 flex items-center gap-2 shrink-0">
+            {!isAuthRoute && isSuperAdmin && (
+              <Link
+                to="/admin/vue-ensemble"
+                className="hidden sm:inline-flex items-center gap-1 px-3 py-2 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 text-white text-xs font-extrabold shadow-sm transition-colors"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-300" />
+                <span>Superadmin</span>
+              </Link>
+            )}
+
             {currentUser ? (
               <Link
                 to="/espace/tableau-de-bord"
-                className="inline-flex items-center gap-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-xs sm:text-sm font-extrabold shadow-nia-soft transition-all max-w-[190px] sm:max-w-none truncate"
+                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-nia-bordeaux-dark/90 hover:bg-nia-bordeaux-dark border border-white/25 text-white text-xs sm:text-sm font-extrabold shadow-md transition-all max-w-[190px] sm:max-w-none truncate"
               >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
                 <span className="truncate">
                   {tUi(currentLanguage, 'mySpace')} (@{currentUser.publicPseudonym || currentUser.displayName})
                 </span>
@@ -104,7 +127,7 @@ export const PublicLayout: React.FC = () => {
             ) : isAuthRoute ? (
               <Link
                 to={isLoginRoute ? '/inscription' : '/connexion'}
-                className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-xs sm:text-sm font-extrabold shadow-nia-soft transition-all"
+                className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-nia-bordeaux-dark hover:bg-black/60 border border-white/25 text-white text-xs sm:text-sm font-extrabold shadow-md transition-all"
               >
                 <span>
                   {isLoginRoute ? tUi(currentLanguage, 'register') : tUi(currentLanguage, 'login')}
@@ -115,13 +138,13 @@ export const PublicLayout: React.FC = () => {
               <>
                 <Link
                   to="/connexion"
-                  className="hidden sm:inline-flex px-4 py-2 rounded-full text-sm font-extrabold text-nia-gray-dark dark:text-gray-200 hover:text-nia-orange border border-nia-orange/30 hover:border-nia-orange transition-colors"
+                  className="hidden sm:inline-flex px-3.5 py-2 rounded-full text-xs sm:text-sm font-extrabold text-white hover:bg-white/15 border border-white/30 transition-colors"
                 >
                   {tUi(currentLanguage, 'login')}
                 </Link>
                 <Link
                   to="/inscription"
-                  className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-xs sm:text-sm font-extrabold shadow-nia-soft transition-all"
+                  className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-nia-bordeaux-dark hover:bg-black/60 border border-white/25 text-white text-xs sm:text-sm font-extrabold shadow-md transition-all"
                 >
                   <span>{tUi(currentLanguage, 'register')}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -134,19 +157,23 @@ export const PublicLayout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen((v) => !v)}
-                className="lg:hidden p-2.5 rounded-2xl border border-nia-orange/35 dark:border-nia-border-dark text-nia-gray-dark dark:text-white hover:bg-nia-orange/15"
+                className="lg:hidden p-2 rounded-2xl border border-white/30 bg-black/20 text-white hover:bg-black/35"
                 aria-expanded={mobileMenuOpen}
                 aria-label="Ouvrir ou fermer le menu de navigation"
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             )}
           </div>
         </div>
 
+        {/* Bandeau d'annonce TV sous le nouveau header du logo :
+            "Conseils & Motivation du Jour" fixe dans le coin gauche + annonce défilant et disparaissant en dessous */}
+        <TvAnnouncementTicker blurred={isAuthRoute} />
+
         {/* Menu Mobile Compact et Accessible au toucher */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-nia-orange/25 dark:border-nia-border-dark nia-glass-card px-4 pt-3 pb-6 space-y-2 animate-nia-page">
+          <div className="lg:hidden border-t border-white/20 bg-nia-bordeaux-dark/95 backdrop-blur-md text-white px-4 pt-3 pb-6 space-y-2 animate-nia-page">
             {PUBLIC_NAV_ITEMS.map((item) => (
               <NavLink
                 key={item.to}
@@ -156,8 +183,8 @@ export const PublicLayout: React.FC = () => {
                 className={({ isActive }) =>
                   `block px-4 py-3 rounded-2xl text-base font-extrabold ${
                     isActive
-                      ? 'bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white'
-                      : 'text-nia-gray-dark dark:text-gray-200 hover:bg-nia-orange/15'
+                      ? 'bg-white text-nia-bordeaux'
+                      : 'text-white/90 hover:bg-white/15'
                   }`
                 }
               >
@@ -167,35 +194,38 @@ export const PublicLayout: React.FC = () => {
             <Link
               to={currentUser ? '/espace/assistant' : '/inscription?from=assistant'}
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-4 py-3 rounded-2xl text-base font-extrabold text-nia-bordeaux dark:text-amber-300 bg-nia-bordeaux/10"
+              className="flex items-center gap-2 px-4 py-3 rounded-2xl text-base font-extrabold text-amber-200 bg-black/30 border border-white/20"
             >
               <NeuralChipIcon className="w-5 h-5 shrink-0" />
               <span>{tUi(currentLanguage, 'navAssistant')}</span>
             </Link>
-            <div className="pt-3 border-t border-nia-orange/20 dark:border-nia-border-dark grid grid-cols-2 gap-3">
+            {isSuperAdmin && (
               <Link
-                to="/connexion"
+                to="/admin/vue-ensemble"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-center py-3 rounded-2xl border border-nia-orange/40 font-extrabold text-sm text-nia-gray-dark dark:text-white"
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl text-base font-extrabold text-amber-300 bg-black/40 border border-amber-300/30"
               >
-                Connexion
+                <Crown className="w-5 h-5 shrink-0" />
+                <span>Superadmin</span>
               </Link>
-              <Link
-                to="/inscription"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-center py-3 rounded-2xl bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white font-extrabold text-sm"
-              >
-                S’inscrire
-              </Link>
-            </div>
-            {currentUser && (
-              <Link
-                to="/espace/tableau-de-bord"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-center py-3 rounded-2xl bg-nia-bordeaux text-white font-extrabold text-sm"
-              >
-                Accéder à mon espace personnel ({currentUser.displayName})
-              </Link>
+            )}
+            {!currentUser && (
+              <div className="pt-3 border-t border-white/15 grid grid-cols-2 gap-3">
+                <Link
+                  to="/connexion"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-center py-3 rounded-2xl border border-white/30 font-extrabold text-sm text-white"
+                >
+                  Connexion
+                </Link>
+                <Link
+                  to="/inscription"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-center py-3 rounded-2xl bg-nia-orange text-white font-extrabold text-sm"
+                >
+                  S’inscrire
+                </Link>
+              </div>
             )}
           </div>
         )}
@@ -208,13 +238,13 @@ export const PublicLayout: React.FC = () => {
             {/* Arrière-plan du site flouté */}
             <div
               aria-hidden="true"
-              className="fixed inset-0 top-20 z-0 overflow-hidden pointer-events-none select-none filter blur-[11px] opacity-40 scale-[1.01]"
+              className="fixed inset-0 top-24 z-0 overflow-hidden pointer-events-none select-none filter blur-[11px] opacity-40 scale-[1.01]"
             >
               <HomePage />
             </div>
             <div
               aria-hidden="true"
-              className="fixed inset-0 top-20 z-10 bg-gradient-to-br from-[#FFF5EE]/55 via-[#FDF0F4]/60 to-[#57152D]/35 dark:from-[#111318]/70 dark:via-[#1F121B]/75 dark:to-black/75 backdrop-blur-md pointer-events-none"
+              className="fixed inset-0 top-24 z-10 bg-gradient-to-br from-[#FFF5EE]/55 via-[#FDF0F4]/60 to-[#57152D]/35 dark:from-[#111318]/70 dark:via-[#1F121B]/75 dark:to-black/75 backdrop-blur-md pointer-events-none"
             />
             {/* Fenêtre Connexion / Inscription au premier plan */}
             <div className="relative z-20">
@@ -226,8 +256,8 @@ export const PublicLayout: React.FC = () => {
         )}
       </main>
 
-      {/* Bulle flottante d'instructions ("?" fermé par défaut) */}
-      <FloatingInstructionPopup />
+      {/* Sur la page d'accueil (/), le bouton (?) et le défilement en boucle sont intégrés dans la carte "Parole libre & sincère" */}
+      {location.pathname !== '/' && <FloatingInstructionPopup />}
 
       {/* Pied de page complet Nia-Mind (flouté en arrière-plan si /connexion ou /inscription est ouvert) */}
       <footer

@@ -33,7 +33,7 @@ export const LANGUAGE_META: Record<
   en: { code: 'en', htmlLang: 'en', label: 'English', short: 'EN' },
   es: { code: 'es', htmlLang: 'es', label: 'Español', short: 'ES' },
   de: { code: 'de', htmlLang: 'de', label: 'Deutsch', short: 'DE' },
-  zh: { code: 'zh', htmlLang: 'zh-CN', label: '简体中文', short: '中文' },
+  zh: { code: 'zh', htmlLang: 'zh-CN', label: '简体中文', short: 'ZH' },
 };
 
 export interface UiTranslations {
