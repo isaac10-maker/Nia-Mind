@@ -1,3 +1,5 @@
+import { DEEP_GRAMMAR_RULES, EXACT_AND_REGEX_BANK } from './platformPhraseBank';
+
 export type SupportedLanguage = 'fr' | 'en' | 'es' | 'de' | 'zh';
 
 export const LANGUAGE_META: Record<
@@ -899,6 +901,226 @@ const VOCAB_PASS: Record<Exclude<SupportedLanguage, 'fr'>, Array<[RegExp, string
   ],
 };
 
+// Cache mémoire + localStorage par langue pour les traductions neuronales complètes
+const memoryTranslationCache: Record<Exclude<SupportedLanguage, 'fr'>, Map<string, string>> = {
+  en: new Map(),
+  es: new Map(),
+  de: new Map(),
+  zh: new Map(),
+};
+
+function loadLanguageCache(lang: Exclude<SupportedLanguage, 'fr'>): Map<string, string> {
+  const map = memoryTranslationCache[lang];
+  if (map.size > 0) return map;
+  try {
+    const raw = localStorage.getItem(`nia_neural_i18n_v3_${lang}`);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      for (const [k, v] of Object.entries(parsed)) {
+        map.set(k, v);
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return map;
+}
+
+export function getNeuralCachedTranslation(
+  sourceFr: string,
+  lang: SupportedLanguage
+): string | undefined {
+  if (lang === 'fr') return sourceFr;
+  const map = loadLanguageCache(lang);
+  return map.get(sourceFr.trim());
+}
+
+export function setNeuralCachedTranslation(
+  sourceFr: string,
+  lang: Exclude<SupportedLanguage, 'fr'>,
+  translated: string
+): void {
+  const key = sourceFr.trim();
+  if (!key || !translated) return;
+  const map = loadLanguageCache(lang);
+  map.set(key, translated);
+  try {
+    const obj: Record<string, string> = {};
+    let count = 0;
+    for (const [k, v] of map.entries()) {
+      obj[k] = v;
+      count++;
+      if (count > 800) break;
+    }
+    localStorage.setItem(`nia_neural_i18n_v3_${lang}`, JSON.stringify(obj));
+  } catch {
+    // ignore storage quota
+  }
+}
+
+/**
+ * Retrouve le texte français canonique si un composant React a déjà rendu une chaîne
+ * traduite via `tUi`, afin que le changement de langue fonctionne dans tous les sens.
+ */
+export function canonicalizeToFrench(text: string): string {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return text;
+  const frUi = UI_TRANSLATIONS.fr;
+  for (const lang of ['en', 'es', 'de', 'zh'] as const) {
+    const dict = UI_TRANSLATIONS[lang];
+    for (const key of Object.keys(frUi) as Array<keyof UiTranslations>) {
+      if (dict[key] === trimmed) {
+        return text.replace(trimmed, frUi[key]);
+      }
+    }
+  }
+  return text;
+}
+
+const COMPOSITIONAL_WORDS: Record<Exclude<SupportedLanguage, 'fr'>, Array<[RegExp, string]>> = {
+  en: [
+    [/\bDécouvrez\b/gi, 'Discover'],
+    [/\bExplorez\b/gi, 'Explore'],
+    [/\bChoisissez\b/gi, 'Choose'],
+    [/\bSélectionnez\b/gi, 'Select'],
+    [/\bIndiquez\b/gi, 'Indicate'],
+    [/\bCliquez sur\b/gi, 'Click on'],
+    [/\bcliquez sur\b/gi, 'click on'],
+    [/\b Connectez-vous\b/gi, ' Sign in'],
+    [/\bConnectez-vous\b/gi, 'Sign in'],
+    [/\bInscrivez-vous\b/gi, 'Sign up'],
+    [/\bPartagez\b/gi, 'Share'],
+    [/\bÉcrivez\b/gi, 'Write'],
+    [/\bLisez\b/gi, 'Read'],
+    [/\bVotre\b/g, 'Your'],
+    [/\bvotre\b/g, 'your'],
+    [/\bVos\b/g, 'Your'],
+    [/\bvos\b/g, 'your'],
+    [/\bNotre\b/g, 'Our'],
+    [/\bnotre\b/g, 'our'],
+    [/\bNos\b/g, 'Our'],
+    [/\bnos\b/g, 'our'],
+    [/\bMon\b/g, 'My'],
+    [/\bmon\b/g, 'my'],
+    [/\bMa\b/g, 'My'],
+    [/\bma\b/g, 'my'],
+    [/\bMes\b/g, 'My'],
+    [/\bmes\b/g, 'my'],
+    [/\bTon\b/g, 'Your'],
+    [/\bton\b/g, 'your'],
+    [/\bTa\b/g, 'Your'],
+    [/\bta\b/g, 'your'],
+    [/\bTes\b/g, 'Your'],
+    [/\btes\b/g, 'your'],
+    [/\bavec\b/gi, 'with'],
+    [/\bsans\b/gi, 'without'],
+    [/\bpour\b/gi, 'for'],
+    [/\bdans\b/gi, 'in'],
+    [/\bsur\b/gi, 'on'],
+    [/\bpar\b/gi, 'by'],
+    [/\bentre\b/gi, 'between'],
+    [/\bplus\b/gi, 'more'],
+    [/\bmoins\b/gi, 'less'],
+    [/\btous les\b/gi, 'all'],
+    [/\btoutes les\b/gi, 'all'],
+    [/\baujourd’hui\b/gi, 'today'],
+    [/\baujourd'hui\b/gi, 'today'],
+    [/\bmaintenant\b/gi, 'now'],
+    [/\bgratuitement\b/gi, 'for free'],
+    [/\bgratuit\b/gi, 'free'],
+    [/\banonyme\b/gi, 'anonymous'],
+    [/\bconfidentiel(le)?\b/gi, 'confidential'],
+    [/\bprivé(e)?\b/gi, 'private'],
+    [/\bsécurisé(e)?\b/gi, 'secure'],
+  ],
+  es: [
+    [/\bDécouvrez\b/gi, 'Descubre'],
+    [/\bExplorez\b/gi, 'Explora'],
+    [/\bChoisissez\b/gi, 'Elige'],
+    [/\bSélectionnez\b/gi, 'Selecciona'],
+    [/\bIndiquez\b/gi, 'Indica'],
+    [/\bCliquez sur\b/gi, 'Haz clic en'],
+    [/\bConnectez-vous\b/gi, 'Inicia sesión'],
+    [/\bInscrivez-vous\b/gi, 'Regístrate'],
+    [/\bPartagez\b/gi, 'Comparte'],
+    [/\bÉcrivez\b/gi, 'Escribe'],
+    [/\bLisez\b/gi, 'Lee'],
+    [/\bVotre\b/g, 'Tu'],
+    [/\bvotre\b/g, 'tu'],
+    [/\bVos\b/g, 'Tus'],
+    [/\bvos\b/g, 'tus'],
+    [/\bNotre\b/g, 'Nuestro'],
+    [/\bnotre\b/g, 'nuestro'],
+    [/\bNos\b/g, 'Nuestros'],
+    [/\bnos\b/g, 'nuestros'],
+    [/\bMon\b/g, 'Mi'],
+    [/\bmon\b/g, 'mi'],
+    [/\bMes\b/g, 'Mis'],
+    [/\bmes\b/g, 'mis'],
+    [/\bavec\b/gi, 'con'],
+    [/\bsans\b/gi, 'sin'],
+    [/\bpour\b/gi, 'para'],
+    [/\bdans\b/gi, 'en'],
+    [/\baujourd’hui\b/gi, 'hoy'],
+    [/\baujourd'hui\b/gi, 'hoy'],
+    [/\bmaintenant\b/gi, 'ahora'],
+    [/\banonyme\b/gi, 'anónimo'],
+    [/\bconfidentiel(le)?\b/gi, 'confidencial'],
+    [/\bprivé(e)?\b/gi, 'privado'],
+    [/\bsécurisé(e)?\b/gi, 'seguro'],
+  ],
+  de: [
+    [/\bDécouvrez\b/gi, 'Entdecke'],
+    [/\bExplorez\b/gi, 'Erkunde'],
+    [/\bChoisissez\b/gi, 'Wähle'],
+    [/\bSélectionnez\b/gi, 'Wähle'],
+    [/\bCliquez sur\b/gi, 'Klicke auf'],
+    [/\bConnectez-vous\b/gi, 'Melde dich an'],
+    [/\bInscrivez-vous\b/gi, 'Registriere dich'],
+    [/\bPartagez\b/gi, 'Teile'],
+    [/\bÉcrivez\b/gi, 'Schreibe'],
+    [/\bLisez\b/gi, 'Lies'],
+    [/\bVotre\b/g, 'Dein'],
+    [/\bvotre\b/g, 'dein'],
+    [/\bVos\b/g, 'Deine'],
+    [/\bvos\b/g, 'deine'],
+    [/\bMon\b/g, 'Mein'],
+    [/\bmon\b/g, 'mein'],
+    [/\bMes\b/g, 'Meine'],
+    [/\bmes\b/g, 'meine'],
+    [/\bavec\b/gi, 'mit'],
+    [/\bsans\b/gi, 'ohne'],
+    [/\bpour\b/gi, 'für'],
+    [/\bdans\b/gi, 'in'],
+    [/\baujourd’hui\b/gi, 'heute'],
+    [/\baujourd'hui\b/gi, 'heute'],
+    [/\bmaintenant\b/gi, 'jetzt'],
+    [/\banonyme\b/gi, 'anonym'],
+    [/\bconfidentiel(le)?\b/gi, 'vertraulich'],
+    [/\bprivé(e)?\b/gi, 'privat'],
+    [/\bsécurisé(e)?\b/gi, 'sicher'],
+  ],
+  zh: [
+    [/\bDécouvrez\b/gi, '探索'],
+    [/\bExplorez\b/gi, '浏览'],
+    [/\bChoisissez\b/gi, '选择'],
+    [/\bSélectionnez\b/gi, '选择'],
+    [/\bCliquez sur\b/gi, '点击'],
+    [/\bConnectez-vous\b/gi, '请登录'],
+    [/\bInscrivez-vous\b/gi, '请注册'],
+    [/\bPartagez\b/gi, '分享'],
+    [/\bÉcrivez\b/gi, '书写'],
+    [/\bLisez\b/gi, '阅读'],
+    [/\baujourd’hui\b/gi, '今天'],
+    [/\baujourd'hui\b/gi, '今天'],
+    [/\bmaintenant\b/gi, '现在'],
+    [/\banonyme\b/gi, '匿名'],
+    [/\bconfidentiel(le)?\b/gi, '私密'],
+    [/\bprivé(e)?\b/gi, '私人'],
+    [/\bsécurisé(e)?\b/gi, '安全'],
+  ],
+};
+
 /**
  * Traduit n'importe quel texte de la plateforme (UI, titres, boutons, conseils, résultats)
  * dans la langue choisie par l'utilisateur courant, sans affecter les autres utilisateurs.
@@ -907,17 +1129,26 @@ export function translatePlatformText(
   text: string,
   targetLang: SupportedLanguage
 ): string {
-  if (!text || targetLang === 'fr') return text;
-  const trimmed = text.trim();
-  if (!trimmed) return text;
+  if (!text) return text;
+  const canonicalFr = canonicalizeToFrench(text);
+  if (targetLang === 'fr') return canonicalFr;
 
-  const rules = PLATFORM_TRANSLATION_RULES[targetLang];
-  let result = text;
+  const trimmed = canonicalFr.trim();
+  if (!trimmed) return canonicalFr;
 
-  for (const [matcher, replacement] of rules) {
+  // 1. Vérifier d'abord le cache neuronal haute précision
+  const cachedNeural = getNeuralCachedTranslation(trimmed, targetLang);
+  if (cachedNeural) {
+    return canonicalFr.replace(trimmed, cachedNeural);
+  }
+
+  let result = canonicalFr;
+
+  // 2. Dictionnaire principal de la plateforme
+  for (const [matcher, replacement] of PLATFORM_TRANSLATION_RULES[targetLang]) {
     if (typeof matcher === 'string') {
       if (trimmed === matcher) {
-        return text.replace(trimmed, replacement);
+        return canonicalFr.replace(trimmed, replacement);
       }
       if (result.includes(matcher)) {
         result = result.split(matcher).join(replacement);
@@ -927,11 +1158,89 @@ export function translatePlatformText(
     }
   }
 
+  // 3. Banque exhaustive de tous les onglets, questionnaires, conseils, histoires et guides
+  for (const [matcher, replacement] of EXACT_AND_REGEX_BANK[targetLang]) {
+    if (typeof matcher === 'string') {
+      if (result.trim() === matcher) {
+        return canonicalFr.replace(trimmed, replacement);
+      }
+      if (result.includes(matcher)) {
+        result = result.split(matcher).join(replacement);
+      }
+    } else {
+      result = result.replace(matcher, replacement);
+    }
+  }
+
+  // 4. Règles grammaticales et structurelles des onglets
+  for (const [pattern, replacement] of DEEP_GRAMMAR_RULES[targetLang]) {
+    result = result.replace(pattern, replacement);
+  }
+
+  // 5. Passe de vocabulaire et d'expressions
   for (const [pattern, replacement] of VOCAB_PASS[targetLang]) {
     result = result.replace(pattern, replacement);
   }
 
+  // 6. Passe compositionnelle pour les phrases libres
+  for (const [pattern, replacement] of COMPOSITIONAL_WORDS[targetLang]) {
+    result = result.replace(pattern, replacement);
+  }
+
   return result;
+}
+
+const pendingNeuralRequests = new Map<string, Promise<string>>();
+
+/**
+ * Traduction neuronale asynchrone pour tout paragraphe, récit, conseil ou texte dynamique
+ * afin d'assurer une traduction 100 % totale sur tous les onglets pour l'utilisateur actif.
+ */
+export async function translateTextNeuralAsync(
+  sourceFr: string,
+  targetLang: SupportedLanguage
+): Promise<string> {
+  const clean = canonicalizeToFrench(sourceFr).trim();
+  if (!clean || targetLang === 'fr') return sourceFr;
+
+  const cached = getNeuralCachedTranslation(clean, targetLang);
+  if (cached) return cached;
+
+  const reqKey = `${targetLang}::${clean}`;
+  if (pendingNeuralRequests.has(reqKey)) {
+    return pendingNeuralRequests.get(reqKey)!;
+  }
+
+  const promise = (async () => {
+    try {
+      const tl = targetLang === 'zh' ? 'zh-CN' : targetLang;
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=fr&tl=${encodeURIComponent(
+        tl
+      )}&dt=t&q=${encodeURIComponent(clean)}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && Array.isArray(data[0])) {
+          const translated = data[0]
+            .map((segment: any) => (Array.isArray(segment) ? segment[0] : ''))
+            .join('')
+            .trim();
+          if (translated) {
+            setNeuralCachedTranslation(clean, targetLang, translated);
+            return translated;
+          }
+        }
+      }
+    } catch {
+      // Fallback hors-ligne vers le moteur synchrone complet
+    } finally {
+      pendingNeuralRequests.delete(reqKey);
+    }
+    return translatePlatformText(clean, targetLang);
+  })();
+
+  pendingNeuralRequests.set(reqKey, promise);
+  return promise;
 }
 
 /**
