@@ -67,7 +67,7 @@ export const PersonalLayout: React.FC = () => {
             to="/"
             className="px-2.5 py-1.5 rounded-full text-xs font-bold border border-nia-orange/35"
           >
-            Site public
+            Accueil
           </Link>
           <button
             type="button"
@@ -165,7 +165,7 @@ export const PersonalLayout: React.FC = () => {
               className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl text-xs font-bold text-nia-gray-mid dark:text-gray-300 hover:text-nia-orange transition-colors"
             >
               <Globe className="w-4 h-4" />
-              Retour au site public
+              Retour à l’accueil
             </Link>
             {isSuperAdmin && (
               <Link

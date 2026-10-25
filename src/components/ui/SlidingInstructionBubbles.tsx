@@ -124,7 +124,8 @@ export const FloatingInstructionPopup: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser, reducedMotion } = useApp();
 
-  const [dismissed, setDismissed] = useState(false);
+  // Fermé par défaut : l'utilisateur doit cliquer sur le bouton "?" pour le déplier
+  const [dismissed, setDismissed] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const slides: InstructionSlide[] = React.useMemo(() => {
@@ -167,11 +168,11 @@ export const FloatingInstructionPopup: React.FC = () => {
         <button
           type="button"
           onClick={() => setDismissed(false)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white text-xs font-extrabold shadow-lg hover:scale-105 transition-transform border border-white/25"
-          aria-label="Afficher les bulles d’instructions"
+          title="Guide & Instructions"
+          aria-label="Afficher le guide et les instructions (?)"
+          className="w-12 h-12 rounded-full inline-flex items-center justify-center bg-gradient-to-br from-nia-orange to-nia-bordeaux text-white text-xl font-black shadow-xl hover:scale-110 transition-transform border-2 border-white/40"
         >
-          <HelpCircle className="w-4 h-4" />
-          <span>Guide & Instructions des onglets</span>
+          <span aria-hidden="true">?</span>
         </button>
       </div>
     );

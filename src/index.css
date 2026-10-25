@@ -7,6 +7,7 @@
   --nia-orange-deep: #EA580C;
   --nia-bordeaux: #7F1D3F;
   --nia-bordeaux-dark: #57152D;
+  --nia-accent: #0EA5E9;
   --nia-gray-dark: #374151;
   --nia-gray-mid: #6B7280;
   --nia-gray-light: #E5E7EB;
@@ -22,6 +23,55 @@
   --surface-border: var(--nia-gray-light);
   --text-primary: var(--nia-gray-dark);
   --text-secondary: var(--nia-gray-mid);
+}
+
+/* Protection globale contre les clics/sélections de copie de texte sur le site */
+html,
+body,
+#root,
+#root *:not(input):not(textarea):not([contenteditable="true"]) {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Application dynamique des couleurs personnalisables par le SuperAdmin */
+.bg-nia-orange {
+  background-color: var(--nia-orange) !important;
+}
+.text-nia-orange {
+  color: var(--nia-orange) !important;
+}
+.border-nia-orange {
+  border-color: var(--nia-orange) !important;
+}
+.bg-nia-bordeaux {
+  background-color: var(--nia-bordeaux) !important;
+}
+.text-nia-bordeaux {
+  color: var(--nia-bordeaux) !important;
+}
+.from-nia-orange {
+  --tw-gradient-from: var(--nia-orange) var(--tw-gradient-from-position) !important;
+}
+.to-nia-bordeaux {
+  --tw-gradient-to: var(--nia-bordeaux) var(--tw-gradient-to-position) !important;
 }
 
 .dark {

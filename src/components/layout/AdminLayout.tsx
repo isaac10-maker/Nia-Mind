@@ -143,7 +143,7 @@ export const AdminLayout: React.FC = () => {
               className="flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-extrabold text-nia-gray-mid dark:text-gray-200 hover:text-nia-orange"
             >
               <Globe className="w-4 h-4" />
-              Retour au site public
+              Retour à l’accueil
             </Link>
           </div>
         </aside>

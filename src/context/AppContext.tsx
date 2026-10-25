@@ -12,6 +12,8 @@ import {
   PublicStoryView,
   QuestionnaireDefinition,
   QuestionnaireResponse,
+  SiteNotification,
+  SiteSettings,
   StoryRecord,
   StoryStatus,
   StressSleepEntry,
@@ -40,6 +42,7 @@ import {
   canAccessJournalEntry,
   canModifyUserRole,
   checkActionAntiSpam,
+  checkAuthSubmissionRateLimit,
   detectPentestOrSqlInjection,
   filterListeningRequestsForRole,
   filterUserScopedData,
@@ -47,6 +50,7 @@ import {
   getPublicSafeStories,
   sanitizeUserText,
   validateNoteAndWellnessInput,
+  validateRealEmailAddress,
   validateStoryPublicationEligibility,
   verifyProtectedLogin,
 } from '../lib/securityEngine';
@@ -80,6 +84,7 @@ interface AppContextValue {
   registerAccount: (params: {
     displayName: string;
     email: string;
+    password?: string;
     publicPseudonym: string;
     countryCode: UserProfile['countryCode'];
     acceptedTerms: boolean;
@@ -88,9 +93,44 @@ interface AppContextValue {
     interests?: string[];
     honeypot?: string;
   }) => { ok: boolean; error?: string };
+  requestGmailPushVerification: (email: string) => Promise<{
+    ok: boolean;
+    verificationCode?: string;
+    error?: string;
+  }>;
+  requestPasswordRecoveryPush: (email: string) => {
+    ok: boolean;
+    recoveryCode?: string;
+    error?: string;
+  };
+  resetForgottenPassword: (params: {
+    email: string;
+    recoveryCode: string;
+    newPassword: string;
+  }) => { ok: boolean; error?: string };
+  triggerSignupMotivationPush: () => Promise<void>;
   logout: () => void;
   updateCurrentUserProfile: (patch: Partial<UserProfile>) => { ok: boolean; error?: string };
   adminUpdateUserRole: (targetUserId: string, newRole: UserRole) => { ok: boolean; error?: string };
+
+  // SuperAdmin : Notifications Push, Couleurs dynamiques, Relais IA & Gouvernance
+  siteSettings: SiteSettings;
+  updateSiteSettings: (patch: Partial<SiteSettings>) => { ok: boolean; error?: string };
+  siteNotifications: SiteNotification[];
+  publishSiteNotification: (params: {
+    title: string;
+    message: string;
+    category: SiteNotification['category'];
+    actionUrl?: string;
+    generatedByAi?: boolean;
+  }) => { ok: boolean; error?: string };
+  toggleSiteNotification: (id: string) => void;
+  deleteSiteNotification: (id: string) => void;
+  generateAiDailyTipAndPush: () => { ok: boolean; tip?: DailyTip; error?: string };
+  forcePublishStoryBySuperAdmin: (
+    storyId: string,
+    proposedPublicContent?: string
+  ) => { ok: boolean; error?: string };
 
   // Données filtrées par RLS pour l'utilisateur courant
   userConversations: AssistantConversation[];
@@ -241,6 +281,32 @@ const CLEAN_PUBLIC_STORIES: StoryRecord[] = INITIAL_STORIES.filter(
   (s) => s.status === 'Publiée' && s.authorExplicitConsent
 );
 
+const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  primaryColor: '#F97316',
+  secondaryColor: '#7F1D3F',
+  accentColor: '#0EA5E9',
+  themePreset: 'Symbiose Nia-Mind (Orange & Bordeaux)',
+  aiAutopilotTipsEnabled: true,
+  strictRateLimitMax: 3,
+  strictRateLimitWindowSec: 15,
+  copyProtectionEnabled: true,
+  updatedAt: '2026-10-25T08:00:00.000Z',
+};
+
+const INITIAL_SITE_NOTIFICATIONS: SiteNotification[] = [
+  {
+    id: 'notif-daily-1',
+    title: 'Nouveau Conseil & Motivation du jour',
+    message:
+      'Prends 2 minutes aujourd’hui pour déposer ce qui te pèse sans te juger. Tu n’as pas besoin de tout résoudre ce soir pour mériter du repos.',
+    category: 'Conseil & Motivation',
+    actionUrl: '/conseils',
+    generatedByAi: true,
+    isActive: true,
+    createdAt: '2026-10-25T08:00:00.000Z',
+  },
+];
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
     try {
@@ -275,10 +341,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequestRecord[]>([]);
   const [sessions, setSessions] = useState<UserSessionInfo[]>(INITIAL_SESSIONS);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
+  const [siteNotifications, setSiteNotifications] = useState<SiteNotification[]>(
+    INITIAL_SITE_NOTIFICATIONS
+  );
+  const [userPasswords, setUserPasswords] = useState<Record<string, string>>({});
+  const [recoveryCodes, setRecoveryCodes] = useState<Record<string, string>>({});
 
   const [isDailyTipModalOpen, setIsDailyTipModalOpen] = useState(false);
   const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
+
+  // Synchronisation en direct des couleurs personnalisées par le SuperAdmin sur les variables CSS :root
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--nia-orange', siteSettings.primaryColor || '#F97316');
+    root.style.setProperty('--nia-bordeaux', siteSettings.secondaryColor || '#7F1D3F');
+    root.style.setProperty('--nia-accent', siteSettings.accentColor || '#0EA5E9');
+  }, [siteSettings.primaryColor, siteSettings.secondaryColor, siteSettings.accentColor]);
 
   // Synchronisation du thème avec la classe .dark sur <html>
   useEffect(() => {
@@ -384,6 +464,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (Array.isArray(parsed.moodEntries)) setMoodEntries(parsed.moodEntries);
         if (Array.isArray(parsed.stressSleepEntries)) setStressSleepEntries(parsed.stressSleepEntries);
         if (Array.isArray(parsed.listeningRequests)) setListeningRequests(parsed.listeningRequests);
+        if (parsed.siteSettings) {
+          setSiteSettings({ ...DEFAULT_SITE_SETTINGS, ...parsed.siteSettings });
+        }
+        if (Array.isArray(parsed.siteNotifications) && parsed.siteNotifications.length > 0) {
+          setSiteNotifications(parsed.siteNotifications);
+        }
+        if (parsed.userPasswords && typeof parsed.userPasswords === 'object') {
+          setUserPasswords(parsed.userPasswords);
+        }
       }
     } catch {
       // ignore
@@ -403,6 +492,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           moodEntries,
           stressSleepEntries,
           listeningRequests,
+          siteSettings,
+          siteNotifications,
+          userPasswords,
         })
       );
     } catch {
@@ -417,6 +509,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     moodEntries,
     stressSleepEntries,
     listeningRequests,
+    siteSettings,
+    siteNotifications,
+    userPasswords,
   ]);
 
   useEffect(() => {
@@ -501,6 +596,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loginWithEmail = (email: string, password?: string, honeypot?: string) => {
     const clean = email.trim().toLowerCase();
+
+    // 1. Limite stricte : 3 tentatives d'entrée d'identification par 15 secondes
+    const burstCheck = checkAuthSubmissionRateLimit(
+      'auth-submission',
+      siteSettings.strictRateLimitMax || 3,
+      (siteSettings.strictRateLimitWindowSec || 15) * 1000
+    );
+    if (!burstCheck.allowed) {
+      recordAudit(
+        'SECURITY_RATE_LIMIT_3_PER_15S',
+        'auth',
+        clean || 'unknown',
+        burstCheck.error || 'Limite 3 tentatives / 15s atteinte.'
+      );
+      return { ok: false, error: burstCheck.error };
+    }
+
     const loginCheck = verifyProtectedLogin({
       email: clean,
       registeredEmails: users.map((u) => u.email),
@@ -521,8 +633,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ok: false, error: loginCheck.error };
     }
 
-    if (password !== undefined && password.trim().length < 6) {
-      return { ok: false, error: 'Mot de passe invalide (minimum 6 caractères).' };
+    if (!password || password.trim().length < 6) {
+      return { ok: false, error: 'Mot de passe requis (minimum 6 caractères).' };
+    }
+
+    const savedPass = userPasswords[clean];
+    if (savedPass && savedPass !== password.trim()) {
+      recordAudit('AUTH_WRONG_PASSWORD', 'auth', clean, 'Mot de passe incorrect.');
+      return {
+        ok: false,
+        error: 'Mot de passe incorrect. Utilisez « Mot de passe oublié ? » si nécessaire.',
+      };
     }
 
     const existing = users.find((u) => u.email.toLowerCase() === clean);
@@ -534,13 +655,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return {
       ok: false,
-      error: 'Connexion refusée : seuls les membres inscrits peuvent se connecter.',
+      error: 'Connexion refusée : seuls les e-mails réels inscrits peuvent se connecter.',
     };
   };
 
   const registerAccount = (params: {
     displayName: string;
     email: string;
+    password?: string;
     publicPseudonym: string;
     countryCode: UserProfile['countryCode'];
     acceptedTerms: boolean;
@@ -553,12 +675,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recordAudit('SECURITY_HONEYPOT_REGISTER_BLOCKED', 'auth', 'bot', 'Tentative d’inscription robot bloquée.');
       return { ok: false, error: 'SÉCURITÉ ANTI-BOT : Requête automatisée bloquée.' };
     }
+
+    // Limite stricte : 3 tentatives d'entrée d'identification par 15 secondes
+    const burstCheck = checkAuthSubmissionRateLimit(
+      'auth-submission',
+      siteSettings.strictRateLimitMax || 3,
+      (siteSettings.strictRateLimitWindowSec || 15) * 1000
+    );
+    if (!burstCheck.allowed) {
+      recordAudit(
+        'SECURITY_RATE_LIMIT_3_PER_15S',
+        'auth',
+        params.email || 'unknown',
+        burstCheck.error || 'Limite 3 tentatives / 15s atteinte.'
+      );
+      return { ok: false, error: burstCheck.error };
+    }
+
     if (!params.acceptedTerms) {
       return {
         ok: false,
         error: 'Vous devez accepter la politique de confidentialité, les conditions d’utilisation et les cookies.',
       };
     }
+
+    if (params.password !== undefined && params.password.trim().length < 6) {
+      return {
+        ok: false,
+        error: 'Le mot de passe doit comporter au moins 6 caractères.',
+      };
+    }
+
     const payloadCheck = validateNoteAndWellnessInput({
       textFields: [params.displayName, params.email, params.publicPseudonym],
     });
@@ -566,13 +713,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       recordAudit('SECURITY_PENTEST_REGISTER_BLOCKED', 'auth', params.email, payloadCheck.error || 'Charge suspecte.');
       return { ok: false, error: payloadCheck.error };
     }
+
     const cleanEmail = params.email.trim().toLowerCase();
-    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-      return { ok: false, error: 'Veuillez renseigner une adresse e-mail valide.' };
+    const realEmailCheck = validateRealEmailAddress(cleanEmail);
+    if (!realEmailCheck.valid) {
+      recordAudit('SECURITY_FAKE_EMAIL_BLOCKED', 'auth', cleanEmail, realEmailCheck.error || 'Email non réel.');
+      return { ok: false, error: realEmailCheck.error };
     }
 
     // Si c'est l'e-mail du Superadmin (isaacamegan10@gmail.com), connexion directe au profil Superadmin
     if (cleanEmail === SUPERADMIN_PROFILE.email) {
+      if (params.password && params.password.trim().length >= 6) {
+        setUserPasswords((prev) => ({ ...prev, [cleanEmail]: params.password!.trim() }));
+      }
       setCurrentUserId(SUPERADMIN_PROFILE.id);
       recordAudit('SUPERADMIN_AUTH', 'user', SUPERADMIN_PROFILE.id, 'Connexion Superadmin vérifiée.');
       pushToast('Bienvenue Superadmin', 'Accès intégral activé sur Nia-Mind.', 'bordeaux');
@@ -619,11 +772,123 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       optionalWellnessInsightsConsent: params.optionalWellnessConsent,
       createdAt: new Date().toISOString(),
     };
+    if (params.password && params.password.trim().length >= 6) {
+      setUserPasswords((prev) => ({ ...prev, [cleanEmail]: params.password!.trim() }));
+    }
     setUsers((prev) => [...prev, newUser]);
     setCurrentUserId(newUser.id);
     recordAudit('USER_REGISTER', 'user', newUser.id, 'Création d’un nouveau compte membre.');
     pushToast('Compte créé', `Bienvenue dans ton espace sincère, ${newUser.displayName}.`, 'orange');
     return { ok: true };
+  };
+
+  const requestGmailPushVerification = async (email: string) => {
+    const clean = email.trim().toLowerCase();
+    const emailCheck = validateRealEmailAddress(clean);
+    if (!emailCheck.valid) {
+      return { ok: false, error: emailCheck.error };
+    }
+    if (!clean.endsWith('@gmail.com') && !clean.endsWith('@googlemail.com')) {
+      return {
+        ok: false,
+        error: 'Pour la vérification Push Gmail, veuillez saisir une adresse réelle se terminant par @gmail.com.',
+      };
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    try {
+      if (supabase) {
+        await supabase.functions.invoke('push-daily-motivation', {
+          body: { mode: 'gmail_push_verification', email: clean },
+        });
+      }
+    } catch {
+      // Edge function fallback local
+    }
+
+    pushToast(
+      'Notification Push Gmail envoyée',
+      `Vérification Push transmise à ${clean} (Code Push : ${code}). Validez la notification et votre mot de passe (6+ caractères).`,
+      'orange'
+    );
+    recordAudit('GMAIL_PUSH_VERIFICATION_SENT', 'auth', clean, 'Notification Push Gmail envoyée.');
+    return { ok: true, verificationCode: code };
+  };
+
+  const requestPasswordRecoveryPush = (email: string) => {
+    const clean = email.trim().toLowerCase();
+    const emailCheck = validateRealEmailAddress(clean);
+    if (!emailCheck.valid) {
+      return { ok: false, error: emailCheck.error };
+    }
+    const exists = users.some((u) => u.email.toLowerCase() === clean);
+    if (!exists) {
+      return {
+        ok: false,
+        error: 'Aucun compte inscrit trouvé avec cette adresse e-mail réelle.',
+      };
+    }
+    const recoveryCode = String(Math.floor(100000 + Math.random() * 900000));
+    setRecoveryCodes((prev) => ({ ...prev, [clean]: recoveryCode }));
+    pushToast(
+      'Récupération de mot de passe • Push envoyé',
+      `Un code Push de récupération (${recoveryCode}) a été envoyé à ${clean}.`,
+      'bordeaux'
+    );
+    recordAudit('PASSWORD_RECOVERY_REQUESTED', 'auth', clean, 'Demande de récupération de mot de passe.');
+    return { ok: true, recoveryCode };
+  };
+
+  const resetForgottenPassword = (params: {
+    email: string;
+    recoveryCode: string;
+    newPassword: string;
+  }) => {
+    const clean = params.email.trim().toLowerCase();
+    const expected = recoveryCodes[clean];
+    if (!expected || expected !== params.recoveryCode.trim()) {
+      return { ok: false, error: 'Code de vérification Push invalide ou expiré.' };
+    }
+    if (!params.newPassword || params.newPassword.trim().length < 6) {
+      return { ok: false, error: 'Le nouveau mot de passe doit contenir au moins 6 caractères.' };
+    }
+    setUserPasswords((prev) => ({ ...prev, [clean]: params.newPassword.trim() }));
+    setRecoveryCodes((prev) => {
+      const next = { ...prev };
+      delete next[clean];
+      return next;
+    });
+    recordAudit('PASSWORD_RESET_SUCCESS', 'auth', clean, 'Mot de passe réinitialisé avec succès.');
+    pushToast('Mot de passe mis à jour', 'Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.', 'orange');
+    return { ok: true };
+  };
+
+  const triggerSignupMotivationPush = async () => {
+    try {
+      let notifTitle = 'Nouveau Conseil & Motivation Nia-Mind';
+      let notifMessage =
+        featuredDailyTip?.summary ||
+        'Prends 2 minutes aujourd’hui pour déposer ce qui te pèse sans te juger.';
+
+      if (supabase) {
+        const { data } = await supabase.functions.invoke('push-daily-motivation', {
+          body: { mode: 'daily_motivation', aiFallback: siteSettings.aiAutopilotTipsEnabled },
+        });
+        if (data?.pushNotification) {
+          notifTitle = data.pushNotification.title || notifTitle;
+          notifMessage = data.pushNotification.message || notifMessage;
+        }
+      }
+
+      pushToast(notifTitle, notifMessage, 'orange');
+    } catch {
+      pushToast(
+        'Nouveau Conseil & Motivation du jour',
+        featuredDailyTip?.summary ||
+          'Tu n’as pas besoin de porter toutes les attentes du monde en même temps.',
+        'orange'
+      );
+    }
   };
 
   const logout = () => {
@@ -1555,6 +1820,216 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const openConsentModal = () => setIsConsentModalOpen(true);
   const closeConsentModal = () => setIsConsentModalOpen(false);
 
+  const isSuperAdminActor =
+    Boolean(currentUser) &&
+    currentUser?.role === 'admin' &&
+    currentUser?.email.toLowerCase() === SUPERADMIN_PROFILE.email;
+
+  const updateSiteSettings = (patch: Partial<SiteSettings>) => {
+    if (!isSuperAdminActor) {
+      return {
+        ok: false,
+        error: 'Accès refusé : seul le SuperAdmin unique (isaacamegan10@gmail.com) peut modifier la configuration globale du site.',
+      };
+    }
+    const next: SiteSettings = {
+      ...siteSettings,
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    setSiteSettings(next);
+    recordAudit(
+      'SUPERADMIN_SITE_SETTINGS_UPDATED',
+      'site_settings',
+      'global',
+      `Mise à jour des couleurs (${next.primaryColor} / ${next.secondaryColor}) et paramètres par le SuperAdmin.`
+    );
+    pushToast(
+      'Paramètres & Couleurs appliqués',
+      `Thème « ${next.themePreset} » (${next.primaryColor} / ${next.secondaryColor}) activé sur tout le site.`,
+      'bordeaux'
+    );
+    return { ok: true };
+  };
+
+  const publishSiteNotification = (params: {
+    title: string;
+    message: string;
+    category: SiteNotification['category'];
+    actionUrl?: string;
+    generatedByAi?: boolean;
+  }) => {
+    if (!isSuperAdminActor && !params.generatedByAi) {
+      return {
+        ok: false,
+        error: 'Seul le SuperAdmin ou le relais IA autorisé peut publier une notification sur le site.',
+      };
+    }
+    const check = validateNoteAndWellnessInput({
+      textFields: [params.title, params.message],
+    });
+    if (!check.valid) {
+      return { ok: false, error: check.error };
+    }
+    const created: SiteNotification = {
+      id: `notif-${Date.now()}`,
+      title: sanitizeUserText(params.title, 160),
+      message: sanitizeUserText(params.message, 600),
+      category: params.category,
+      actionUrl: params.actionUrl || '/conseils',
+      generatedByAi: Boolean(params.generatedByAi),
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+    setSiteNotifications((prev) => [created, ...prev]);
+    recordAudit(
+      params.generatedByAi ? 'AI_PUSH_NOTIFICATION_PUBLISHED' : 'SUPERADMIN_PUSH_NOTIFICATION_PUBLISHED',
+      'site_notification',
+      created.id,
+      `Publication de notification Push : ${created.title}`
+    );
+    pushToast(created.title, created.message, 'orange');
+    return { ok: true };
+  };
+
+  const toggleSiteNotification = (id: string) => {
+    if (!isSuperAdminActor) return;
+    setSiteNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isActive: !n.isActive } : n))
+    );
+  };
+
+  const deleteSiteNotification = (id: string) => {
+    if (!isSuperAdminActor) return;
+    setSiteNotifications((prev) => prev.filter((n) => n.id !== id));
+    recordAudit('SUPERADMIN_NOTIFICATION_DELETED', 'site_notification', id, 'Notification supprimée.');
+    pushToast('Notification supprimée', 'La notification a été retirée du site.', 'neutral');
+  };
+
+  const generateAiDailyTipAndPush = () => {
+    if (!isSuperAdminActor && !siteSettings.aiAutopilotTipsEnabled) {
+      return {
+        ok: false,
+        error: 'Le relais IA de publication est désactivé ou réservé au SuperAdmin.',
+      };
+    }
+    const aiCatalog: Array<Omit<DailyTip, 'id' | 'publishedAt'>> = [
+      {
+        title: 'Relâcher la pression de tout contrôler (Relais IA Nia-Mind)',
+        category: 'Bien-être',
+        summary:
+          'Quand le mental s’emballe, revenir à une seule action sincère à la fois apaise immédiatement la charge intérieure.',
+        content:
+          'Nous portons souvent la fatigue de dix batailles anticipées qui n’ont même pas encore eu lieu.\n\nAccorde-toi la permission de ne traiter qu’une seule étape aujourd’hui. Ce que tu ne peux pas porter ce soir a le droit d’attendre demain matin.',
+        reflectionQuestion:
+          'Quelle est la seule chose qui mérite vraiment ton énergie dans l’heure qui vient ?',
+        readingTimeMin: 2,
+        isFeaturedToday: true,
+      },
+      {
+        title: 'Dire non sans culpabiliser (Motivation du jour • IA)',
+        category: 'Authenticité',
+        summary:
+          'Poser une limite claire n’est pas un rejet des autres, c’est une marque de respect envers ton propre équilibre.',
+        content:
+          'Dire « oui » quand tout ton corps pense « non » crée une dette silencieuse envers toi-même.\n\nUne réponse courte, calme et honnête suffit : tu n’as pas besoin d’inventer d’excuse compliquée pour protéger ton temps de récupération.',
+        reflectionQuestion:
+          'Dans quelle situation récente aurais-tu aimé poser une limite plus sincère ?',
+        readingTimeMin: 3,
+        isFeaturedToday: true,
+      },
+      {
+        title: 'Transformer l’autocritique en écoute intérieure (Relais IA)',
+        category: 'Écoute',
+        summary:
+          'Parle-toi aujourd’hui avec la même patience que celle que tu offrirais à un ami proche qui traverse une période exigeante.',
+        content:
+          'Nous sommes souvent notre juge le plus sévère. Pourtant, la dureté envers soi-même bloque l’élan au lieu de le stimuler.\n\nRemplace le « j’aurais dû » par « voilà ce dont j’ai besoin maintenant pour avancer sereinement ».',
+        reflectionQuestion:
+          'Que dirais-tu à un ami cher qui vivrait exactement ta journée d’aujourd’hui ?',
+        readingTimeMin: 2,
+        isFeaturedToday: true,
+      },
+    ];
+    const picked = aiCatalog[Math.floor(Math.random() * aiCatalog.length)];
+    const nowDate = new Date().toISOString().slice(0, 10);
+    const createdTip: DailyTip = {
+      ...picked,
+      id: `tip-ai-${Date.now()}`,
+      publishedAt: nowDate,
+    };
+    setDailyTips((prev) => [
+      createdTip,
+      ...prev.map((t) => ({ ...t, isFeaturedToday: false })),
+    ]);
+    publishSiteNotification({
+      title: `Conseil & Motivation IA : ${createdTip.title}`,
+      message: createdTip.summary,
+      category: 'Conseil & Motivation',
+      actionUrl: '/conseils',
+      generatedByAi: true,
+    });
+    recordAudit(
+      'AI_DAILY_TIP_GENERATED',
+      'daily_tip',
+      createdTip.id,
+      'Conseil & Motivation du jour généré et publié par le relais IA.'
+    );
+    return { ok: true, tip: createdTip };
+  };
+
+  const forcePublishStoryBySuperAdmin = (storyId: string, proposedPublicContent?: string) => {
+    if (!isSuperAdminActor) {
+      return {
+        ok: false,
+        error: 'Seul le SuperAdmin unique (isaacamegan10@gmail.com) dispose de cette autorisation.',
+      };
+    }
+    const target = stories.find((s) => s.id === storyId);
+    if (!target) {
+      return { ok: false, error: 'Témoignage introuvable.' };
+    }
+    const now = new Date().toISOString();
+    const cleanText = proposedPublicContent
+      ? sanitizeUserText(proposedPublicContent)
+      : target.proposedPublicContent || target.originalContent;
+
+    setStories((prev) =>
+      prev.map((s) => {
+        if (s.id !== storyId) return s;
+        return {
+          ...s,
+          proposedPublicContent: cleanText,
+          authorExplicitConsent: true,
+          authorApprovedVersion: s.currentVersion,
+          authorConsentAt: s.authorConsentAt || now,
+          status: 'Publiée',
+          publishedAt: now,
+          updatedAt: now,
+          decisionHistory: [
+            ...s.decisionHistory,
+            {
+              id: `dh-${Date.now()}`,
+              timestamp: now,
+              actor: 'modération',
+              status: 'Publiée',
+              version: s.currentVersion,
+              note: 'Publication directe validée par le SuperAdmin (isaacamegan10@gmail.com).',
+            },
+          ],
+        };
+      })
+    );
+    recordAudit(
+      'SUPERADMIN_STORY_PUBLISHED',
+      'story',
+      storyId,
+      'Témoignage rendu public par le SuperAdmin.'
+    );
+    pushToast('Témoignage publié', 'Le témoignage est maintenant visible dans la bibliothèque publique.', 'orange');
+    return { ok: true };
+  };
+
   const value: AppContextValue = {
     theme,
     toggleTheme,
@@ -1567,9 +2042,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     switchDemoUser,
     loginWithEmail,
     registerAccount,
+    requestGmailPushVerification,
+    requestPasswordRecoveryPush,
+    resetForgottenPassword,
+    triggerSignupMotivationPush,
     logout,
     updateCurrentUserProfile,
     adminUpdateUserRole,
+    siteSettings,
+    updateSiteSettings,
+    siteNotifications,
+    publishSiteNotification,
+    toggleSiteNotification,
+    deleteSiteNotification,
+    generateAiDailyTipAndPush,
+    forcePublishStoryBySuperAdmin,
     userConversations,
     userMoodEntries,
     userStressSleepEntries,

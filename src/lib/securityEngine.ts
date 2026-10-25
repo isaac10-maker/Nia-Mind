@@ -147,11 +147,175 @@ export function checkActionAntiSpam(params: {
 }
 
 // ============================================================================
-// 3. PROTECTION DES CONNEXIONS : ANTI-BRUTE-FORCE, HONEYPOT & EMAILS INSCRITS SEULS
+// 3. PROTECTION DES CONNEXIONS : E-MAILS RÉELS SEULS & LIMITE 3 FOIS / 15 SECONDES
 // ============================================================================
 const LOGIN_MAX_FAILURES = 5;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const LOGIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes de blocage
+
+export const AUTH_RATE_LIMIT_MAX = 3;
+export const AUTH_RATE_LIMIT_WINDOW_MS = 15 * 1000; // 15 secondes
+
+interface AuthBurstBucket {
+  count: number;
+  resetAt: number;
+}
+
+const authBurstBuckets = new Map<string, AuthBurstBucket>();
+
+const BLOCKED_DISPOSABLE_OR_FAKE_DOMAINS = new Set([
+  'example.com',
+  'example.org',
+  'example.net',
+  'test.com',
+  'test.fr',
+  'test.org',
+  'yopmail.com',
+  'yopmail.fr',
+  'mailinator.com',
+  'tempmail.com',
+  'temp-mail.org',
+  '10minutemail.com',
+  'guerrillamail.com',
+  'trashmail.com',
+  'sharklasers.com',
+  'fake.com',
+  'fakemail.com',
+  'azerty.com',
+  'qwerty.com',
+  'aaa.com',
+  'bbb.com',
+  'localhost',
+  'invalid.com',
+  'none.com',
+]);
+
+const FAKE_LOCAL_PARTS = new Set([
+  'test',
+  'testing',
+  'fake',
+  'admin',
+  'root',
+  'azerty',
+  'qwerty',
+  '123456',
+  'abcdef',
+  'user',
+  'demo',
+  'anonymous',
+]);
+
+/**
+ * Vérifie qu'une adresse e-mail correspond à un e-mail réel (et bloque les domaines jetables/fictifs).
+ */
+export function validateRealEmailAddress(email: string): {
+  valid: boolean;
+  isGmail?: boolean;
+  error?: string;
+} {
+  const clean = (email || '').trim().toLowerCase();
+  if (!clean || clean.length < 6 || clean.length > 180) {
+    return { valid: false, error: 'Veuillez saisir une adresse e-mail réelle valide.' };
+  }
+
+  const probe = detectPentestOrSqlInjection(clean);
+  if (probe.malicious) {
+    return { valid: false, error: probe.reason };
+  }
+
+  const emailRegex = /^[a-z0-9._%+-]{2,64}@([a-z0-9-]+\.)+[a-z]{2,12}$/;
+  if (!emailRegex.test(clean)) {
+    return {
+      valid: false,
+      error: 'Format d’adresse e-mail invalide. Utilisez une adresse e-mail réelle (ex. prenom.nom@gmail.com).',
+    };
+  }
+
+  const [localPart, domain] = clean.split('@');
+  if (!localPart || !domain) {
+    return { valid: false, error: 'Adresse e-mail incomplète.' };
+  }
+
+  if (BLOCKED_DISPOSABLE_OR_FAKE_DOMAINS.has(domain)) {
+    return {
+      valid: false,
+      error: `RESTRICTION SÉCURITÉ : Le domaine « ${domain} » est reconnu comme jetable ou fictif. Seuls les e-mails réels sont autorisés.`,
+    };
+  }
+
+  if (FAKE_LOCAL_PARTS.has(localPart)) {
+    return {
+      valid: false,
+      error: `RESTRICTION SÉCURITÉ : L’identifiant « ${localPart}@... » semble fictif. Veuillez utiliser votre véritable adresse e-mail personnelle.`,
+    };
+  }
+
+  const domainParts = domain.split('.');
+  if (domainParts.some((p) => p.length < 2)) {
+    return {
+      valid: false,
+      error: 'Domaine e-mail non reconnu. Utilisez un fournisseur d’e-mail réel (Gmail, Outlook, Yahoo, etc.).',
+    };
+  }
+
+  const isGmail = domain === 'gmail.com' || domain === 'googlemail.com';
+  if (isGmail && localPart.replace(/\./g, '').length < 4) {
+    return {
+      valid: false,
+      error: 'Votre identifiant Gmail doit comporter un nom d’utilisateur réel valide.',
+    };
+  }
+
+  return { valid: true, isGmail };
+}
+
+/**
+ * Limite strictement le nombre de tentatives de connexion ou d'entrée d'identifiants à 3 fois / 15 secondes.
+ */
+export function checkAuthSubmissionRateLimit(
+  identifier: string,
+  maxAttempts: number = AUTH_RATE_LIMIT_MAX,
+  windowMs: number = AUTH_RATE_LIMIT_WINDOW_MS
+): {
+  allowed: boolean;
+  remainingAttempts: number;
+  retryAfterSec: number;
+  error?: string;
+} {
+  const key = (identifier || 'global-auth').trim().toLowerCase();
+  const now = Date.now();
+  let bucket = authBurstBuckets.get(key);
+
+  if (!bucket || bucket.resetAt <= now) {
+    bucket = { count: 0, resetAt: now + windowMs };
+    authBurstBuckets.set(key, bucket);
+  }
+
+  if (bucket.count >= maxAttempts) {
+    const retryAfterSec = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+    return {
+      allowed: false,
+      remainingAttempts: 0,
+      retryAfterSec,
+      error: `LIMITE DE SÉCURITÉ (3 essais / 15s) : Vous avez dépassé la limite d'entrées d'identification. Patientez ${retryAfterSec} seconde(s) avant de réessayer.`,
+    };
+  }
+
+  bucket.count += 1;
+  return {
+    allowed: true,
+    remainingAttempts: Math.max(0, maxAttempts - bucket.count),
+    retryAfterSec: 0,
+  };
+}
+
+export function resetAuthSubmissionRateLimit(identifier?: string): void {
+  if (identifier) {
+    authBurstBuckets.delete(identifier.trim().toLowerCase());
+  } else {
+    authBurstBuckets.clear();
+  }
+}
 
 export function verifyProtectedLogin(params: {
   email: string;
@@ -173,10 +337,11 @@ export function verifyProtectedLogin(params: {
   }
 
   const cleanEmail = (params.email || '').trim().toLowerCase();
-  if (!cleanEmail || cleanEmail.length > 180 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+  const realEmailCheck = validateRealEmailAddress(cleanEmail);
+  if (!realEmailCheck.valid) {
     return {
       allowed: false,
-      error: 'Format d’adresse e-mail invalide.',
+      error: realEmailCheck.error || 'Format d’adresse e-mail invalide.',
     };
   }
 

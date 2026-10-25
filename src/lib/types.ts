@@ -240,3 +240,27 @@ export interface AuditLogEntry {
   summary: string;
   createdAt: string;
 }
+
+export interface SiteNotification {
+  id: string;
+  title: string;
+  message: string;
+  category: 'Conseil & Motivation' | 'Annonce officielle' | 'Bien-être & Écoute' | 'Sécurité';
+  actionUrl: string;
+  generatedByAi: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface SiteSettings {
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  themePreset: string;
+  aiAutopilotTipsEnabled: boolean;
+  strictRateLimitMax: number;
+  strictRateLimitWindowSec: number;
+  copyProtectionEnabled: boolean;
+  updatedAt: string;
+}
+

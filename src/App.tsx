@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useApp } from './context/AppContext';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { PersonalLayout } from './components/layout/PersonalLayout';
 import { AdminLayout } from './components/layout/AdminLayout';
@@ -45,14 +45,54 @@ const ScrollToTopOnRoute: React.FC = () => {
   return null;
 };
 
+const CopyAndSelectionGuard: React.FC = () => {
+  const { siteSettings } = useApp();
+
+  useEffect(() => {
+    if (!siteSettings.copyProtectionEnabled) return;
+
+    const isEditableElement = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName;
+      return (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        target.isContentEditable ||
+        Boolean(target.closest('input, textarea, [contenteditable="true"]'))
+      );
+    };
+
+    const handleBlockCopyOrSelect = (e: Event) => {
+      if (!isEditableElement(e.target)) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('copy', handleBlockCopyOrSelect);
+    document.addEventListener('cut', handleBlockCopyOrSelect);
+    document.addEventListener('selectstart', handleBlockCopyOrSelect);
+    document.addEventListener('dragstart', handleBlockCopyOrSelect);
+
+    return () => {
+      document.removeEventListener('copy', handleBlockCopyOrSelect);
+      document.removeEventListener('cut', handleBlockCopyOrSelect);
+      document.removeEventListener('selectstart', handleBlockCopyOrSelect);
+      document.removeEventListener('dragstart', handleBlockCopyOrSelect);
+    };
+  }, [siteSettings.copyProtectionEnabled]);
+
+  return null;
+};
+
 export const App: React.FC = () => {
   return (
     <AppProvider>
+      <CopyAndSelectionGuard />
       <BrowserRouter>
         <ScrollToTopOnRoute />
         <GlobalModals />
         <Routes>
-          {/* 1. SITE PUBLIC (7 entrées officielles) */}
+          {/* 1. NAVIGATION PRINCIPALE */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/ressources" element={<ResourcesPage />} />

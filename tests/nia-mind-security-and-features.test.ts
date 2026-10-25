@@ -5,14 +5,17 @@ import {
   canAccessPrivateUserData,
   canModifyUserRole,
   checkActionAntiSpam,
+  checkAuthSubmissionRateLimit,
   detectPentestOrSqlInjection,
   filterListeningRequestsForRole,
   getPublicSafeStories,
   OFFICIAL_BRAND_NAME,
   OFFICIAL_SLOGAN,
+  resetAuthSubmissionRateLimit,
   sanitizeInternalRedirect,
   STORIES_SIGNATURE,
   validateNoteAndWellnessInput,
+  validateRealEmailAddress,
   validateStoryPublicationEligibility,
   verifyProtectedLogin,
 } from '../src/lib/securityEngine';
@@ -276,5 +279,21 @@ describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant
     expect(seenByUserA[0].id).toBe('req-a');
     const seenByListener = filterListeningRequestsForRole(requests, 'user-listener', 'listener');
     expect(seenByListener).toHaveLength(2);
+  });
+
+  it('11. Restreint l’accès aux e-mails réels uniquement et limite les tentatives de connexion à 3 fois / 15 secondes', () => {
+    expect(validateRealEmailAddress('isaacamegan10@gmail.com').valid).toBe(true);
+    expect(validateRealEmailAddress('sarah.kabore@outlook.fr').valid).toBe(true);
+    expect(validateRealEmailAddress('fake@yopmail.com').valid).toBe(false);
+    expect(validateRealEmailAddress('user@example.com').valid).toBe(false);
+    expect(validateRealEmailAddress('test@gmail.com').valid).toBe(false);
+
+    resetAuthSubmissionRateLimit('test-ip-3-per-15s');
+    expect(checkAuthSubmissionRateLimit('test-ip-3-per-15s', 3, 15_000).allowed).toBe(true);
+    expect(checkAuthSubmissionRateLimit('test-ip-3-per-15s', 3, 15_000).allowed).toBe(true);
+    expect(checkAuthSubmissionRateLimit('test-ip-3-per-15s', 3, 15_000).allowed).toBe(true);
+    const fourthTry = checkAuthSubmissionRateLimit('test-ip-3-per-15s', 3, 15_000);
+    expect(fourthTry.allowed).toBe(false);
+    expect(fourthTry.retryAfterSec).toBeGreaterThan(0);
   });
 });

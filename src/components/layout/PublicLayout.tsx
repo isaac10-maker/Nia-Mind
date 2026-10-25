@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   ArrowRight,
   Bot,
@@ -17,6 +17,7 @@ import { AmbientBackground } from '../ui/AmbientBackground';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
 import { OFFICIAL_SLOGAN, STORIES_SIGNATURE } from '../../lib/securityEngine';
+import { HomePage } from '../../pages/public/HomePage';
 
 const PUBLIC_NAV_ITEMS = [
   { label: 'Accueil', to: '/' },
@@ -29,6 +30,11 @@ const PUBLIC_NAV_ITEMS = [
 export const PublicLayout: React.FC = () => {
   const { currentUser, openConsentModal, openDailyTipModal } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+
+  const isAuthRoute =
+    location.pathname === '/connexion' || location.pathname === '/inscription';
+  const isLoginRoute = location.pathname === '/connexion';
 
   const isSuperAdmin =
     Boolean(currentUser) &&
@@ -40,13 +46,21 @@ export const PublicLayout: React.FC = () => {
       <AmbientBackground />
       <RoleSwitcherBar />
 
-      {/* En-tête public officiel translucide en symbiose Orange & Bordeaux */}
+      {/* En-tête officiel : sur /connexion et /inscription, tout est flouté SAUF le logo + titre "Nia-Mind" à gauche et le bouton en haut à droite */}
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-gradient-to-r from-[#FFF5EE]/85 via-[#FDF0F4]/85 to-[#FFF5EE]/85 dark:from-[#111318]/90 dark:via-[#1F121B]/90 dark:to-[#111318]/90 border-b border-nia-orange/25 dark:border-nia-border-dark shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-          <BrandLogo showSlogan size="md" />
+          {/* Logo et titre "Nia-Mind" toujours nets (jamais floutés) */}
+          <div className="relative z-50">
+            <BrandLogo showSlogan size="md" />
+          </div>
 
-          {/* Navigation ordinateur */}
-          <nav className="hidden lg:flex items-center gap-1.5" aria-label="Navigation principale">
+          {/* Navigation centrale : floutée lorsque la page de connexion ou d'inscription est ouverte */}
+          <nav
+            className={`hidden lg:flex items-center gap-1.5 transition-all duration-300 ${
+              isAuthRoute ? 'blur-[6px] opacity-25 pointer-events-none select-none' : ''
+            }`}
+            aria-label="Navigation principale"
+          >
             {PUBLIC_NAV_ITEMS.map((item) => (
               <NavLink
                 key={item.to}
@@ -74,8 +88,8 @@ export const PublicLayout: React.FC = () => {
             </Link>
           </nav>
 
-          {/* Boutons d'action En-tête */}
-          <div className="hidden sm:flex items-center gap-3">
+          {/* Bouton en haut à droite : toujours net (sur /connexion et /inscription, affiche uniquement le bouton principal à droite) */}
+          <div className="relative z-50 flex items-center gap-3">
             {currentUser ? (
               <Link
                 to="/espace/tableau-de-bord"
@@ -84,11 +98,19 @@ export const PublicLayout: React.FC = () => {
                 <span>Mon espace ({currentUser.displayName})</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
+            ) : isAuthRoute ? (
+              <Link
+                to={isLoginRoute ? '/inscription' : '/connexion'}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-sm font-extrabold shadow-nia-soft transition-all"
+              >
+                <span>{isLoginRoute ? 'S’inscrire' : 'Connexion'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             ) : (
               <>
                 <Link
                   to="/connexion"
-                  className="px-4 py-2.5 rounded-full text-sm font-extrabold text-nia-gray-dark dark:text-gray-200 hover:text-nia-orange border border-nia-orange/30 hover:border-nia-orange transition-colors"
+                  className="hidden sm:inline-flex px-4 py-2.5 rounded-full text-sm font-extrabold text-nia-gray-dark dark:text-gray-200 hover:text-nia-orange border border-nia-orange/30 hover:border-nia-orange transition-colors"
                 >
                   Connexion
                 </Link>
@@ -101,18 +123,20 @@ export const PublicLayout: React.FC = () => {
                 </Link>
               </>
             )}
-          </div>
 
-          {/* Bouton Menu Mobile */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((v) => !v)}
-            className="lg:hidden p-2.5 rounded-2xl border border-nia-orange/35 dark:border-nia-border-dark text-nia-gray-dark dark:text-white hover:bg-nia-orange/15"
-            aria-expanded={mobileMenuOpen}
-            aria-label="Ouvrir ou fermer le menu de navigation"
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+            {/* Bouton Menu Mobile (flouté sur les pages Auth) */}
+            {!isAuthRoute && (
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen((v) => !v)}
+                className="lg:hidden p-2.5 rounded-2xl border border-nia-orange/35 dark:border-nia-border-dark text-nia-gray-dark dark:text-white hover:bg-nia-orange/15"
+                aria-expanded={mobileMenuOpen}
+                aria-label="Ouvrir ou fermer le menu de navigation"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Menu Mobile Compact et Accessible au toucher */}
@@ -172,16 +196,40 @@ export const PublicLayout: React.FC = () => {
         )}
       </header>
 
-      {/* Contenu de la page */}
+      {/* Contenu de la page : si /connexion ou /inscription est ouvert, le site reste en arrière-plan flouté derrière la carte */}
       <main className="relative z-10 flex-1">
-        <Outlet />
+        {isAuthRoute ? (
+          <div className="relative min-h-[calc(100vh-5rem)]">
+            {/* Arrière-plan du site flouté */}
+            <div
+              aria-hidden="true"
+              className="fixed inset-0 top-20 z-0 overflow-hidden pointer-events-none select-none filter blur-[11px] opacity-40 scale-[1.01]"
+            >
+              <HomePage />
+            </div>
+            <div
+              aria-hidden="true"
+              className="fixed inset-0 top-20 z-10 bg-gradient-to-br from-[#FFF5EE]/55 via-[#FDF0F4]/60 to-[#57152D]/35 dark:from-[#111318]/70 dark:via-[#1F121B]/75 dark:to-black/75 backdrop-blur-md pointer-events-none"
+            />
+            {/* Fenêtre Connexion / Inscription au premier plan */}
+            <div className="relative z-20">
+              <Outlet />
+            </div>
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </main>
 
-      {/* Bulle flottante d'instructions glissante avec bouton croix */}
+      {/* Bulle flottante d'instructions ("?" fermé par défaut) */}
       <FloatingInstructionPopup />
 
-      {/* Pied de page complet Nia-Mind */}
-      <footer className="relative z-10 nia-glass-card border-t border-nia-orange/25 dark:border-nia-border-dark mt-16">
+      {/* Pied de page complet Nia-Mind (flouté en arrière-plan si /connexion ou /inscription est ouvert) */}
+      <footer
+        className={`relative z-10 nia-glass-card border-t border-nia-orange/25 dark:border-nia-border-dark mt-16 transition-all ${
+          isAuthRoute ? 'blur-md opacity-30 pointer-events-none select-none' : ''
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
             <div className="space-y-4">

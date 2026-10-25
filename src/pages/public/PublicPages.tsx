@@ -625,7 +625,16 @@ const LIFE_MOMENT_OPTIONS = [
 ];
 
 export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => {
-  const { loginWithEmail, registerAccount, openConsentModal } = useApp();
+  const {
+    loginWithEmail,
+    registerAccount,
+    requestGmailPushVerification,
+    requestPasswordRecoveryPush,
+    resetForgottenPassword,
+    triggerSignupMotivationPush,
+    featuredDailyTip,
+    openConsentModal,
+  } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -646,13 +655,34 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
   const [redirectBannerOpen, setRedirectBannerOpen] = useState<boolean>(
     Boolean(searchParams.get('redirect') || fromAssistant)
   );
+  const [edgePushBannerOpen, setEdgePushBannerOpen] = useState<boolean>(mode === 'register');
 
-  // Modale / Étape « Continuer avec Gmail / Google »
+  // Déclenchement automatique de l'Edge Function de notification Push sur la page d'inscription
+  React.useEffect(() => {
+    if (mode === 'register') {
+      setEdgePushBannerOpen(true);
+      void triggerSignupMotivationPush();
+    }
+  }, [mode]);
+
+  // Modale / Étape « Continuer avec Gmail / Google » avec Vérification Push Gmail + Mot de passe 6+ caractères
   const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
   const [gmailAddress, setGmailAddress] = useState('');
   const [gmailName, setGmailName] = useState('');
+  const [gmailPassword, setGmailPassword] = useState('');
+  const [gmailPushSent, setGmailPushSent] = useState(false);
+  const [gmailExpectedCode, setGmailExpectedCode] = useState('');
+  const [gmailEnteredCode, setGmailEnteredCode] = useState('');
   const [gmailPrivacyAccepted, setGmailPrivacyAccepted] = useState(true);
   const [gmailCookiesAccepted, setGmailCookiesAccepted] = useState(true);
+
+  // Coin « Mot de passe oublié ? » pour récupération de compte
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSentCode, setForgotSentCode] = useState<string | null>(null);
+  const [forgotEnteredCode, setForgotEnteredCode] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotStatusMsg, setForgotStatusMsg] = useState<string | null>(null);
 
   // Enquête facultative « Dites-nous-en plus sur vous » avec bouton Skip & bouton Croix (X)
   const [showOnboardingSurvey, setShowOnboardingSurvey] = useState(false);
@@ -696,6 +726,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
       const res = registerAccount({
         displayName,
         email,
+        password,
         publicPseudonym: pseudonym || 'Anonyme',
         countryCode,
         acceptedTerms: acceptedPrivacyAndTerms,
@@ -712,12 +743,29 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     }
   };
 
-  const handleGmailContinue = (e: React.FormEvent) => {
+  const handleSendGmailPush = async () => {
+    setErrorMsg(null);
+    const clean = gmailAddress.trim().toLowerCase();
+    const res = await requestGmailPushVerification(clean);
+    if (!res.ok) {
+      setErrorMsg(res.error || 'Adresse Gmail non valide.');
+      return;
+    }
+    setGmailPushSent(true);
+    setGmailExpectedCode(res.verificationCode || '');
+    setGmailEnteredCode(res.verificationCode || '');
+  };
+
+  const handleGmailContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     const clean = gmailAddress.trim().toLowerCase();
-    if (!clean || !clean.includes('@')) {
-      setErrorMsg('Veuillez saisir votre adresse Gmail / Google valide.');
+    if (!clean || (!clean.endsWith('@gmail.com') && !clean.endsWith('@googlemail.com'))) {
+      setErrorMsg('Veuillez saisir une adresse Gmail réelle se terminant par @gmail.com.');
+      return;
+    }
+    if (gmailPassword.trim().length < 6) {
+      setErrorMsg('Le mot de passe associé à votre compte Gmail doit contenir au moins 6 caractères.');
       return;
     }
     if (!gmailPrivacyAccepted || !gmailCookiesAccepted) {
@@ -725,15 +773,25 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
       return;
     }
 
+    if (!gmailPushSent) {
+      await handleSendGmailPush();
+      return;
+    }
+
+    if (gmailExpectedCode && gmailEnteredCode.trim() !== gmailExpectedCode) {
+      setErrorMsg('Code de vérification Push Gmail incorrect.');
+      return;
+    }
+
     // Essayer d'abord de connecter si déjà inscrit (ex. Superadmin isaacamegan10@gmail.com)
-    const loginTry = loginWithEmail(clean, 'gmail-oauth-verified');
+    const loginTry = loginWithEmail(clean, gmailPassword.trim());
     if (loginTry.ok) {
       setIsGmailModalOpen(false);
       navigate(redirectTarget);
       return;
     }
 
-    // Sinon inscrire automatiquement le compte Gmail et ouvrir l'enquête facultative (avec Skip)
+    // Sinon inscrire le compte Gmail vérifié par Push avec mot de passe (6+ caractères)
     const defaultName =
       gmailName.trim() ||
       clean
@@ -744,6 +802,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     const regTry = registerAccount({
       displayName: defaultName,
       email: clean,
+      password: gmailPassword.trim(),
       publicPseudonym: 'Anonyme',
       countryCode,
       acceptedTerms: gmailPrivacyAccepted,
@@ -752,7 +811,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     });
 
     if (!regTry.ok) {
-      setErrorMsg(regTry.error || 'Impossible de finaliser la connexion Gmail.');
+      setErrorMsg(regTry.error || 'Impossible de finaliser l’inscription Gmail.');
       return;
     }
 
@@ -760,8 +819,68 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     setShowOnboardingSurvey(true);
   };
 
+  const handleRequestPasswordRecovery = (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotStatusMsg(null);
+    const res = requestPasswordRecoveryPush(forgotEmail);
+    if (!res.ok) {
+      setForgotStatusMsg(res.error || 'Impossible d’envoyer la récupération.');
+      return;
+    }
+    setForgotSentCode(res.recoveryCode || '');
+    setForgotEnteredCode(res.recoveryCode || '');
+    setForgotStatusMsg(
+      `Code Push de récupération envoyé à ${forgotEmail.trim().toLowerCase()} : ${res.recoveryCode}`
+    );
+  };
+
+  const handleConfirmPasswordReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = resetForgottenPassword({
+      email: forgotEmail,
+      recoveryCode: forgotEnteredCode,
+      newPassword: forgotNewPassword,
+    });
+    if (!res.ok) {
+      setForgotStatusMsg(res.error || 'Erreur de réinitialisation.');
+      return;
+    }
+    setEmail(forgotEmail.trim().toLowerCase());
+    setPassword(forgotNewPassword.trim());
+    setIsForgotModalOpen(false);
+    setForgotSentCode(null);
+    setForgotStatusMsg(null);
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+      {/* Notification Push Edge Function sur la page d'inscription : Nouveau Conseil & Motivation */}
+      {mode === 'register' && edgePushBannerOpen && (
+        <div className="rounded-3xl bg-gradient-to-r from-sky-900/90 via-nia-bordeaux to-nia-orange-deep text-white p-4 sm:p-5 shadow-xl border border-white/25 flex items-start justify-between gap-3 animate-nia-slide-in">
+          <div className="space-y-1">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-extrabold uppercase tracking-wider text-amber-200">
+              <Sparkles className="w-3.5 h-3.5 text-nia-orange animate-pulse" />
+              Edge Function Push • Nouveau Conseil & Motivation du jour
+            </span>
+            <p className="text-sm font-black text-white">
+              {featuredDailyTip?.title || 'Déposer le masque 5 minutes aujourd’hui'}
+            </p>
+            <p className="text-xs font-medium text-white/90 leading-relaxed">
+              {featuredDailyTip?.summary ||
+                'Tu n’as pas besoin de porter toutes les attentes du monde en même temps. Respire et avance à ton rythme.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEdgePushBannerOpen(false)}
+            aria-label="Fermer la notification push"
+            className="w-7 h-7 rounded-full inline-flex items-center justify-center bg-white/15 hover:bg-white/30 text-white shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Bannière d'information si le visiteur a cliqué sur l'Assistance ou un onglet personnel */}
       {redirectBannerOpen && (
         <div className="rounded-3xl bg-gradient-to-r from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep text-white p-4 sm:p-5 shadow-lg flex items-start justify-between gap-3 animate-nia-slide-in">
@@ -972,9 +1091,23 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
           </div>
 
           <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200 mb-1.5">
-              Mot de passe
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200">
+                Mot de passe (min. 6 caractères)
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(email);
+                  setForgotSentCode(null);
+                  setForgotStatusMsg(null);
+                  setIsForgotModalOpen(true);
+                }}
+                className="text-xs font-extrabold text-nia-bordeaux dark:text-amber-300 hover:text-nia-orange underline"
+              >
+                Mot de passe oublié ?
+              </button>
+            </div>
             <input
               type="password"
               required
@@ -984,6 +1117,14 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
               placeholder="Minimum 6 caractères"
               className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-nia-bg-dark border-2 border-nia-orange/35 focus:border-nia-orange focus:outline-none text-sm font-semibold"
             />
+          </div>
+
+          <div className="px-3.5 py-2.5 rounded-2xl bg-nia-bordeaux/10 dark:bg-white/5 border border-nia-bordeaux/25 flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-nia-bordeaux dark:text-amber-200">
+            <span className="inline-flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-nia-orange shrink-0" />
+              Restriction : accessible uniquement aux e-mails réels
+            </span>
+            <span>Limite sécurité : max 3 essais / 15 secondes</span>
           </div>
 
           {mode === 'register' && (
@@ -1053,14 +1194,14 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
       </div>
 
       {/* ====================================================================
-          MODALE GMAIL / GOOGLE AVEC BOUTON CROIX (X)
+          MODALE GMAIL / GOOGLE AVEC VÉRIFICATION PUSH GMAIL & MOT DE PASSE 6+ CARACTÈRES
           ==================================================================== */}
       <Modal
         isOpen={isGmailModalOpen}
         onClose={() => setIsGmailModalOpen(false)}
-        badgeText="Connexion Rapide Google / Gmail"
-        title="Continuer avec votre compte Gmail"
-        subtitle="Renseignez votre adresse @gmail.com pour ouvrir votre espace Nia-Mind."
+        badgeText="Vérification Push Compte Gmail"
+        title="S’inscrire / Continuer avec votre compte Gmail"
+        subtitle="Une vérification Push est envoyée à votre compte Gmail réel avec un mot de passe d’au moins 6 caractères."
         accent="orange"
         footer={
           <>
@@ -1072,11 +1213,18 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
               Annuler
             </button>
             <button
+              type="button"
+              onClick={() => void handleSendGmailPush()}
+              className="px-4 py-2 rounded-xl bg-nia-bordeaux/15 text-nia-bordeaux dark:text-amber-200 text-xs font-extrabold hover:bg-nia-bordeaux/25"
+            >
+              Envoyer Push Gmail
+            </button>
+            <button
               type="submit"
               form="gmail-auth-form"
               className="px-5 py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white text-xs font-extrabold shadow-sm"
             >
-              Continuer avec Gmail →
+              {gmailPushSent ? 'Valider Push & Continuer →' : 'Envoyer Push & Continuer →'}
             </button>
           </>
         }
@@ -1084,29 +1232,69 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         <form id="gmail-auth-form" onSubmit={handleGmailContinue} className="space-y-4">
           <div>
             <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-              Votre adresse Gmail
+              Votre adresse Gmail réelle (@gmail.com)
             </label>
             <input
               type="email"
               required
               value={gmailAddress}
-              onChange={(e) => setGmailAddress(e.target.value)}
-              placeholder="exemple@gmail.com"
+              onChange={(e) => {
+                setGmailAddress(e.target.value);
+                setGmailPushSent(false);
+              }}
+              placeholder="prenom.nom@gmail.com"
               className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-semibold"
             />
           </div>
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-              Prénom d’affichage (facultatif)
-            </label>
-            <input
-              type="text"
-              value={gmailName}
-              onChange={(e) => setGmailName(e.target.value)}
-              placeholder="Ex. : Isaac"
-              className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border border-nia-orange/30 text-sm"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
+                Mot de passe (min. 6 caractères)
+              </label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={gmailPassword}
+                onChange={(e) => setGmailPassword(e.target.value)}
+                placeholder="Min. 6 caractères"
+                className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
+                Prénom d’affichage
+              </label>
+              <input
+                type="text"
+                value={gmailName}
+                onChange={(e) => setGmailName(e.target.value)}
+                placeholder="Ex. : Isaac"
+                className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border border-nia-orange/30 text-sm"
+              />
+            </div>
           </div>
+
+          {gmailPushSent && (
+            <div className="p-3.5 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 space-y-2">
+              <p className="text-xs font-extrabold text-emerald-800 dark:text-emerald-200">
+                ✓ Notification Push envoyée sur votre compte Gmail ({gmailAddress}).
+              </p>
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider mb-1">
+                  Code de confirmation Push Gmail reçu
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={gmailEnteredCode}
+                  onChange={(e) => setGmailEnteredCode(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-nia-bg-dark border border-emerald-500/50 text-sm font-black tracking-widest"
+                />
+              </div>
+            </div>
+          )}
+
           <label className="flex items-start gap-2.5 text-xs cursor-pointer">
             <input
               type="checkbox"
@@ -1126,6 +1314,97 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
             <span>J’accepte la réception des cookies essentiels et de préférences.</span>
           </label>
         </form>
+      </Modal>
+
+      {/* ====================================================================
+          MODALE COIN « MOT DE PASSE OUBLIÉ ? » (RÉCUPÉRATION DE COMPTE)
+          ==================================================================== */}
+      <Modal
+        isOpen={isForgotModalOpen}
+        onClose={() => setIsForgotModalOpen(false)}
+        badgeText="Récupération Sécurisée"
+        title="Mot de passe oublié ?"
+        subtitle="Recevez une notification Push de récupération sur votre adresse e-mail réelle inscrite."
+        accent="bordeaux"
+        footer={
+          <button
+            type="button"
+            onClick={() => setIsForgotModalOpen(false)}
+            className="px-4 py-2 rounded-xl border border-nia-gray-light dark:border-nia-border-dark text-xs font-bold"
+          >
+            Fermer
+          </button>
+        }
+      >
+        <div className="space-y-4">
+          {forgotStatusMsg && (
+            <div className="p-3 rounded-2xl bg-nia-orange/15 border border-nia-orange/40 text-xs font-bold text-nia-gray-dark dark:text-white">
+              {forgotStatusMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleRequestPasswordRecovery} className="space-y-3">
+            <div>
+              <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
+                Adresse e-mail réelle de votre compte
+              </label>
+              <input
+                type="email"
+                required
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="votre.nom@gmail.com"
+                className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-semibold"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-full bg-nia-bordeaux text-white text-xs font-extrabold shadow-sm"
+            >
+              Envoyer le code Push de récupération
+            </button>
+          </form>
+
+          {forgotSentCode && (
+            <form
+              onSubmit={handleConfirmPasswordReset}
+              className="pt-3 border-t border-nia-orange/25 space-y-3"
+            >
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
+                  Code Push de récupération (6 chiffres)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={forgotEnteredCode}
+                  onChange={(e) => setForgotEnteredCode(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-black tracking-widest"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
+                  Nouveau mot de passe (min. 6 caractères)
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={forgotNewPassword}
+                  onChange={(e) => setForgotNewPassword(e.target.value)}
+                  placeholder="Minimum 6 caractères"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-semibold"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full py-3 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white text-xs font-extrabold shadow-md"
+              >
+                Enregistrer mon nouveau mot de passe →
+              </button>
+            </form>
+          )}
+        </div>
       </Modal>
 
       {/* ====================================================================
