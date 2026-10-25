@@ -59,6 +59,7 @@ import {
   formatPsychicDiagnosticMessage,
   generatePsychicDiagnosticBriefing,
   SupportedLanguage,
+  translatePlatformText,
 } from '../lib/i18nEngine';
 
 interface ToastNotification {
@@ -1239,6 +1240,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const uid = currentUser?.id || 'user-a';
     const created: QuestionnaireResponse = {
       ...payload,
+      questionnaireTitle: translatePlatformText(payload.questionnaireTitle, currentLanguage),
+      interpretationBand: translatePlatformText(payload.interpretationBand, currentLanguage),
       id: `qr-${Date.now()}`,
       userId: uid,
       createdAt: new Date().toISOString(),
@@ -2336,13 +2339,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!targetConv) {
       return { ok: false, error: 'Discussion introuvable.' };
     }
+    const recipientUser = users.find((u) => u.id === targetConv.userId);
+    const recipientLang: SupportedLanguage = recipientUser?.preferredLanguage || 'fr';
     const briefing = generatePsychicDiagnosticBriefing({
       messages: targetConv.messages,
       userPseudonym: targetConv.userPseudonym || 'Membre',
     });
     const textToSend = customBriefingText?.trim()
       ? sanitizeUserText(customBriefingText, 2500)
-      : formatPsychicDiagnosticMessage(briefing);
+      : formatPsychicDiagnosticMessage(briefing, recipientLang);
     const now = new Date().toISOString();
 
     setConversations((prev) =>

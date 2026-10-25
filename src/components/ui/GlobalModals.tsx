@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, CheckCircle2, Cookie, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { translatePlatformText } from '../../lib/i18nEngine';
 import { Modal } from './Modal';
 
 export const GlobalModals: React.FC = () => {
   const {
+    currentLanguage,
     isDailyTipModalOpen,
     closeDailyTipModal,
     featuredDailyTip,
@@ -223,8 +225,12 @@ export const GlobalModals: React.FC = () => {
             }`}
           >
             <div>
-              <p className="text-sm font-extrabold">{t.title}</p>
-              <p className="text-xs mt-0.5 opacity-90">{t.message}</p>
+              <p className="text-sm font-extrabold">
+                {translatePlatformText(t.title, currentLanguage)}
+              </p>
+              <p className="text-xs mt-0.5 opacity-90">
+                {translatePlatformText(t.message, currentLanguage)}
+              </p>
             </div>
             <button
               type="button"

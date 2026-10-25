@@ -297,9 +297,10 @@ describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant
     expect(fourthTry.retryAfterSec).toBeGreaterThan(0);
   });
 
-  it('12. Traduit automatiquement les échanges dans les 5 langues (FR, EN, ES, DE, ZH) et génère le bilan Diagnostic psychique IA', async () => {
+  it('12. Traduit automatiquement toute la plateforme et les échanges dans les 5 langues (FR, EN, ES, DE, ZH) et génère le bilan Diagnostic psychique IA', async () => {
     const {
       tUi,
+      translatePlatformText,
       translateMessageForViewer,
       generatePsychicDiagnosticBriefing,
       formatPsychicDiagnosticMessage,
@@ -311,10 +312,26 @@ describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant
     expect(tUi('de', 'psychicDiagnosticBtn')).toBe('Psychische Diagnostik');
     expect(tUi('zh', 'psychicDiagnosticBtn')).toBe('心理诊断简报');
 
+    // Vérification de la traduction automatique de toute la plateforme (titres, boutons, messages d'accueil)
+    const dashboardGreeting = 'Bonjour, @PlumeSincere. Prends le temps d’être toi-même.';
+    expect(translatePlatformText(dashboardGreeting, 'fr')).toBe(dashboardGreeting);
+    expect(translatePlatformText(dashboardGreeting, 'en')).toBe(
+      'Hello, @PlumeSincere. Take the time to be yourself.'
+    );
+    expect(translatePlatformText(dashboardGreeting, 'es')).toBe(
+      'Hola, @PlumeSincere. Tómate el tiempo de ser tú mismo(a).'
+    );
+    expect(translatePlatformText(dashboardGreeting, 'de')).toBe(
+      'Hallo, @PlumeSincere. Nimm dir Zeit, ganz du selbst zu sein.'
+    );
+    expect(translatePlatformText(dashboardGreeting, 'zh')).toBe(
+      '你好，@PlumeSincere。请放慢脚步，安心做回自己。'
+    );
+
     const msgFr = 'Bonjour. Je ressens beaucoup de stress et de fatigue en ce moment.';
     expect(translateMessageForViewer(msgFr, 'fr')).toBe(msgFr);
-    expect(translateMessageForViewer(msgFr, 'en')).toContain('[Auto-translated • EN]');
-    expect(translateMessageForViewer(msgFr, 'zh')).toContain('[自动翻译 • 中文]');
+    expect(translateMessageForViewer(msgFr, 'en')).toContain('stress and fatigue');
+    expect(translateMessageForViewer(msgFr, 'zh')).toContain('压力和疲惫');
 
     const briefing = generatePsychicDiagnosticBriefing({
       userPseudonym: 'PlumeSincere',
@@ -324,7 +341,9 @@ describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant
       ],
     });
     expect(briefing.emotionalTone).toContain('Surcharge');
-    const formatted = formatPsychicDiagnosticMessage(briefing);
-    expect(formatted).toContain('BILAN D’ANALYSE IA — DIAGNOSTIC PSYCHIQUE (@PlumeSincere)');
+    const formattedFr = formatPsychicDiagnosticMessage(briefing, 'fr');
+    expect(formattedFr).toContain('BILAN D’ANALYSE IA — DIAGNOSTIC PSYCHIQUE (@PlumeSincere)');
+    const formattedEn = formatPsychicDiagnosticMessage(briefing, 'en');
+    expect(formattedEn).toContain('AI ANALYSIS BRIEFING — PSYCHIC DIAGNOSTIC');
   });
 });

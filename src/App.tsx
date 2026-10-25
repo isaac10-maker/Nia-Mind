@@ -5,6 +5,7 @@ import { PublicLayout } from './components/layout/PublicLayout';
 import { PersonalLayout } from './components/layout/PersonalLayout';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { GlobalModals } from './components/ui/GlobalModals';
+import { PlatformAutoTranslator } from './components/ui/PlatformAutoTranslator';
 import { HomePage } from './pages/public/HomePage';
 import {
   AboutPage,
@@ -90,6 +91,7 @@ export const App: React.FC = () => {
       <CopyAndSelectionGuard />
       <BrowserRouter>
         <ScrollToTopOnRoute />
+        <PlatformAutoTranslator />
         <GlobalModals />
         <Routes>
           {/* 1. NAVIGATION PRINCIPALE */}
