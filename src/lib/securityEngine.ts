@@ -64,6 +64,33 @@ export function sanitizeUserText(input: string, maxLength = 12000): string {
     .slice(0, maxLength);
 }
 
+const ALLOWED_INTERNAL_REDIRECTS = new Set<string>([
+  '/espace/tableau-de-bord',
+  '/espace/assistant',
+  '/espace/ecoute',
+  '/espace/bien-etre',
+  '/espace/journal',
+  '/espace/conseils-du-jour',
+  '/espace/histoires',
+  '/espace/profil',
+  '/espace/confidentialite',
+]);
+
+/**
+ * Empêche toute faille d'Open Redirect ou de fuite de jeton via l'URL de redirection :
+ * Seuls les chemins internes exacts de la liste blanche sont autorisés.
+ */
+export function sanitizeInternalRedirect(rawRedirect: string | null | undefined): string {
+  if (!rawRedirect || typeof rawRedirect !== 'string') {
+    return '/espace/tableau-de-bord';
+  }
+  const clean = rawRedirect.trim().split('?')[0].split('#')[0];
+  if (ALLOWED_INTERNAL_REDIRECTS.has(clean)) {
+    return clean;
+  }
+  return '/espace/tableau-de-bord';
+}
+
 // ============================================================================
 // 2. LIMITEUR DE FRÉQUENCE ANTI-SPAM GLOBAL (Toutes actions & Onglets de notes)
 // ============================================================================

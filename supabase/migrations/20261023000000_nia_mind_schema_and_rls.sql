@@ -698,4 +698,24 @@ create trigger trg_story_state_and_admin_guard
   before insert or update on public.stories
   for each row execute function public.enforce_story_state_and_admin_guard();
 
+-- ----------------------------------------------------------------------------
+-- 14. FORCE ROW LEVEL SECURITY SUR LES 15 TABLES & SUPERADMIN GUARD
+-- ----------------------------------------------------------------------------
+alter table public.profiles force row level security;
+alter table public.user_roles force row level security;
+alter table public.journal_entries force row level security;
+alter table public.mood_entries force row level security;
+alter table public.stress_sleep_entries force row level security;
+alter table public.questionnaire_responses force row level security;
+alter table public.stories force row level security;
+alter table public.published_stories force row level security;
+alter table public.listening_requests force row level security;
+alter table public.assistant_conversations force row level security;
+alter table public.assistant_messages force row level security;
+alter table public.daily_tips force row level security;
+alter table public.help_resources force row level security;
+alter table public.privacy_requests force row level security;
+alter table public.audit_logs force row level security;
+
+
 

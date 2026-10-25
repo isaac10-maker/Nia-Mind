@@ -23,7 +23,11 @@ import { useApp } from '../../context/AppContext';
 import { GlitchText } from '../../components/ui/GlitchText';
 import { ScrollReveal } from '../../components/ui/ScrollReveal';
 import { InlineSlidingGuideBanner } from '../../components/ui/SlidingInstructionBubbles';
-import { OFFICIAL_SLOGAN, STORIES_SIGNATURE } from '../../lib/securityEngine';
+import {
+  OFFICIAL_SLOGAN,
+  sanitizeInternalRedirect,
+  STORIES_SIGNATURE,
+} from '../../lib/securityEngine';
 import { DailyTip, UserProfile } from '../../lib/types';
 import { Modal } from '../../components/ui/Modal';
 
@@ -571,20 +575,27 @@ export const AboutPage: React.FC = () => {
             </li>
           </ul>
         </div>
-        <div className="flex flex-col sm:flex-row gap-4 justify-end">
-          <Link
-            to="/inscription"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white font-extrabold text-sm shadow-md"
-          >
-            Créer un compte
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            to="/ressources"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border-2 border-nia-bordeaux/40 font-extrabold text-sm"
-          >
-            Voir nos ressources d’aide
-          </Link>
+        <div className="flex flex-col items-center lg:items-end gap-4">
+          <img
+            src="/images/wellness-harmony.png"
+            alt="Harmonie d'écoute et de réflexion Nia-Mind"
+            className="w-48 h-48 rounded-3xl object-cover border-2 border-nia-orange/40 shadow-xl"
+          />
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              to="/inscription"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white font-extrabold text-sm shadow-md"
+            >
+              Créer un compte
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/ressources"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full border-2 border-nia-bordeaux/40 font-extrabold text-sm"
+            >
+              Voir nos ressources d’aide
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -619,7 +630,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
   const location = useLocation();
 
   const searchParams = new URLSearchParams(location.search);
-  const redirectTarget = searchParams.get('redirect') || '/espace/tableau-de-bord';
+  const redirectTarget = sanitizeInternalRedirect(searchParams.get('redirect'));
   const fromAssistant = searchParams.get('from') === 'assistant';
 
   const [email, setEmail] = useState('');
@@ -800,6 +811,13 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         </div>
 
         <div className="space-y-2 text-center">
+          <div className="flex justify-center mb-2">
+            <img
+              src="/images/nia-mind-logo.png"
+              alt="Logo Nia-Mind"
+              className="w-16 h-16 rounded-2xl object-cover ring-2 ring-nia-orange/50 shadow-lg"
+            />
+          </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-nia-orange/15 text-nia-orange-deep dark:text-nia-orange text-xs font-extrabold">
             <Lock className="w-3.5 h-3.5" />
             Nia-Mind — « {OFFICIAL_SLOGAN} »

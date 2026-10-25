@@ -6,9 +6,11 @@ import {
   canModifyUserRole,
   checkActionAntiSpam,
   detectPentestOrSqlInjection,
+  filterListeningRequestsForRole,
   getPublicSafeStories,
   OFFICIAL_BRAND_NAME,
   OFFICIAL_SLOGAN,
+  sanitizeInternalRedirect,
   STORIES_SIGNATURE,
   validateNoteAndWellnessInput,
   validateStoryPublicationEligibility,
@@ -219,5 +221,60 @@ describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant
       contentForDuplicateCheck: 'Même message envoyé en boucle par un spammeur',
     });
     expect(duplicatePost.allowed).toBe(false);
+  });
+
+  it('10. Protège contre les Open Redirects, les fuites de tokens dans les URLs et isole les demandes d’écoute', () => {
+    // Open Redirect & fuite de token bloqués
+    expect(sanitizeInternalRedirect('https://attacker.example.com/phish')).toBe(
+      '/espace/tableau-de-bord'
+    );
+    expect(sanitizeInternalRedirect('//attacker.example.com')).toBe(
+      '/espace/tableau-de-bord'
+    );
+    expect(sanitizeInternalRedirect('javascript:alert(1)')).toBe(
+      '/espace/tableau-de-bord'
+    );
+    expect(
+      sanitizeInternalRedirect(
+        '/espace/assistant?access_token=secret123#refresh_token=abc'
+      )
+    ).toBe('/espace/assistant');
+
+    // Isolation des demandes d'écoute entre membres (RLS)
+    const requests = [
+      {
+        id: 'req-a',
+        userId: 'user-a',
+        userDisplayName: 'MembreA',
+        topic: 'Stress examen',
+        message: 'Confidentiel A',
+        preferredMode: 'Échange écrit asynchrone' as const,
+        preferredSlot: 'Soir',
+        status: 'Envoyée' as const,
+        listenerReply: null,
+        assignedListener: null,
+        createdAt: '2026-10-25T10:00:00Z',
+        updatedAt: '2026-10-25T10:00:00Z',
+      },
+      {
+        id: 'req-b',
+        userId: 'user-b',
+        userDisplayName: 'MembreB',
+        topic: 'Solitude',
+        message: 'Confidentiel B',
+        preferredMode: 'Entretien audio planifié' as const,
+        preferredSlot: 'Matin',
+        status: 'Envoyée' as const,
+        listenerReply: null,
+        assignedListener: null,
+        createdAt: '2026-10-25T10:05:00Z',
+        updatedAt: '2026-10-25T10:05:00Z',
+      },
+    ];
+    const seenByUserA = filterListeningRequestsForRole(requests, 'user-a', 'user');
+    expect(seenByUserA).toHaveLength(1);
+    expect(seenByUserA[0].id).toBe('req-a');
+    const seenByListener = filterListeningRequestsForRole(requests, 'user-listener', 'listener');
+    expect(seenByListener).toHaveLength(2);
   });
 });

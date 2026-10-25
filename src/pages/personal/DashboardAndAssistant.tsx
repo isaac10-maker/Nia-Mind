@@ -349,18 +349,22 @@ export const AssistantPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: content,
-          countryCode: currentUser?.countryCode || 'BF',
-          history: conv.messages.slice(-6).map((m) => ({
-            role: m.sender,
-            content: m.content,
-          })),
+      const [response] = await Promise.all([
+        fetch('/api/assistant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: content,
+            countryCode: currentUser?.countryCode || 'BF',
+            history: conv.messages.slice(-6).map((m) => ({
+              role: m.sender,
+              content: m.content,
+            })),
+          }),
         }),
-      });
+        // Pause d'exactement 1 seconde de réflexion (« Nia analyse votre requête… »)
+        new Promise((resolve) => setTimeout(resolve, 1000)),
+      ]);
 
       const data = await response.json();
       if (!response.ok) {
@@ -378,7 +382,7 @@ export const AssistantPage: React.FC = () => {
       }
     } catch {
       setApiError(
-        'Connexion temporairement indisponible avec la fonction serveur /api/assistant. Vérifiez votre connexion.'
+        'Connexion temporairement indisponible. Réessayez dans un instant.'
       );
     } finally {
       setIsLoading(false);
@@ -562,10 +566,15 @@ export const AssistantPage: React.FC = () => {
             ))}
 
             {isLoading && (
-              <div className="flex justify-start">
-                <div className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-xs text-nia-gray-mid dark:text-gray-300">
+              <div className="flex justify-start animate-nia-slide-in">
+                <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-sky-500/15 via-nia-bordeaux/15 to-nia-orange/15 border-2 border-nia-orange/40 text-xs font-extrabold text-nia-gray-dark dark:text-white shadow-sm">
+                  <img
+                    src="/images/nia-mind-logo.png"
+                    alt="Nia"
+                    className="w-6 h-6 rounded-lg object-cover animate-pulse"
+                  />
                   <Loader2 className="w-4 h-4 text-nia-orange animate-spin" />
-                  <span>L’Assistant Nia-Mind réfléchit à ta pensée…</span>
+                  <span>Nia analyse votre requête…</span>
                 </div>
               </div>
             )}

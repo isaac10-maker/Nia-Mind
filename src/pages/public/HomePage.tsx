@@ -254,47 +254,69 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Colonne Visuelle Dynamique inspirée des Arches de MAMAORA en Orange & Bordeaux */}
+            {/* Colonne Visuelle Dynamique : Illustration PNG « Sans le masque » + Logo NiaMind + 5 Arches */}
             <div className="lg:col-span-5">
-              <div className="relative rounded-3xl nia-glass-card border-2 border-nia-orange/35 dark:border-nia-border-dark p-6 sm:p-8 shadow-2xl overflow-hidden">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-nia-orange" />
-                    <span className="w-3 h-3 rounded-full bg-nia-bordeaux" />
-                    <span className="w-3 h-3 rounded-full bg-amber-400" />
+              <div className="relative rounded-3xl nia-glass-card border-2 border-nia-orange/35 dark:border-nia-border-dark p-5 sm:p-7 shadow-2xl overflow-hidden space-y-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <img
+                      src="/images/nia-mind-logo.png"
+                      alt="Logo Nia-Mind"
+                      className="w-8 h-8 rounded-xl object-cover ring-2 ring-nia-orange/50"
+                    />
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-nia-bordeaux dark:text-amber-300">
+                      Écouter • Comprendre • Avancer
+                    </span>
                   </div>
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-nia-bordeaux dark:text-amber-300">
+                  <span className="px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-700 dark:text-sky-300 text-[11px] font-extrabold">
                     « {OFFICIAL_SLOGAN} »
                   </span>
                 </div>
 
+                {/* Illustration PNG générée sur mesure : Déposer le masque */}
+                <div className="relative rounded-2xl overflow-hidden border-2 border-nia-orange/35 shadow-lg group">
+                  <img
+                    src="/images/hero-reflection.png"
+                    alt="Illustration Nia-Mind : déposer le masque social avec sérénité"
+                    className="w-full h-48 sm:h-52 object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent flex flex-col justify-end p-4 text-white">
+                    <span className="text-[11px] font-extrabold uppercase tracking-widest text-amber-300">
+                      Symbiose Écoute & Clarté
+                    </span>
+                    <p className="text-sm font-bold leading-snug">
+                      « Déposer le masque social pour retrouver sa vraie voix intérieure. »
+                    </p>
+                  </div>
+                </div>
+
                 {/* 5 Arches vivantes (Écoute, Franchise, Réflexion, Bien-être, Authenticité) */}
-                <div className="flex items-end justify-center gap-2.5 h-56 pt-4 px-2">
+                <div className="flex items-end justify-center gap-2 h-36 pt-2 px-1">
                   {[
                     {
                       label: 'Écoute',
-                      h: 'h-36',
-                      bg: 'from-nia-orange/85 to-nia-orange-deep/90 text-white',
+                      h: 'h-24',
+                      bg: 'from-sky-500/90 to-nia-bordeaux/90 text-white',
                     },
                     {
                       label: 'Franchise',
-                      h: 'h-44',
+                      h: 'h-28',
                       bg: 'from-nia-bordeaux/90 to-nia-bordeaux-dark/95 text-amber-100',
                     },
                     {
                       label: 'Vérité',
-                      h: 'h-52',
+                      h: 'h-32',
                       bg: 'from-nia-orange via-nia-orange-deep to-nia-bordeaux text-white',
                     },
                     {
                       label: 'Apaisement',
-                      h: 'h-44',
-                      bg: 'from-nia-bordeaux/85 to-nia-orange-deep/85 text-white',
+                      h: 'h-28',
+                      bg: 'from-nia-bordeaux/85 to-sky-600/85 text-white',
                     },
                     {
                       label: 'Respect',
-                      h: 'h-36',
-                      bg: 'from-nia-orange/80 to-nia-bordeaux/85 text-white',
+                      h: 'h-24',
+                      bg: 'from-nia-orange/85 to-nia-bordeaux/85 text-white',
                     },
                   ].map((arch, idx) => (
                     <div
