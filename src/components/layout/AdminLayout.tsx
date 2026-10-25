@@ -53,13 +53,15 @@ export const AdminLayout: React.FC = () => {
       <AmbientBackground />
       <RoleSwitcherBar />
 
-      {/* En-tête mobile Admin */}
-      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-16 nia-glass-card border-b border-nia-orange/25 dark:border-nia-border-dark">
-        <BrandLogo size="sm" />
+      {/* En-tête mobile Admin (100 % opaque et sans superposition) */}
+      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3 sm:px-4 h-16 bg-[#FFF8F3] dark:bg-[#14161D] border-b border-nia-orange/25 dark:border-nia-border-dark shadow-sm">
+        <div className="min-w-0 shrink-0">
+          <BrandLogo showSlogan={false} size="sm" />
+        </div>
         <button
           type="button"
           onClick={() => setMobileOpen((o) => !o)}
-          className="p-2 rounded-xl border border-nia-orange/35"
+          className="p-2 rounded-xl border border-nia-orange/35 shrink-0"
           aria-label="Menu administration"
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -91,10 +93,10 @@ export const AdminLayout: React.FC = () => {
         </div>
       )}
 
-      <div className="relative z-10 flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="relative z-10 flex-1 flex max-w-7xl w-full mx-auto min-w-0">
         <aside className="hidden lg:flex lg:w-72 shrink-0 flex-col border-r border-nia-orange/25 dark:border-nia-border-dark nia-glass-card p-5 justify-between">
           <div className="space-y-6">
-            <BrandLogo showSlogan size="md" />
+            <BrandLogo showSlogan={false} size="md" />
 
             <div className="p-4 rounded-2xl bg-gradient-to-br from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep text-white shadow-md">
               <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-amber-200">
@@ -148,7 +150,7 @@ export const AdminLayout: React.FC = () => {
           </div>
         </aside>
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 animate-nia-page">
+        <main className="flex-1 min-w-0 overflow-x-hidden p-3 sm:p-6 lg:p-8 animate-nia-page">
           <Outlet />
         </main>
       </div>

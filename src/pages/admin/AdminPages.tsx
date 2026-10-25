@@ -4,14 +4,20 @@ import {
   Activity,
   AlertTriangle,
   Archive,
+  Ban,
   CheckCircle2,
   ClipboardList,
+  Eye,
+  EyeOff,
   FileCheck2,
   FileClock,
+  FolderOpen,
   HeartHandshake,
   LifeBuoy,
   Lock,
+  LogOut,
   Plus,
+  Send,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -19,6 +25,13 @@ import {
   Users,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { NeuralChipIcon } from '../../components/ui/NeuralChipIcon';
+import {
+  formatPsychicDiagnosticMessage,
+  generatePsychicDiagnosticBriefing,
+  translateMessageForViewer,
+  tUi,
+} from '../../lib/i18nEngine';
 import {
   ALL_LISTENING_STATUSES,
   DailyTip,
@@ -461,25 +474,48 @@ export const AdminOverviewPage: React.FC = () => {
 };
 
 // ============================================================================
-// 2. UTILISATEURS & RÔLES (/admin/utilisateurs)
+// 2. UTILISATEURS CONNECTÉS, RÔLES, MASQUAGE ŒIL & MODÉRATION (/admin/utilisateurs)
 // ============================================================================
 export const AdminUsersPage: React.FC = () => {
-  const { allUsers, currentUser, adminUpdateUserRole } = useApp();
+  const {
+    allUsers,
+    currentUser,
+    currentLanguage,
+    adminUpdateUserRole,
+    adminBanUser,
+    adminUnbanUser,
+    adminForceLogoutUser,
+    adminDeleteUser,
+  } = useApp();
   const [roleError, setRoleError] = useState<string | null>(null);
+  // Par défaut, les infos personnelles (nom complet, e-mail, bio) sont masquées jusqu'au clic sur l'icône d'œil
+  const [revealedUserIds, setRevealedUserIds] = useState<Record<string, boolean>>({});
+  const [banReasonDrafts, setBanReasonDrafts] = useState<Record<string, string>>({});
+  const [banTargetUserId, setBanTargetUserId] = useState<string | null>(null);
+
+  const toggleRevealUserPii = (userId: string) => {
+    setRevealedUserIds((prev) => ({ ...prev, [userId]: !prev[userId] }));
+  };
+
+  const connectedUsersCount = allUsers.filter(
+    (u) => u.isOnline || u.id === currentUser?.id
+  ).length;
 
   return (
     <div className="space-y-6">
-      <div>
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-nia-orange">
-          <Users className="w-4 h-4" />
-          Gestion des Utilisateurs & Permissions Serveur
-        </span>
-        <h1 className="text-2xl font-extrabold text-nia-gray-dark dark:text-white mt-1">
-          Membres et contrôle des rôles (`public.user_roles`)
-        </h1>
-        <p className="text-xs text-nia-gray-mid dark:text-gray-400 mt-1">
-          Aucun utilisateur ne peut s’attribuer lui-même le rôle administrateur. Les changements sont journalisés.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-nia-orange">
+            <Users className="w-4 h-4" />
+            Utilisateurs Connectés, Anonymat par Pseudo & Modération SuperAdmin
+          </span>
+          <h1 className="text-2xl font-extrabold text-nia-gray-dark dark:text-white mt-1">
+            Membres inscrits ({allUsers.length}) • En ligne ({connectedUsersCount})
+          </h1>
+          <p className="text-xs text-nia-gray-mid dark:text-gray-400 mt-1">
+            Seuls les pseudonymes s’affichent sur le site. Seul l’Admin peut révéler le nom complet, l’e-mail et les infos personnelles avec l’icône d’œil, ou déconnecter, bannir avec motif et supprimer un compte qui enfreint les règles.
+          </p>
+        </div>
       </div>
 
       {roleError && (
@@ -493,45 +529,205 @@ export const AdminUsersPage: React.FC = () => {
           <table className="w-full text-left text-xs sm:text-sm">
             <thead className="bg-nia-bg-light dark:bg-nia-bg-dark border-b border-nia-gray-light dark:border-nia-border-dark text-xs uppercase text-nia-gray-mid">
               <tr>
-                <th className="py-3.5 px-4">Membre</th>
-                <th className="py-3.5 px-4">Pseudonyme public</th>
+                <th className="py-3.5 px-4">Pseudonyme & Statut</th>
+                <th className="py-3.5 px-4">Infos Personnelles (Œil Admin)</th>
                 <th className="py-3.5 px-4">Pays</th>
-                <th className="py-3.5 px-4">CGU acceptées</th>
                 <th className="py-3.5 px-4">Rôle serveur</th>
+                <th className="py-3.5 px-4">Actions de Modération Admin</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-nia-gray-light dark:divide-nia-border-dark">
-              {allUsers.map((u) => (
-                <tr key={u.id}>
-                  <td className="py-3.5 px-4">
-                    <p className="font-bold text-nia-gray-dark dark:text-white">{u.displayName}</p>
-                    <p className="text-xs text-nia-gray-mid">{u.email}</p>
-                  </td>
-                  <td className="py-3.5 px-4">{u.publicPseudonym}</td>
-                  <td className="py-3.5 px-4 font-semibold">{u.countryCode}</td>
-                  <td className="py-3.5 px-4 text-xs text-emerald-700 dark:text-emerald-300 font-semibold">
-                    {u.acceptedTermsVersion}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <select
-                      value={u.role}
-                      onChange={(e) => {
-                        setRoleError(null);
-                        const res = adminUpdateUserRole(u.id, e.target.value as UserRole);
-                        if (!res.ok) setRoleError(res.error || 'Action refusée.');
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-xs font-bold"
-                    >
-                      <option value="user">user (Membre)</option>
-                      <option value="listener">listener (Écoutant)</option>
-                      <option value="admin">admin (Administrateur)</option>
-                    </select>
-                    {u.id === currentUser?.id && (
-                      <span className="ml-2 text-[11px] text-nia-orange font-bold">(Vous)</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {allUsers.map((u) => {
+                const isRevealed = Boolean(revealedUserIds[u.id]);
+                const isOnlineNow = Boolean(u.isOnline || u.id === currentUser?.id);
+                const isSuperAdminRow = u.email.toLowerCase() === 'isaacamegan10@gmail.com';
+
+                return (
+                  <tr key={u.id} className={u.isBanned ? 'bg-rose-500/5' : ''}>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                            u.isBanned
+                              ? 'bg-rose-500'
+                              : isOnlineNow
+                              ? 'bg-emerald-500 animate-pulse'
+                              : 'bg-gray-400'
+                          }`}
+                        />
+                        <div>
+                          <p className="font-extrabold text-nia-gray-dark dark:text-white">
+                            @{u.publicPseudonym || u.displayName}
+                          </p>
+                          <p className="text-[11px] font-semibold text-nia-gray-mid">
+                            {u.isBanned
+                              ? `Banni (Motif : ${u.banReason || 'Règles enfreintes'})`
+                              : isOnlineNow
+                              ? 'Connecté en ligne'
+                              : 'Hors ligne'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Colonne Infos Personnelles masquable/démasquable avec l'icône d'œil ouvert/fermé */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleRevealUserPii(u.id)}
+                          aria-label={
+                            isRevealed
+                              ? 'Masquer les informations personnelles'
+                              : 'Afficher les informations personnelles'
+                          }
+                          title={
+                            isRevealed
+                              ? 'Masquer nom complet, e-mail et infos'
+                              : 'Révéler nom complet, e-mail et infos (Admin uniquement)'
+                          }
+                          className="p-1.5 rounded-xl bg-nia-orange/15 hover:bg-nia-orange/25 text-nia-bordeaux dark:text-amber-200 transition-colors shrink-0"
+                        >
+                          {isRevealed ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
+                        {isRevealed ? (
+                          <div className="text-xs space-y-0.5">
+                            <p className="font-bold text-nia-gray-dark dark:text-white">
+                              Nom complet : {u.fullName || u.displayName}
+                            </p>
+                            <p className="font-mono text-[11px] text-nia-bordeaux dark:text-amber-300">
+                              E-mail : {u.email}
+                            </p>
+                            {u.bio && (
+                              <p className="text-[11px] text-nia-gray-mid truncate max-w-xs">
+                                {u.bio}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-nia-gray-mid select-none">
+                            <p className="font-mono tracking-widest">••••••••••••</p>
+                            <p className="text-[10px]">
+                              Cliquez sur l’œil pour voir nom & e-mail
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-4 font-semibold">{u.countryCode}</td>
+
+                    <td className="py-3.5 px-4">
+                      <select
+                        value={u.role}
+                        onChange={(e) => {
+                          setRoleError(null);
+                          const res = adminUpdateUserRole(u.id, e.target.value as UserRole);
+                          if (!res.ok) setRoleError(res.error || 'Action refusée.');
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-xs font-bold"
+                      >
+                        <option value="user">user (Membre)</option>
+                        <option value="listener">listener (Écoutant)</option>
+                        <option value="admin">admin (Administrateur)</option>
+                      </select>
+                      {u.id === currentUser?.id && (
+                        <span className="ml-2 text-[11px] text-nia-orange font-bold">(Vous)</span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      {isSuperAdminRow ? (
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                          SuperAdmin protégé
+                        </span>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {isOnlineNow && (
+                              <button
+                                type="button"
+                                onClick={() => adminForceLogoutUser(u.id)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 text-[11px] font-extrabold"
+                              >
+                                <LogOut className="w-3 h-3" />
+                                <span>{tUi(currentLanguage, 'disconnectUserBtn')}</span>
+                              </button>
+                            )}
+
+                            {u.isBanned ? (
+                              <button
+                                type="button"
+                                onClick={() => adminUnbanUser(u.id)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold"
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>Débloquer</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setBanTargetUserId(banTargetUserId === u.id ? null : u.id)
+                                }
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-[11px] font-extrabold"
+                              >
+                                <Ban className="w-3 h-3" />
+                                <span>{tUi(currentLanguage, 'banUserBtn')}</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => adminDeleteUser(u.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>{tUi(currentLanguage, 'deleteUserBtn')}</span>
+                            </button>
+                          </div>
+
+                          {/* Saisie du motif de bannissement envoyé à l'utilisateur */}
+                          {banTargetUserId === u.id && !u.isBanned && (
+                            <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex flex-col sm:flex-row gap-2">
+                              <input
+                                type="text"
+                                value={banReasonDrafts[u.id] || ''}
+                                onChange={(e) =>
+                                  setBanReasonDrafts((prev) => ({
+                                    ...prev,
+                                    [u.id]: e.target.value,
+                                  }))
+                                }
+                                placeholder="Motif du bannissement reçu par l'utilisateur…"
+                                className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-nia-bg-dark border border-rose-500/40 text-xs"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  adminBanUser(
+                                    u.id,
+                                    banReasonDrafts[u.id] ||
+                                      'Non-respect des règles de bienveillance Nia-Mind.'
+                                  );
+                                  setBanTargetUserId(null);
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-extrabold shrink-0"
+                              >
+                                Confirmer & Envoyer Motif
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -541,25 +737,283 @@ export const AdminUsersPage: React.FC = () => {
 };
 
 // ============================================================================
-// 3. DEMANDES D'ÉCOUTE (/admin/ecoute)
+// 3. DEMANDES D'ÉCOUTE & PACKS DE DISCUSSIONS PAR UTILISATEUR + DIAGNOSTIC PSYCHIQUE (/admin/ecoute)
 // ============================================================================
 export const AdminListeningPage: React.FC = () => {
-  const { allListeningRequests, adminUpdateListeningRequest } = useApp();
+  const {
+    currentLanguage,
+    allListeningRequests,
+    adminUpdateListeningRequest,
+    allAssistantConversationsForAdmin,
+    adminReplyInAssistantConversation,
+    sendPsychicDiagnosticToUser,
+  } = useApp();
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [convReplyDrafts, setConvReplyDrafts] = useState<Record<string, string>>({});
+  const [openDiagnosticConvId, setOpenDiagnosticConvId] = useState<string | null>(null);
+  const [customDiagnosticText, setCustomDiagnosticText] = useState<Record<string, string>>({});
+
+  // Regroupement des discussions avec l'assistance en PACKS PAR UTILISATEUR (@pseudo)
+  const packsByUser = React.useMemo(() => {
+    const map: Record<
+      string,
+      {
+        userId: string;
+        userPseudonym: string;
+        conversations: typeof allAssistantConversationsForAdmin;
+      }
+    > = {};
+    for (const conv of allAssistantConversationsForAdmin) {
+      const key = conv.userId;
+      if (!map[key]) {
+        map[key] = {
+          userId: conv.userId,
+          userPseudonym: conv.userPseudonym || 'Membre',
+          conversations: [],
+        };
+      }
+      map[key].conversations.push(conv);
+    }
+    return Object.values(map);
+  }, [allAssistantConversationsForAdmin]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-nia-orange">
           <HeartHandshake className="w-4 h-4" />
-          Traitement des Demandes d’Écoute Humaine
+          Relais Humain Assistant, Packs par Utilisateur & Diagnostic Psychique IA
         </span>
         <h1 className="text-2xl font-extrabold text-nia-gray-dark dark:text-white mt-1">
-          Demandes confidentielles ({allListeningRequests.length})
+          Packs de discussions privées ({packsByUser.length} pack(s)) & Demandes d’écoute ({allListeningRequests.length})
         </h1>
+        <p className="text-xs text-nia-gray-mid dark:text-gray-400 mt-1">
+          Seul l’Admin et son interlocuteur peuvent lire les messages de chaque discussion. Les échanges sont stockés en pack par utilisateur et traduits automatiquement selon la langue choisie ({currentLanguage.toUpperCase()}).
+        </p>
       </div>
 
+      {/* SECTION A : PACKS DE DISCUSSIONS ASSISTANT PAR UTILISATEUR + BOUTON DIAGNOSTIC PSYCHIQUE */}
+      <div className="space-y-5">
+        <h2 className="text-base font-extrabold text-nia-gray-dark dark:text-white flex items-center gap-2">
+          <FolderOpen className="w-5 h-5 text-nia-orange" />
+          <span>Packs de discussions Assistant par Utilisateur (Lisibilité stricte : Admin & Interlocuteur)</span>
+        </h2>
+
+        {packsByUser.length === 0 ? (
+          <div className="p-6 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark text-xs text-nia-gray-mid">
+            Aucun pack de discussion actif pour le moment. Dès qu’un utilisateur échange avec l’Assistant ou active le Switch Humain, son pack dédié apparaît ici.
+          </div>
+        ) : (
+          packsByUser.map((pack) => (
+            <div
+              key={pack.userId}
+              className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-nia-surface-dark border-2 border-nia-orange/35 space-y-5 shadow-sm"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-nia-gray-light dark:border-nia-border-dark pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-nia-orange to-nia-bordeaux text-white font-extrabold flex items-center justify-center">
+                    {pack.userPseudonym.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-nia-orange">
+                      Pack Utilisateur Isolé
+                    </span>
+                    <h3 className="text-base font-extrabold text-nia-gray-dark dark:text-white">
+                      @{pack.userPseudonym} ({pack.conversations.length} discussion(s))
+                    </h3>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-nia-bordeaux/10 text-nia-bordeaux dark:text-amber-300 text-[11px] font-bold">
+                  <Lock className="w-3.5 h-3.5 text-nia-orange" />
+                  Lisible uniquement par l’Admin et @{pack.userPseudonym}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {pack.conversations.map((conv) => {
+                  const briefing = generatePsychicDiagnosticBriefing({
+                    messages: conv.messages,
+                    userPseudonym: pack.userPseudonym,
+                  });
+                  const defaultBriefingFormatted = formatPsychicDiagnosticMessage(briefing);
+                  const isDiagOpen = openDiagnosticConvId === conv.id;
+
+                  return (
+                    <div
+                      key={conv.id}
+                      className="p-4 rounded-2xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark space-y-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-extrabold text-nia-gray-dark dark:text-white">
+                            {translateMessageForViewer(conv.title, currentLanguage)}
+                          </p>
+                          <p className="text-[11px] text-nia-gray-mid">
+                            {conv.messages.length} message(s) •{' '}
+                            {conv.handedOverToAdmin
+                              ? 'Relais Humain Admin actif (Switch activé)'
+                              : 'Assisté par la Puce IA Nia-Mind'}
+                          </p>
+                        </div>
+
+                        {conv.handedOverToAdmin && (
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold">
+                            Main donnée à l’Admin
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Messages de la discussion traduits automatiquement pour l'Admin */}
+                      <div className="space-y-2 max-h-60 overflow-y-auto p-3 rounded-xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark">
+                        {conv.messages.map((m) => (
+                          <div
+                            key={m.id}
+                            className={`p-2.5 rounded-xl text-xs ${
+                              m.sender === 'user'
+                                ? 'bg-nia-orange/15 text-nia-gray-dark dark:text-white font-semibold'
+                                : m.isDiagnosticBriefing
+                                ? 'bg-nia-bordeaux/15 border border-nia-bordeaux/40 text-nia-gray-dark dark:text-white'
+                                : 'bg-nia-bg-light dark:bg-nia-bg-dark text-nia-gray-mid dark:text-gray-300'
+                            }`}
+                          >
+                            <span className="font-extrabold uppercase text-[10px] text-nia-bordeaux dark:text-amber-300 block mb-0.5">
+                              {m.sender === 'user'
+                                ? `@${pack.userPseudonym}`
+                                : m.isDiagnosticBriefing
+                                ? 'Diagnostic psychique transmis'
+                                : m.sender === 'admin'
+                                ? 'Admin (Vous)'
+                                : 'IA Nia-Mind'}
+                            </span>
+                            <p className="whitespace-pre-line">
+                              {translateMessageForViewer(m.content, currentLanguage)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Zone de réponse directe de l'Admin dans la discussion */}
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          value={convReplyDrafts[conv.id] || ''}
+                          onChange={(e) =>
+                            setConvReplyDrafts((prev) => ({
+                              ...prev,
+                              [conv.id]: e.target.value,
+                            }))
+                          }
+                          placeholder={`Répondre directement à @${pack.userPseudonym} (traduit automatiquement)…`}
+                          className="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const draft = convReplyDrafts[conv.id]?.trim();
+                            if (!draft) return;
+                            adminReplyInAssistantConversation(conv.id, draft);
+                            setConvReplyDrafts((prev) => ({ ...prev, [conv.id]: '' }));
+                          }}
+                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-nia-orange hover:bg-nia-orange-deep text-white text-xs font-extrabold shrink-0"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Répondre à l’interlocuteur</span>
+                        </button>
+                      </div>
+
+                      {/* BOUTON DE FIN DE DISCUSSION : « Diagnostic psychique » (Analyse automatique IA + Envoi du bilan à l'interlocuteur) */}
+                      <div className="pt-2 border-t border-nia-gray-light dark:border-nia-border-dark flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs text-nia-gray-mid">
+                          <NeuralChipIcon className="w-4 h-4" />
+                          <span>
+                            Analyse automatique IA prête ({briefing.exchangeCount} échange(s) analysé(s))
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenDiagnosticConvId(isDiagOpen ? null : conv.id)
+                            }
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-nia-bordeaux to-nia-orange text-white text-xs font-extrabold shadow-sm"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>{tUi(currentLanguage, 'psychicDiagnosticBtn')}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              sendPsychicDiagnosticToUser(
+                                conv.id,
+                                customDiagnosticText[conv.id]
+                              )
+                            }
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-sm"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{tUi(currentLanguage, 'sendDiagnosticBtn')}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Aperçu & édition du Briefing Diagnostic psychique IA avant envoi */}
+                      {isDiagOpen && (
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-nia-bordeaux/10 via-amber-500/10 to-sky-500/10 border-2 border-nia-bordeaux/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-extrabold uppercase tracking-wider text-nia-bordeaux dark:text-amber-300">
+                              Briefing d’Analyse IA — Diagnostic psychique (@{pack.userPseudonym})
+                            </span>
+                            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                              Prêt à être envoyé à l’interlocuteur
+                            </span>
+                          </div>
+                          <textarea
+                            rows={6}
+                            value={
+                              customDiagnosticText[conv.id] ?? defaultBriefingFormatted
+                            }
+                            onChange={(e) =>
+                              setCustomDiagnosticText((prev) => ({
+                                ...prev,
+                                [conv.id]: e.target.value,
+                              }))
+                            }
+                            className="w-full p-3 rounded-xl bg-white dark:bg-nia-surface-dark border border-nia-bordeaux/30 text-xs font-medium leading-relaxed"
+                          />
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sendPsychicDiagnosticToUser(
+                                  conv.id,
+                                  customDiagnosticText[conv.id] ?? defaultBriefingFormatted
+                                );
+                                setOpenDiagnosticConvId(null);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Envoyer ce bilan Diagnostic psychique à @{pack.userPseudonym}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* SECTION B : DEMANDES D'ÉCOUTE ASYNCHRONES CLASSIQUES */}
       <div className="space-y-4">
+        <h2 className="text-base font-extrabold text-nia-gray-dark dark:text-white">
+          Formulaires de demandes d’écoute ({allListeningRequests.length})
+        </h2>
         {allListeningRequests.map((req) => (
           <div
             key={req.id}
@@ -568,10 +1022,10 @@ export const AdminListeningPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <span className="text-xs font-bold text-nia-orange">
-                  Membre : {req.userDisplayName} • {req.preferredMode} ({req.preferredSlot})
+                  Pseudo : @{req.userDisplayName} • {req.preferredMode} ({req.preferredSlot})
                 </span>
                 <h2 className="text-lg font-bold text-nia-gray-dark dark:text-white">
-                  {req.topic}
+                  {translateMessageForViewer(req.topic, currentLanguage)}
                 </h2>
               </div>
               <select
@@ -593,12 +1047,12 @@ export const AdminListeningPage: React.FC = () => {
             </div>
 
             <p className="text-sm text-nia-gray-dark dark:text-gray-200 p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark">
-              {req.message}
+              {translateMessageForViewer(req.message, currentLanguage)}
             </p>
 
             <div className="space-y-2">
               <label className="block text-xs font-bold uppercase tracking-wider">
-                Réponse de l’écoutant (transmise en privé à l’utilisateur)
+                Réponse de l’écoutant (transmise en privé à l’utilisateur et traduite automatiquement)
               </label>
               <textarea
                 rows={3}

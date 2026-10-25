@@ -55,6 +55,11 @@ import {
   verifyProtectedLogin,
 } from '../lib/securityEngine';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import {
+  formatPsychicDiagnosticMessage,
+  generatePsychicDiagnosticBriefing,
+  SupportedLanguage,
+} from '../lib/i18nEngine';
 
 interface ToastNotification {
   id: string;
@@ -64,13 +69,15 @@ interface ToastNotification {
 }
 
 interface AppContextValue {
-  // Identité & Thème
+  // Identité, Thème & Langue isolée par utilisateur
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   setTheme: (theme: 'light' | 'dark') => void;
   reducedMotion: boolean;
   setReducedMotion: (val: boolean) => void;
   supabaseConnected: boolean;
+  currentLanguage: SupportedLanguage;
+  setCurrentLanguage: (lang: SupportedLanguage) => void;
 
   // Authentification & Session
   currentUser: UserProfile | null;
@@ -130,6 +137,22 @@ interface AppContextValue {
   forcePublishStoryBySuperAdmin: (
     storyId: string,
     proposedPublicContent?: string
+  ) => { ok: boolean; error?: string };
+  adminBanUser: (targetUserId: string, reason: string) => { ok: boolean; error?: string };
+  adminUnbanUser: (targetUserId: string) => { ok: boolean; error?: string };
+  adminForceLogoutUser: (targetUserId: string) => { ok: boolean; error?: string };
+  adminDeleteUser: (targetUserId: string) => { ok: boolean; error?: string };
+  activeBanNotice: { pseudo: string; reason: string; bannedAt: string } | null;
+  dismissBanNotice: () => void;
+  allAssistantConversationsForAdmin: AssistantConversation[];
+  toggleConversationHumanHandover: (conversationId: string, handOver: boolean) => void;
+  adminReplyInAssistantConversation: (
+    conversationId: string,
+    content: string
+  ) => { ok: boolean; error?: string };
+  sendPsychicDiagnosticToUser: (
+    conversationId: string,
+    customBriefingText?: string
   ) => { ok: boolean; error?: string };
 
   // Données filtrées par RLS pour l'utilisateur courant
@@ -347,6 +370,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
   const [userPasswords, setUserPasswords] = useState<Record<string, string>>({});
   const [recoveryCodes, setRecoveryCodes] = useState<Record<string, string>>({});
+  const [visitorLanguage, setVisitorLanguage] = useState<SupportedLanguage>('fr');
+  const [activeBanNotice, setActiveBanNotice] = useState<{
+    pseudo: string;
+    reason: string;
+    bannedAt: string;
+  } | null>(null);
 
   const [isDailyTipModalOpen, setIsDailyTipModalOpen] = useState(false);
   const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
@@ -531,6 +560,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [users, currentUserId]
   );
 
+  // Langue isolée par utilisateur : le choix d'un utilisateur n'affecte que son propre affichage
+  const currentLanguage: SupportedLanguage = useMemo(() => {
+    if (currentUser?.preferredLanguage) {
+      return currentUser.preferredLanguage;
+    }
+    try {
+      const saved = localStorage.getItem(`nia-mind-lang-${currentUser?.id || 'visitor'}`);
+      if (saved === 'fr' || saved === 'en' || saved === 'es' || saved === 'de' || saved === 'zh') {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return visitorLanguage;
+  }, [currentUser?.id, currentUser?.preferredLanguage, visitorLanguage]);
+
+  const setCurrentLanguage = (lang: SupportedLanguage) => {
+    try {
+      localStorage.setItem(`nia-mind-lang-${currentUser?.id || 'visitor'}`, lang);
+    } catch {
+      // ignore
+    }
+    if (currentUser) {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === currentUser.id ? { ...u, preferredLanguage: lang } : u))
+      );
+    } else {
+      setVisitorLanguage(lang);
+    }
+  };
+
   const pushToast = (
     title: string,
     message: string,
@@ -648,9 +708,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const existing = users.find((u) => u.email.toLowerCase() === clean);
     if (existing) {
+      if (existing.isBanned) {
+        const banReason = existing.banReason || 'Non-respect des règles de bienveillance Nia-Mind.';
+        setActiveBanNotice({
+          pseudo: existing.publicPseudonym || existing.displayName,
+          reason: banReason,
+          bannedAt: existing.bannedAt || new Date().toISOString(),
+        });
+        recordAudit('SECURITY_BANNED_USER_LOGIN_BLOCKED', 'auth', existing.id, `Tentative de connexion d'un compte banni (${banReason}).`);
+        return {
+          ok: false,
+          error: `COMPTE SUSPENDU / BANNI PAR L’ADMINISTRATEUR — Motif : ${banReason}`,
+        };
+      }
+      setUsers((prev) =>
+        prev.map((u) => (u.id === existing.id ? { ...u, isOnline: true } : u))
+      );
       setCurrentUserId(existing.id);
       recordAudit('AUTH_LOGIN_SUCCESS', 'auth', existing.id, 'Connexion vérifiée d’un membre inscrit.');
-      pushToast('Bienvenue sur Nia-Mind', `Ravi de te retrouver, ${existing.displayName}.`, 'orange');
+      pushToast('Bienvenue sur Nia-Mind', `Ravi de te retrouver, @${existing.publicPseudonym || existing.displayName}.`, 'orange');
       return { ok: true };
     }
     return {
@@ -754,11 +830,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ? `Centres d’intérêt : ${params.interests.map((i) => sanitizeUserText(i, 60)).join(', ')}`
         : '';
 
+    const chosenPseudo =
+      sanitizeUserText(params.publicPseudonym || params.displayName, 60) || 'PlumeSincere';
+    const privateFullName = sanitizeUserText(params.displayName, 80) || chosenPseudo;
+
     const newUser: UserProfile = {
       id: `user-${Date.now()}`,
       email: cleanEmail,
-      displayName: sanitizeUserText(params.displayName, 80) || 'Membre Nia-Mind',
-      publicPseudonym: sanitizeUserText(params.publicPseudonym, 60) || 'Anonyme',
+      // Seul le pseudo choisi par l'utilisateur est affiché publiquement ou dans l'interface
+      displayName: chosenPseudo,
+      publicPseudonym: chosenPseudo,
+      fullName: privateFullName,
+      preferredLanguage: visitorLanguage,
+      isOnline: true,
+      isBanned: false,
+      banReason: null,
+      bannedAt: null,
       bio: interestsSummary,
       countryCode: params.countryCode,
       role: 'user',
@@ -766,7 +853,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       reducedMotion,
       notificationsEnabled: true,
       dailyTipModalEnabled: true,
-      acceptedTermsVersion: 'v2.5 — Octobre 2026',
+      acceptedTermsVersion: 'Octobre 2026',
       acceptedTermsAt: new Date().toISOString(),
       optionalAnalyticsConsent: Boolean(params.cookiesAccepted ?? true),
       optionalWellnessInsightsConsent: params.optionalWellnessConsent,
@@ -777,8 +864,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     setUsers((prev) => [...prev, newUser]);
     setCurrentUserId(newUser.id);
-    recordAudit('USER_REGISTER', 'user', newUser.id, 'Création d’un nouveau compte membre.');
-    pushToast('Compte créé', `Bienvenue dans ton espace sincère, ${newUser.displayName}.`, 'orange');
+    recordAudit('USER_REGISTER', 'user', newUser.id, 'Création d’un nouveau compte membre sous pseudonyme.');
+    pushToast('Compte créé', `Bienvenue dans ton espace sincère, @${newUser.publicPseudonym}.`, 'orange');
     return { ok: true };
   };
 
@@ -1002,12 +1089,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Actions Assistant Nia-Mind
   const createConversation = (initialTitle = 'Nouvelle réflexion') => {
     const uid = currentUser?.id || 'user-a';
+    const upseudo = currentUser?.publicPseudonym || currentUser?.displayName || 'Anonyme';
     const convId = `conv-${Date.now()}`;
     const greetingMsg: AssistantMessage = {
       id: `msg-${Date.now()}-init`,
       conversationId: convId,
       userId: uid,
       sender: 'assistant',
+      sourceLanguage: 'fr',
       content:
         'Bonjour. Tu peux prendre ton temps. Qu\'aimerais-tu exprimer ou comprendre aujourd\'hui ?',
       createdAt: new Date().toISOString(),
@@ -1015,7 +1104,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newConv: AssistantConversation = {
       id: convId,
       userId: uid,
+      userPseudonym: upseudo,
       title: initialTitle,
+      handedOverToAdmin: false,
+      diagnosticSentAt: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       messages: [greetingMsg],
@@ -1037,6 +1129,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       conversationId,
       userId: uid,
       sender,
+      sourceLanguage: currentLanguage,
       content: clean,
       distressFlagged,
       createdAt: new Date().toISOString(),
@@ -1048,6 +1141,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           sender === 'user' && (c.title === 'Nouvelle réflexion' || c.messages.length <= 1);
         return {
           ...c,
+          userPseudonym:
+            c.userPseudonym || currentUser?.publicPseudonym || currentUser?.displayName || 'Anonyme',
           title: shouldUpdateTitle ? clean.slice(0, 48) + (clean.length > 48 ? '…' : '') : c.title,
           updatedAt: new Date().toISOString(),
           messages: [...c.messages, msg],
@@ -2030,6 +2125,267 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { ok: true };
   };
 
+  const adminBanUser = (targetUserId: string, reason: string) => {
+    if (!isSuperAdminActor) {
+      return { ok: false, error: 'Seul le SuperAdmin peut bannir ou bloquer un utilisateur.' };
+    }
+    const target = users.find((u) => u.id === targetUserId);
+    if (!target || target.email.toLowerCase() === SUPERADMIN_PROFILE.email) {
+      return { ok: false, error: 'Action impossible sur ce compte.' };
+    }
+    const cleanReason =
+      sanitizeUserText(reason, 240) || 'Enfreinte aux règles de bienveillance Nia-Mind.';
+    const now = new Date().toISOString();
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === targetUserId
+          ? { ...u, isBanned: true, isOnline: false, banReason: cleanReason, bannedAt: now }
+          : u
+      )
+    );
+    setActiveBanNotice({
+      pseudo: target.publicPseudonym || target.displayName,
+      reason: cleanReason,
+      bannedAt: now,
+    });
+    if (currentUserId === targetUserId) {
+      setCurrentUserId(null);
+    }
+    recordAudit(
+      'SECURITY_USER_BANNED',
+      'user',
+      targetUserId,
+      `Utilisateur @${target.publicPseudonym} banni. Motif : ${cleanReason}`
+    );
+    pushToast(
+      `Utilisateur @${target.publicPseudonym} banni`,
+      `Motif transmis : ${cleanReason}`,
+      'bordeaux'
+    );
+    return { ok: true };
+  };
+
+  const adminUnbanUser = (targetUserId: string) => {
+    if (!isSuperAdminActor) {
+      return { ok: false, error: 'Seul le SuperAdmin peut lever un bannissement.' };
+    }
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === targetUserId
+          ? { ...u, isBanned: false, banReason: null, bannedAt: null }
+          : u
+      )
+    );
+    recordAudit('ADMIN_USER_UNBANNED', 'user', targetUserId, 'Levée du bannissement.');
+    pushToast('Compte débloqué', 'L’utilisateur peut à nouveau se connecter.', 'orange');
+    return { ok: true };
+  };
+
+  const adminForceLogoutUser = (targetUserId: string) => {
+    if (!isSuperAdminActor) {
+      return { ok: false, error: 'Seul le SuperAdmin peut déconnecter un utilisateur.' };
+    }
+    const target = users.find((u) => u.id === targetUserId);
+    if (!target) return { ok: false, error: 'Utilisateur introuvable.' };
+    setUsers((prev) =>
+      prev.map((u) => (u.id === targetUserId ? { ...u, isOnline: false } : u))
+    );
+    if (currentUserId === targetUserId) {
+      setCurrentUserId(null);
+    }
+    recordAudit(
+      'SECURITY_USER_FORCE_LOGOUT',
+      'user',
+      targetUserId,
+      `Déconnexion forcée de @${target.publicPseudonym} par le SuperAdmin.`
+    );
+    pushToast(
+      'Utilisateur déconnecté',
+      `La session de @${target.publicPseudonym} a été fermée.`,
+      'neutral'
+    );
+    return { ok: true };
+  };
+
+  const adminDeleteUser = (targetUserId: string) => {
+    if (!isSuperAdminActor) {
+      return { ok: false, error: 'Seul le SuperAdmin peut supprimer un compte.' };
+    }
+    const target = users.find((u) => u.id === targetUserId);
+    if (!target || target.email.toLowerCase() === SUPERADMIN_PROFILE.email) {
+      return { ok: false, error: 'Le compte SuperAdmin ne peut pas être supprimé.' };
+    }
+    setUsers((prev) => prev.filter((u) => u.id !== targetUserId));
+    setConversations((prev) => prev.filter((c) => c.userId !== targetUserId));
+    setJournalEntries((prev) => prev.filter((j) => j.userId !== targetUserId));
+    setMoodEntries((prev) => prev.filter((m) => m.userId !== targetUserId));
+    setStressSleepEntries((prev) => prev.filter((s) => s.userId !== targetUserId));
+    setQuestionnaireResponses((prev) => prev.filter((q) => q.userId !== targetUserId));
+    setListeningRequests((prev) => prev.filter((l) => l.userId !== targetUserId));
+    if (currentUserId === targetUserId) {
+      setCurrentUserId(null);
+    }
+    recordAudit(
+      'SECURITY_USER_DELETED',
+      'user',
+      targetUserId,
+      `Suppression définitive du compte @${target.publicPseudonym}.`
+    );
+    pushToast(
+      'Compte supprimé',
+      `Le compte @${target.publicPseudonym} et ses sessions ont été retirés.`,
+      'bordeaux'
+    );
+    return { ok: true };
+  };
+
+  const dismissBanNotice = () => setActiveBanNotice(null);
+
+  const toggleConversationHumanHandover = (conversationId: string, handOver: boolean) => {
+    const now = new Date().toISOString();
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== conversationId) return c;
+        const handoverMsg: AssistantMessage = {
+          id: `msg-handover-${Date.now()}`,
+          conversationId,
+          userId: c.userId,
+          sender: 'assistant',
+          sourceLanguage: 'fr',
+          content: handOver
+            ? 'Relais Humain activé : L’IA Nia-Mind a transmis la main de cette discussion à l’Administrateur. Vos échanges ici sont privés et lisibles uniquement par vous et l’administrateur.'
+            : 'Puce d’Intelligence Nia-Mind réactivée : l’assistant reprend le fil réflexif avec toi.',
+          createdAt: now,
+        };
+        return {
+          ...c,
+          handedOverToAdmin: handOver,
+          updatedAt: now,
+          messages: [...c.messages, handoverMsg],
+        };
+      })
+    );
+    recordAudit(
+      handOver ? 'LISTENING_HANDOVER_TO_ADMIN' : 'LISTENING_RETURNED_TO_AI',
+      'assistant_conversation',
+      conversationId,
+      handOver
+        ? 'Bascule de la discussion Assistant vers le SuperAdmin humain.'
+        : 'Retour de la discussion vers la puce IA Nia-Mind.'
+    );
+    pushToast(
+      handOver ? 'Relais Humain (Admin) activé' : 'Retour sur l’IA Nia-Mind',
+      handOver
+        ? 'L’IA a donné la main de la discussion à l’administrateur.'
+        : 'La puce d’intelligence Nia-Mind répond à nouveau.',
+      handOver ? 'bordeaux' : 'orange'
+    );
+  };
+
+  const adminReplyInAssistantConversation = (conversationId: string, content: string) => {
+    if (!isSuperAdminActor) {
+      return {
+        ok: false,
+        error: 'Seul le SuperAdmin peut répondre dans le canal humain d’assistance.',
+      };
+    }
+    const clean = sanitizeUserText(content, 2000);
+    if (!clean) return { ok: false, error: 'Message vide.' };
+    const now = new Date().toISOString();
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== conversationId) return c;
+        const adminMsg: AssistantMessage = {
+          id: `msg-admin-${Date.now()}`,
+          conversationId,
+          userId: c.userId,
+          sender: 'admin',
+          sourceLanguage: currentLanguage,
+          content: clean,
+          createdAt: now,
+        };
+        return {
+          ...c,
+          handedOverToAdmin: true,
+          updatedAt: now,
+          messages: [...c.messages, adminMsg],
+        };
+      })
+    );
+    recordAudit(
+      'LISTENING_ADMIN_DIRECT_REPLY',
+      'assistant_conversation',
+      conversationId,
+      'Réponse humaine directe du SuperAdmin dans le pack de discussion.'
+    );
+    pushToast('Réponse envoyée', 'Votre message a été transmis dans la discussion de l’interlocuteur.', 'orange');
+    return { ok: true };
+  };
+
+  const sendPsychicDiagnosticToUser = (
+    conversationId: string,
+    customBriefingText?: string
+  ) => {
+    if (!isSuperAdminActor) {
+      return {
+        ok: false,
+        error: 'Seul le SuperAdmin peut envoyer le bilan de diagnostic psychique.',
+      };
+    }
+    const targetConv = conversations.find((c) => c.id === conversationId);
+    if (!targetConv) {
+      return { ok: false, error: 'Discussion introuvable.' };
+    }
+    const briefing = generatePsychicDiagnosticBriefing({
+      messages: targetConv.messages,
+      userPseudonym: targetConv.userPseudonym || 'Membre',
+    });
+    const textToSend = customBriefingText?.trim()
+      ? sanitizeUserText(customBriefingText, 2500)
+      : formatPsychicDiagnosticMessage(briefing);
+    const now = new Date().toISOString();
+
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== conversationId) return c;
+        const diagMsg: AssistantMessage = {
+          id: `msg-diag-${Date.now()}`,
+          conversationId,
+          userId: c.userId,
+          sender: 'admin',
+          sourceLanguage: 'fr',
+          isDiagnosticBriefing: true,
+          content: textToSend,
+          createdAt: now,
+        };
+        return {
+          ...c,
+          diagnosticSentAt: now,
+          updatedAt: now,
+          messages: [...c.messages, diagMsg],
+        };
+      })
+    );
+    recordAudit(
+      'LISTENING_PSYCHIC_DIAGNOSTIC_SENT',
+      'assistant_conversation',
+      conversationId,
+      `Envoi du bilan Diagnostic psychique IA à @${targetConv.userPseudonym || 'Membre'}.`
+    );
+    pushToast(
+      'Diagnostic psychique envoyé',
+      `Le bilan d’analyse IA a été transmis à @${targetConv.userPseudonym || 'Membre'}.`,
+      'bordeaux'
+    );
+    return { ok: true };
+  };
+
+  // Seul le SuperAdmin et l'interlocuteur concerné peuvent lire une discussion
+  const allAssistantConversationsForAdmin = useMemo(() => {
+    if (!isSuperAdminActor) return [];
+    return conversations;
+  }, [conversations, isSuperAdminActor]);
+
   const value: AppContextValue = {
     theme,
     toggleTheme,
@@ -2037,6 +2393,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     reducedMotion,
     setReducedMotion,
     supabaseConnected: isSupabaseConfigured(),
+    currentLanguage,
+    setCurrentLanguage,
     currentUser,
     allUsers: users,
     switchDemoUser,
@@ -2057,6 +2415,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     deleteSiteNotification,
     generateAiDailyTipAndPush,
     forcePublishStoryBySuperAdmin,
+    adminBanUser,
+    adminUnbanUser,
+    adminForceLogoutUser,
+    adminDeleteUser,
+    activeBanNotice,
+    dismissBanNotice,
+    allAssistantConversationsForAdmin,
+    toggleConversationHumanHandover,
+    adminReplyInAssistantConversation,
+    sendPsychicDiagnosticToUser,
     userConversations,
     userMoodEntries,
     userStressSleepEntries,

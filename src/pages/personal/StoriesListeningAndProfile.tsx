@@ -823,9 +823,11 @@ export const ProfileAndPrivacyPage: React.FC<{ section: 'profile' | 'privacy' }>
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    const chosenPseudo = pseudonym.trim() || displayName.trim() || 'PlumeSincere';
     updateCurrentUserProfile({
-      displayName,
-      publicPseudonym: pseudonym,
+      displayName: chosenPseudo,
+      publicPseudonym: chosenPseudo,
+      fullName: displayName.trim() || currentUser?.fullName || chosenPseudo,
       bio,
       countryCode,
       notificationsEnabled,
@@ -905,23 +907,25 @@ export const ProfileAndPrivacyPage: React.FC<{ section: 'profile' | 'privacy' }>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider mb-1">
-                Nom d’affichage (Privé)
-              </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider mb-1">
-                Pseudonyme public (Histoires)
+                Pseudonyme affiché sur le site
               </label>
               <input
                 type="text"
                 value={pseudonym}
                 onChange={(e) => setPseudonym(e.target.value)}
+                placeholder="Ex. : PlumeSincere"
+                className="w-full px-3.5 py-2 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-sm font-semibold"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-1">
+                Nom complet (confidentiel • Admin seul)
+              </label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Strictement masqué au public"
                 className="w-full px-3.5 py-2 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-sm"
               />
             </div>
@@ -958,35 +962,41 @@ export const ProfileAndPrivacyPage: React.FC<{ section: 'profile' | 'privacy' }>
             />
           </div>
 
-          {/* Sélecteur Thème Clair / Sombre et Accessibilité Mouvements */}
+          {/* Sélecteur d'aperçu Mode Clair / Mode Sombre (sans code ni nom numérique) et Accessibilité */}
           <div className="pt-2 border-t border-nia-gray-light dark:border-nia-border-dark space-y-3">
             <p className="text-xs font-bold uppercase tracking-wider">
-              Thème d’affichage & Animations
+              Aperçu du site — Mode clair & Mode sombre
             </p>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setTheme('light')}
-                className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
+                className={`p-3.5 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-2 transition-all ${
                   theme === 'light'
-                    ? 'bg-nia-orange text-white border-nia-orange'
-                    : 'border-nia-gray-light dark:border-nia-border-dark'
+                    ? 'bg-nia-orange text-white border-nia-orange shadow-sm'
+                    : 'border-nia-gray-light dark:border-nia-border-dark hover:border-nia-orange'
                 }`}
               >
-                <Sun className="w-4 h-4" />
-                Thème clair (#FFF9F5)
+                <div className="w-full h-7 rounded-lg bg-amber-50 border border-amber-200/80 flex items-center justify-center gap-1.5 px-2">
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="w-8 h-1.5 rounded-full bg-orange-400/70" />
+                </div>
+                <span>Mode clair</span>
               </button>
               <button
                 type="button"
                 onClick={() => setTheme('dark')}
-                className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 ${
+                className={`p-3.5 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-2 transition-all ${
                   theme === 'dark'
-                    ? 'bg-nia-orange text-white border-nia-orange'
-                    : 'border-nia-gray-light dark:border-nia-border-dark'
+                    ? 'bg-nia-orange text-white border-nia-orange shadow-sm'
+                    : 'border-nia-gray-light dark:border-nia-border-dark hover:border-nia-orange'
                 }`}
               >
-                <Moon className="w-4 h-4" />
-                Thème sombre (#111318)
+                <div className="w-full h-7 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center gap-1.5 px-2">
+                  <Moon className="w-3.5 h-3.5 text-amber-300" />
+                  <span className="w-8 h-1.5 rounded-full bg-rose-400/70" />
+                </div>
+                <span>Mode sombre</span>
               </button>
             </div>
 

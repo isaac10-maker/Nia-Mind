@@ -5,22 +5,25 @@ import {
   AlertTriangle,
   ArrowRight,
   BookMarked,
-  Bot,
   CheckCircle2,
+  Crown,
   Feather,
   HeartHandshake,
   Loader2,
+  Lock,
   MessageSquarePlus,
   PhoneCall,
   Send,
   ShieldCheck,
   Sparkles,
   Trash2,
+  UserCheck,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Modal } from '../../components/ui/Modal';
+import { NeuralChipIcon } from '../../components/ui/NeuralChipIcon';
 import { InlineSlidingGuideBanner } from '../../components/ui/SlidingInstructionBubbles';
-import { OFFICIAL_SLOGAN } from '../../lib/securityEngine';
+import { translateMessageForViewer, tUi } from '../../lib/i18nEngine';
 
 const OFFICIAL_SUGGESTIONS = [
   'J\'ai besoin de mettre des mots sur ce que je ressens.',
@@ -83,7 +86,7 @@ export const PersonalDashboardPage: React.FC = () => {
               Espace Personnel Isolé • Écouter • Comprendre • Avancer
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold">
-              Bonjour, {currentUser?.displayName}. Prends le temps d’être toi-même.
+              Bonjour, @{currentUser?.publicPseudonym || currentUser?.displayName}. Prends le temps d’être toi-même.
             </h1>
             <p className="text-sm text-white/85 max-w-2xl">
               Tout ce que tu déposes dans ton journal et ton suivi bien-être t’appartient exclusivement.
@@ -269,7 +272,7 @@ export const PersonalDashboardPage: React.FC = () => {
               className="flex items-center justify-between p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark hover:border-nia-orange border border-transparent transition-all"
             >
               <span className="flex items-center gap-2.5 text-sm font-semibold">
-                <Bot className="w-4 h-4 text-nia-orange" />
+                <NeuralChipIcon className="w-4 h-4 shrink-0" />
                 Échanger avec l’Assistant Nia-Mind
               </span>
               <ArrowRight className="w-4 h-4 text-nia-gray-mid" />
@@ -307,9 +310,11 @@ export const PersonalDashboardPage: React.FC = () => {
 export const AssistantPage: React.FC = () => {
   const {
     currentUser,
+    currentLanguage,
     userConversations,
     createConversation,
     appendAssistantMessage,
+    toggleConversationHumanHandover,
     deleteConversation,
     helpResources,
   } = useApp();
@@ -332,6 +337,7 @@ export const AssistantPage: React.FC = () => {
 
   const activeConversation =
     userConversations.find((c) => c.id === selectedConvId) || userConversations[0];
+  const isHandedOver = Boolean(activeConversation?.handedOverToAdmin);
 
   const handleSendMessage = async (textToSend?: string) => {
     const content = (textToSend ?? inputMessage).trim();
@@ -346,6 +352,12 @@ export const AssistantPage: React.FC = () => {
     setInputMessage('');
     setApiError(null);
     appendAssistantMessage(conv.id, 'user', content);
+
+    // Si le switch Humain (Admin) est activé, le message est transmis dans le pack privé de l'utilisateur pour l'Admin
+    if (conv.handedOverToAdmin) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -356,8 +368,9 @@ export const AssistantPage: React.FC = () => {
           body: JSON.stringify({
             message: content,
             countryCode: currentUser?.countryCode || 'BF',
+            language: currentLanguage,
             history: conv.messages.slice(-6).map((m) => ({
-              role: m.sender,
+              role: m.sender === 'admin' ? 'assistant' : m.sender,
               content: m.content,
             })),
           }),
@@ -418,27 +431,43 @@ export const AssistantPage: React.FC = () => {
         ]}
       />
 
-      {/* Indication claire et obligatoire que l'utilisateur échange avec une IA */}
+      {/* Indication claire et obligatoire + Switch IA ⇄ Humain (Admin) */}
       <div className="p-4 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-orange/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-nia-orange/15 text-nia-orange shrink-0">
-            <Bot className="w-5 h-5" />
+          <div className="p-2 rounded-xl bg-sky-500/15 border border-emerald-500/30 shrink-0">
+            <NeuralChipIcon className="w-6 h-6" />
           </div>
           <div>
             <p className="text-xs font-extrabold uppercase tracking-wider text-nia-bordeaux dark:text-amber-300">
-              Information transparente — Vous échangez avec une Intelligence Artificielle
+              {isHandedOver
+                ? tUi(currentLanguage, 'humanHandoverActive')
+                : 'Puce d’Intelligence Nia-Mind (IA) ou Relais Humain (Admin)'}
             </p>
             <p className="text-xs text-nia-gray-mid dark:text-gray-300">
-              L’Assistant Nia-Mind est un outil de réflexion personnelle. Il n’est pas un thérapeute, n’établit aucun diagnostic médical, ne promet pas une surveillance permanente et n’expose aucune clé API dans votre navigateur.
+              {tUi(currentLanguage, 'privateAdminInterlocutorNotice')} — Tes discussions sont classées en pack dédié sous ton pseudonyme <strong>@{currentUser?.publicPseudonym || currentUser?.displayName}</strong>.
             </p>
           </div>
         </div>
-        <Link
-          to="/espace/ecoute"
-          className="shrink-0 px-3.5 py-2 rounded-xl bg-nia-bordeaux/15 text-nia-bordeaux dark:text-amber-200 text-xs font-bold hover:bg-nia-bordeaux/25"
-        >
-          Préférer une écoute humaine →
-        </Link>
+        {activeConversation && (
+          <button
+            type="button"
+            onClick={() =>
+              toggleConversationHumanHandover(activeConversation.id, !isHandedOver)
+            }
+            className={`shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-extrabold shadow-sm transition-all ${
+              isHandedOver
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-gradient-to-r from-nia-bordeaux to-nia-orange text-white hover:opacity-95'
+            }`}
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>
+              {isHandedOver
+                ? tUi(currentLanguage, 'switchToAi')
+                : tUi(currentLanguage, 'switchToHuman')}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Bannière de sécurité en cas de mots-clés de détresse détectés */}
@@ -529,52 +558,134 @@ export const AssistantPage: React.FC = () => {
           </div>
 
           <p className="text-[11px] text-nia-gray-mid dark:text-gray-400 border-t border-nia-gray-light dark:border-nia-border-dark pt-3">
-            Vos conversations sont isolées sur votre compte ({currentUser?.displayName}) et ne sont jamais visibles par les autres membres.
+            Pack isolé @{currentUser?.publicPseudonym || currentUser?.displayName} : vos messages sont lisibles uniquement par vous et l’administrateur.
           </p>
         </div>
 
         {/* Colonne Discussion Active */}
         <div className="lg:col-span-8 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark flex flex-col min-h-[540px]">
-          <div className="px-5 py-4 border-b border-nia-gray-light dark:border-nia-border-dark flex items-center justify-between">
-            <div>
-              <h1 className="text-base font-bold text-nia-gray-dark dark:text-white">
-                {activeConversation?.title || 'Assistant Nia-Mind'}
-              </h1>
-              <p className="text-xs text-nia-gray-mid dark:text-gray-400">
-                Service sécurisé via <code>/api/assistant</code> • Sans jugement
+          <div className="px-4 sm:px-5 py-4 border-b border-nia-gray-light dark:border-nia-border-dark flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-base font-bold text-nia-gray-dark dark:text-white truncate">
+                  {translateMessageForViewer(
+                    activeConversation?.title || 'Assistant Nia-Mind',
+                    currentLanguage
+                  )}
+                </h1>
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${
+                    isHandedOver
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                      : 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30'
+                  }`}
+                >
+                  {isHandedOver ? (
+                    <>
+                      <Crown className="w-3 h-3 text-amber-500" />
+                      <span>Relais Humain (Admin)</span>
+                    </>
+                  ) : (
+                    <>
+                      <NeuralChipIcon className="w-3.5 h-3.5" />
+                      <span>Puce IA Active</span>
+                    </>
+                  )}
+                </span>
+              </div>
+              <p className="text-[11px] text-nia-gray-mid dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                <Lock className="w-3 h-3 text-nia-orange shrink-0" />
+                <span>
+                  {tUi(currentLanguage, 'privateAdminInterlocutorNotice')} • Traduction auto ({currentLanguage.toUpperCase()})
+                </span>
               </p>
             </div>
+
+            {/* Switch direct dans l'en-tête de la discussion */}
+            {activeConversation && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isHandedOver}
+                onClick={() =>
+                  toggleConversationHumanHandover(activeConversation.id, !isHandedOver)
+                }
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${
+                  isHandedOver
+                    ? 'bg-emerald-500/15 border-emerald-500 text-emerald-800 dark:text-emerald-200'
+                    : 'bg-nia-orange/15 border-nia-orange/50 text-nia-bordeaux dark:text-amber-200'
+                }`}
+              >
+                <span
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    isHandedOver ? 'bg-emerald-500 animate-pulse' : 'bg-sky-500'
+                  }`}
+                />
+                <span>
+                  {isHandedOver
+                    ? tUi(currentLanguage, 'switchToAi')
+                    : tUi(currentLanguage, 'switchToHuman')}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Fil de messages (Aucun effet glitch ici conformément au cahier des charges) */}
-          <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[420px]">
-            {activeConversation?.messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+          <div className="flex-1 p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[420px]">
+            {activeConversation?.messages.map((msg) => {
+              const translatedContent = translateMessageForViewer(msg.content, currentLanguage);
+              const isUser = msg.sender === 'user';
+              const isAdmin = msg.sender === 'admin';
+              const isDiag = Boolean(msg.isDiagnosticBriefing);
+
+              return (
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${
-                    msg.sender === 'user'
-                      ? 'bg-nia-orange text-white font-medium'
-                      : 'bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-nia-gray-dark dark:text-gray-100'
-                  }`}
+                  key={msg.id}
+                  className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
                 >
-                  {msg.content}
+                  <div
+                    className={`max-w-[88%] sm:max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${
+                      isUser
+                        ? 'bg-nia-orange text-white font-medium'
+                        : isDiag
+                        ? 'bg-gradient-to-br from-nia-bordeaux/15 via-amber-500/10 to-sky-500/15 border-2 border-nia-bordeaux/50 text-nia-gray-dark dark:text-white shadow-md'
+                        : isAdmin
+                        ? 'bg-emerald-500/15 border-2 border-emerald-500/40 text-nia-gray-dark dark:text-white'
+                        : 'bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-nia-gray-dark dark:text-gray-100'
+                    }`}
+                  >
+                    {!isUser && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider mb-1 text-nia-bordeaux dark:text-amber-300">
+                        {isDiag ? (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5 text-nia-orange" />
+                            <span>{tUi(currentLanguage, 'psychicDiagnosticBtn')} • Bilan IA & Admin</span>
+                          </>
+                        ) : isAdmin ? (
+                          <>
+                            <Crown className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Administrateur Nia-Mind (Écoute Humaine)</span>
+                          </>
+                        ) : (
+                          <>
+                            <NeuralChipIcon className="w-3.5 h-3.5" />
+                            <span>Nia-Mind IA</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {translatedContent}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {isLoading && (
               <div className="flex justify-start animate-nia-slide-in">
                 <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-sky-500/15 via-nia-bordeaux/15 to-nia-orange/15 border-2 border-nia-orange/40 text-xs font-extrabold text-nia-gray-dark dark:text-white shadow-sm">
-                  <img
-                    src="/images/nia-mind-logo.png"
-                    alt="Nia"
-                    className="w-6 h-6 rounded-lg object-cover animate-pulse"
-                  />
+                  <NeuralChipIcon className="w-6 h-6" />
                   <Loader2 className="w-4 h-4 text-nia-orange animate-spin" />
-                  <span>Nia analyse votre requête…</span>
+                  <span>{tUi(currentLanguage, 'assistantThinking')}</span>
                 </div>
               </div>
             )}

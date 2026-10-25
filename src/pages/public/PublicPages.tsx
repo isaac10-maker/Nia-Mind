@@ -723,11 +723,12 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         setErrorMsg('Veuillez choisir un mot de passe d’au moins 6 caractères.');
         return;
       }
+      const chosenPseudo = pseudonym.trim() || displayName.trim() || 'PlumeSincere';
       const res = registerAccount({
-        displayName,
+        displayName: displayName.trim() || chosenPseudo,
         email,
         password,
-        publicPseudonym: pseudonym || 'Anonyme',
+        publicPseudonym: chosenPseudo,
         countryCode,
         acceptedTerms: acceptedPrivacyAndTerms,
         cookiesAccepted: acceptedCookies,
@@ -791,19 +792,20 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
       return;
     }
 
-    // Sinon inscrire le compte Gmail vérifié par Push avec mot de passe (6+ caractères)
-    const defaultName =
+    // Sinon inscrire le compte Gmail vérifié par Push avec mot de passe (6+ caractères) et pseudonyme
+    const chosenGmailPseudo =
       gmailName.trim() ||
       clean
         .split('@')[0]
-        .replace(/[._-]+/g, ' ')
-        .replace(/\b\w/g, (l) => l.toUpperCase());
+        .replace(/[._-]+/g, '')
+        .slice(0, 18) ||
+      'PlumeGmail';
 
     const regTry = registerAccount({
-      displayName: defaultName,
+      displayName: chosenGmailPseudo,
       email: clean,
       password: gmailPassword.trim(),
-      publicPseudonym: 'Anonyme',
+      publicPseudonym: chosenGmailPseudo,
       countryCode,
       acceptedTerms: gmailPrivacyAccepted,
       cookiesAccepted: gmailCookiesAccepted,
@@ -938,7 +940,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
             />
           </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-nia-orange/15 text-nia-orange-deep dark:text-nia-orange text-xs font-extrabold">
-            <Lock className="w-3.5 h-3.5" />
+            <Sparkles className="w-3.5 h-3.5" />
             Écouter • Comprendre • Avancer
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-nia-gray-dark dark:text-white">
@@ -1024,30 +1026,50 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
 
           {mode === 'register' && (
             <>
-              <div>
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200 mb-1.5">
-                  Ton prénom ou pseudo privé
-                </label>
+              <div className="p-3.5 rounded-2xl bg-nia-orange/10 border border-nia-orange/30 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200">
+                    Ton pseudonyme recommandé (seul affiché sur le site)
+                  </label>
+                  <span className="text-[11px] font-bold text-nia-bordeaux dark:text-amber-300">
+                    Anonymat garanti — évite ton vrai prénom
+                  </span>
+                </div>
                 <input
                   type="text"
                   required
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Ex. : Isaac, Sarah, Kenza…"
-                  className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-nia-bg-dark border-2 border-nia-orange/35 focus:border-nia-orange focus:outline-none text-sm font-semibold"
+                  value={pseudonym}
+                  onChange={(e) => setPseudonym(e.target.value)}
+                  placeholder="Ex. : PlumeSincere, HorizonCalme, SouffleLibre…"
+                  className="w-full px-4 py-3 rounded-2xl bg-white/95 dark:bg-nia-bg-dark border-2 border-nia-orange/40 focus:border-nia-orange focus:outline-none text-sm font-semibold"
                 />
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[11px] font-bold text-nia-gray-mid dark:text-gray-400">
+                    Suggestions de pseudos :
+                  </span>
+                  {['PlumeSincere', 'HorizonCalme', 'SouffleLibre', 'ClarteDouce'].map((sug) => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => setPseudonym(sug)}
+                      className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-white dark:bg-nia-surface-dark border border-nia-orange/35 hover:border-nia-orange text-nia-bordeaux dark:text-amber-300 transition-colors"
+                    >
+                      @{sug}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200 mb-1.5">
-                    Signature publique facultative (Histoires)
+                    Nom complet (facultatif • visible uniquement par l’Admin)
                   </label>
                   <input
                     type="text"
-                    value={pseudonym}
-                    onChange={(e) => setPseudonym(e.target.value)}
-                    placeholder="Ex. : Anonyme ou Plume Libre"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Confidentiel (masqué au public)"
                     className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-nia-bg-dark border-2 border-nia-orange/35 focus:border-nia-orange focus:outline-none text-sm font-semibold"
                   />
                 </div>
@@ -1263,13 +1285,13 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
             </div>
             <div>
               <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-                Prénom d’affichage
+                Pseudonyme recommandé (affiché)
               </label>
               <input
                 type="text"
                 value={gmailName}
                 onChange={(e) => setGmailName(e.target.value)}
-                placeholder="Ex. : Isaac"
+                placeholder="Ex. : PlumeSincere"
                 className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border border-nia-orange/30 text-sm"
               />
             </div>

@@ -45,6 +45,12 @@ export interface UserProfile {
   email: string;
   displayName: string;
   publicPseudonym: string;
+  fullName?: string;
+  preferredLanguage?: 'fr' | 'en' | 'es' | 'de' | 'zh';
+  isOnline?: boolean;
+  isBanned?: boolean;
+  banReason?: string | null;
+  bannedAt?: string | null;
   bio: string;
   countryCode: 'BF' | 'FR' | 'SN' | 'CI' | 'BE' | 'CA' | 'INT';
   role: UserRole;
@@ -63,8 +69,10 @@ export interface AssistantMessage {
   id: string;
   conversationId: string;
   userId: string;
-  sender: 'user' | 'assistant';
+  sender: 'user' | 'assistant' | 'admin';
   content: string;
+  sourceLanguage?: 'fr' | 'en' | 'es' | 'de' | 'zh';
+  isDiagnosticBriefing?: boolean;
   distressFlagged?: boolean;
   createdAt: string;
 }
@@ -72,7 +80,10 @@ export interface AssistantMessage {
 export interface AssistantConversation {
   id: string;
   userId: string;
+  userPseudonym?: string;
   title: string;
+  handedOverToAdmin?: boolean;
+  diagnosticSentAt?: string | null;
   createdAt: string;
   updatedAt: string;
   messages: AssistantMessage[];

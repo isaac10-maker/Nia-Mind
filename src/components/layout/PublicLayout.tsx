@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   ArrowRight,
-  Bot,
   Crown,
   Lock,
   Menu,
@@ -12,25 +11,27 @@ import {
   X,
 } from 'lucide-react';
 import { BrandLogo } from '../ui/BrandLogo';
+import { NeuralChipIcon } from '../ui/NeuralChipIcon';
 import { RoleSwitcherBar, SUPERADMIN_EMAIL } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
-import { OFFICIAL_SLOGAN, STORIES_SIGNATURE } from '../../lib/securityEngine';
+import { tUi } from '../../lib/i18nEngine';
+import { STORIES_SIGNATURE } from '../../lib/securityEngine';
 import { HomePage } from '../../pages/public/HomePage';
 
-const PUBLIC_NAV_ITEMS = [
-  { label: 'Accueil', to: '/' },
-  { label: 'Nos ressources', to: '/ressources' },
-  { label: 'Conseils', to: '/conseils' },
-  { label: 'Histoires', to: '/histoires' },
-  { label: 'À propos', to: '/a-propos' },
-];
-
 export const PublicLayout: React.FC = () => {
-  const { currentUser, openConsentModal, openDailyTipModal } = useApp();
+  const { currentUser, currentLanguage, openConsentModal, openDailyTipModal } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+
+  const PUBLIC_NAV_ITEMS = [
+    { label: tUi(currentLanguage, 'navHome'), to: '/' },
+    { label: tUi(currentLanguage, 'navResources'), to: '/ressources' },
+    { label: tUi(currentLanguage, 'navTips'), to: '/conseils' },
+    { label: tUi(currentLanguage, 'navStories'), to: '/histoires' },
+    { label: tUi(currentLanguage, 'navAbout'), to: '/a-propos' },
+  ];
 
   const isAuthRoute =
     location.pathname === '/connexion' || location.pathname === '/inscription';
@@ -78,47 +79,51 @@ export const PublicLayout: React.FC = () => {
               </NavLink>
             ))}
 
-            {/* Onglet Assistance & Espace (redirige vers /inscription si Visiteur) */}
+            {/* Onglet Assistance & Espace avec icône cerveau + puce clignotante bleu/vert */}
             <Link
               to={currentUser ? '/espace/assistant' : '/inscription?from=assistant'}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-extrabold bg-nia-bordeaux/12 dark:bg-nia-bordeaux/30 text-nia-bordeaux dark:text-amber-200 hover:bg-nia-bordeaux hover:text-white transition-all border border-nia-bordeaux/25"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-extrabold bg-nia-bordeaux/12 dark:bg-nia-bordeaux/30 text-nia-bordeaux dark:text-amber-200 hover:bg-nia-bordeaux hover:text-white transition-all border border-nia-bordeaux/25 whitespace-nowrap"
             >
-              <Bot className="w-4 h-4 text-nia-orange" />
-              <span>Assistance & Espace</span>
+              <NeuralChipIcon className="w-4 h-4 shrink-0" />
+              <span>{tUi(currentLanguage, 'navAssistant')}</span>
             </Link>
           </nav>
 
           {/* Bouton en haut à droite : toujours net (sur /connexion et /inscription, affiche uniquement le bouton principal à droite) */}
-          <div className="relative z-50 flex items-center gap-3">
+          <div className="relative z-50 flex items-center gap-2 sm:gap-3 shrink-0">
             {currentUser ? (
               <Link
                 to="/espace/tableau-de-bord"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-sm font-extrabold shadow-nia-soft transition-all"
+                className="inline-flex items-center gap-1.5 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-xs sm:text-sm font-extrabold shadow-nia-soft transition-all max-w-[190px] sm:max-w-none truncate"
               >
-                <span>Mon espace ({currentUser.displayName})</span>
-                <ArrowRight className="w-4 h-4" />
+                <span className="truncate">
+                  {tUi(currentLanguage, 'mySpace')} (@{currentUser.publicPseudonym || currentUser.displayName})
+                </span>
+                <ArrowRight className="w-4 h-4 shrink-0" />
               </Link>
             ) : isAuthRoute ? (
               <Link
                 to={isLoginRoute ? '/inscription' : '/connexion'}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-sm font-extrabold shadow-nia-soft transition-all"
+                className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-xs sm:text-sm font-extrabold shadow-nia-soft transition-all"
               >
-                <span>{isLoginRoute ? 'S’inscrire' : 'Connexion'}</span>
+                <span>
+                  {isLoginRoute ? tUi(currentLanguage, 'register') : tUi(currentLanguage, 'login')}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             ) : (
               <>
                 <Link
                   to="/connexion"
-                  className="hidden sm:inline-flex px-4 py-2.5 rounded-full text-sm font-extrabold text-nia-gray-dark dark:text-gray-200 hover:text-nia-orange border border-nia-orange/30 hover:border-nia-orange transition-colors"
+                  className="hidden sm:inline-flex px-4 py-2 rounded-full text-sm font-extrabold text-nia-gray-dark dark:text-gray-200 hover:text-nia-orange border border-nia-orange/30 hover:border-nia-orange transition-colors"
                 >
-                  Connexion
+                  {tUi(currentLanguage, 'login')}
                 </Link>
                 <Link
                   to="/inscription"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-sm font-extrabold shadow-nia-soft transition-all"
+                  className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux hover:from-nia-orange-deep hover:to-nia-bordeaux-dark text-white text-xs sm:text-sm font-extrabold shadow-nia-soft transition-all"
                 >
-                  <span>S’inscrire</span>
+                  <span>{tUi(currentLanguage, 'register')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </>
@@ -164,8 +169,8 @@ export const PublicLayout: React.FC = () => {
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center gap-2 px-4 py-3 rounded-2xl text-base font-extrabold text-nia-bordeaux dark:text-amber-300 bg-nia-bordeaux/10"
             >
-              <Bot className="w-5 h-5 text-nia-orange" />
-              <span>Utiliser l’Assistance & Mon Espace</span>
+              <NeuralChipIcon className="w-5 h-5 shrink-0" />
+              <span>{tUi(currentLanguage, 'navAssistant')}</span>
             </Link>
             <div className="pt-3 border-t border-nia-orange/20 dark:border-nia-border-dark grid grid-cols-2 gap-3">
               <Link

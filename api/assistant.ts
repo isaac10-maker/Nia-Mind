@@ -7,6 +7,7 @@ export interface AssistantRequestPayload {
   message: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   countryCode?: string;
+  language?: 'fr' | 'en' | 'es' | 'de' | 'zh';
 }
 
 export interface AssistantResponsePayload {
@@ -65,10 +66,39 @@ export function sanitizeText(input: string): string {
 export function generateServerReflectiveReply(
   message: string,
   distress: boolean,
-  history: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+  language: 'fr' | 'en' | 'es' | 'de' | 'zh' = 'fr'
 ): string {
   const lower = message.toLowerCase();
   const turnCount = history.filter((h) => h.role === 'user').length;
+
+  if (language === 'en') {
+    if (distress) {
+      return "I hear you, and what you are going through sounds very heavy right now. You do not have to carry this alone. Please reach out immediately to one of the verified emergency support numbers displayed below or switch to Human Support (Admin) at the top of this chat.";
+    }
+    return "Thank you for sharing this openly. Here on Nia-Mind, you do not have to wear a mask.\n\nWhen you pause and take a slow breath, what is the single need that matters most to you right now: rest, clarity, being heard without judgment, or taking one small step forward?";
+  }
+
+  if (language === 'es') {
+    if (distress) {
+      return "Te escucho, y lo que estás atravesando parece muy pesado en este momento. No tienes que llevar esto a solas. Por favor, contacta de inmediato con uno de los recursos de ayuda verificados que aparecen abajo o activa el botón de Relevo Humano (Admin).";
+    }
+    return "Gracias por compartir esto con sinceridad. Aquí en Nia-Mind no necesitas llevar ninguna máscara.\n\nSi tomas una respiración profunda ahora mismo, ¿cuál es tu necesidad más importante hoy: descanso, claridad, escucha sin juicio o dar un pequeño paso concreto?";
+  }
+
+  if (language === 'de') {
+    if (distress) {
+      return "Ich höre dich, und was du gerade durchmachst, klingt sehr belastend. Du musst das nicht alleine tragen. Bitte wende dich sofort an eine der unten angezeigten verifizierten Hilfsstellen oder nutze den Schalter für menschliche Unterstützung (Admin).";
+    }
+    return "Danke, dass du das so offen teilst. Hier bei Nia-Mind musst du keine Maske tragen.\n\nWenn du kurz tief durchatmest: Welches Bedürfnis steht für dich heute an erster Stelle – Ruhe, Klarheit, urteilsfreies Zuhören oder ein kleiner konkreter Schritt?";
+  }
+
+  if (language === 'zh') {
+    if (distress) {
+      return "我听到了你的心声，你现在经历的一切听起来非常沉重。你不必独自承担。请立即联系下方经过验证的紧急援助热线，或点击对话顶部的“转接人工支持（管理员）”按钮。";
+    }
+    return "感谢你如此坦诚地倾诉。在 Nia-Mind，你无需佩戴任何面具。\n\n如果你现在深呼吸一次，你今天最核心的需求是什么：休息、理清思绪、不带评判的倾听，还是迈出小小的一步？";
+  }
 
   if (distress) {
     return (
@@ -307,7 +337,12 @@ export async function processAssistantPayload(
     }
   }
 
-  const reply = generateServerReflectiveReply(cleanMessage, distressDetected);
+  const reply = generateServerReflectiveReply(
+    cleanMessage,
+    distressDetected,
+    payload.history || [],
+    payload.language || 'fr'
+  );
   return {
     status: 200,
     body: {

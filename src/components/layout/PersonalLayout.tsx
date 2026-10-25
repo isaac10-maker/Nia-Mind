@@ -3,7 +3,6 @@ import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react
 import {
   Activity,
   BookMarked,
-  Bot,
   Crown,
   Feather,
   Globe,
@@ -17,28 +16,30 @@ import {
   X,
 } from 'lucide-react';
 import { BrandLogo } from '../ui/BrandLogo';
+import { NeuralChipIcon } from '../ui/NeuralChipIcon';
 import { RoleSwitcherBar, SUPERADMIN_EMAIL } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
-
-const PERSONAL_NAV_ITEMS = [
-  { label: 'Tableau de bord', to: '/espace/tableau-de-bord', icon: LayoutDashboard },
-  { label: 'Assistant Nia-Mind', to: '/espace/assistant', icon: Bot },
-  { label: 'Demander une écoute humaine', to: '/espace/ecoute', icon: HeartHandshake },
-  { label: 'Mon bien-être', to: '/espace/bien-etre', icon: Activity },
-  { label: 'Mon journal', to: '/espace/journal', icon: BookMarked },
-  { label: 'Conseils du jour', to: '/espace/conseils-du-jour', icon: Sparkles },
-  { label: 'Histoires', to: '/espace/histoires', icon: Feather },
-  { label: 'Mon profil', to: '/espace/profil', icon: User },
-  { label: 'Confidentialité et paramètres', to: '/espace/confidentialite', icon: Lock },
-];
+import { tUi } from '../../lib/i18nEngine';
 
 export const PersonalLayout: React.FC = () => {
-  const { currentUser, logout } = useApp();
+  const { currentUser, currentLanguage, logout } = useApp();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const PERSONAL_NAV_ITEMS = [
+    { label: tUi(currentLanguage, 'navDashboard'), to: '/espace/tableau-de-bord', icon: LayoutDashboard },
+    { label: tUi(currentLanguage, 'navAssistant'), to: '/espace/assistant', icon: NeuralChipIcon },
+    { label: tUi(currentLanguage, 'navListening'), to: '/espace/ecoute', icon: HeartHandshake },
+    { label: tUi(currentLanguage, 'navWellness'), to: '/espace/bien-etre', icon: Activity },
+    { label: tUi(currentLanguage, 'navJournal'), to: '/espace/journal', icon: BookMarked },
+    { label: tUi(currentLanguage, 'navTips'), to: '/espace/conseils-du-jour', icon: Sparkles },
+    { label: tUi(currentLanguage, 'navStories'), to: '/espace/histoires', icon: Feather },
+    { label: tUi(currentLanguage, 'navProfile'), to: '/espace/profil', icon: User },
+    { label: tUi(currentLanguage, 'navPrivacy'), to: '/espace/confidentialite', icon: Lock },
+  ];
 
   // En mode visiteur, toute tentative d'entrer dans un onglet personnel ou d'utiliser l'assistance redirige vers l'inscription/connexion
   if (!currentUser) {
@@ -54,20 +55,24 @@ export const PersonalLayout: React.FC = () => {
     currentUser.role === 'admin' &&
     currentUser.email.toLowerCase() === SUPERADMIN_EMAIL;
 
+  const displayedPseudo = currentUser.publicPseudonym || currentUser.displayName || 'Plume';
+
   return (
     <div className="relative min-h-screen flex flex-col text-nia-gray-dark dark:text-nia-text-dark">
       <AmbientBackground />
       <RoleSwitcherBar />
 
-      {/* Barre supérieure mobile de l'espace personnel */}
-      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-16 nia-glass-card border-b border-nia-orange/25 dark:border-nia-border-dark">
-        <BrandLogo size="sm" />
-        <div className="flex items-center gap-2">
+      {/* Barre supérieure mobile/tablette de l'espace personnel (sans superposition) */}
+      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3 sm:px-4 h-16 bg-[#FFF8F3] dark:bg-[#14161D] border-b border-nia-orange/25 dark:border-nia-border-dark shadow-sm">
+        <div className="min-w-0 shrink-0">
+          <BrandLogo showSlogan={false} size="sm" />
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             to="/"
             className="px-2.5 py-1.5 rounded-full text-xs font-bold border border-nia-orange/35"
           >
-            Accueil
+            {tUi(currentLanguage, 'navHome')}
           </Link>
           <button
             type="button"
@@ -99,38 +104,38 @@ export const PersonalLayout: React.FC = () => {
                 }
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span>{item.label}</span>
+                <span className="truncate">{item.label}</span>
               </NavLink>
             );
           })}
         </div>
       )}
 
-      <div className="relative z-10 flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="relative z-10 flex-1 flex max-w-7xl w-full mx-auto min-w-0">
         {/* Barre latérale translucide sur ordinateur */}
         <aside className="hidden lg:flex lg:w-72 shrink-0 flex-col border-r border-nia-orange/20 dark:border-nia-border-dark nia-glass-card p-5 justify-between">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <BrandLogo showSlogan size="md" />
+              <BrandLogo showSlogan={false} size="md" />
             </div>
 
-            {/* Carte d'identité utilisateur connecté */}
+            {/* Carte d'identité utilisateur connecté (affichage strictement limité au pseudonyme) */}
             <div className="p-3.5 rounded-2xl bg-gradient-to-br from-nia-orange/15 to-nia-bordeaux/15 border border-nia-orange/30">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nia-orange to-nia-bordeaux text-white font-extrabold flex items-center justify-center shadow-sm">
-                  {currentUser.displayName.charAt(0).toUpperCase()}
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nia-orange to-nia-bordeaux text-white font-extrabold flex items-center justify-center shadow-sm shrink-0">
+                  {displayedPseudo.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-extrabold text-nia-gray-dark dark:text-white truncate">
-                    {currentUser.displayName}
+                    @{displayedPseudo}
                   </p>
                   <p className="text-xs text-nia-gray-mid dark:text-gray-300 truncate">
-                    Plume : {currentUser.publicPseudonym}
+                    Pseudonyme protégé
                   </p>
                 </div>
               </div>
               <div className="mt-2.5 pt-2.5 border-t border-nia-orange/20 flex items-center justify-between text-[11px] text-nia-bordeaux dark:text-amber-300 font-bold">
-                <span>Espace personnel confidentiel</span>
+                <span>Espace confidentiel</span>
                 <span>Pays : {currentUser.countryCode}</span>
               </div>
             </div>
@@ -152,7 +157,7 @@ export const PersonalLayout: React.FC = () => {
                     }
                   >
                     <Icon className="w-4 h-4 shrink-0" />
-                    <span>{item.label}</span>
+                    <span className="truncate">{item.label}</span>
                   </NavLink>
                 );
               })}
@@ -165,7 +170,7 @@ export const PersonalLayout: React.FC = () => {
               className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl text-xs font-bold text-nia-gray-mid dark:text-gray-300 hover:text-nia-orange transition-colors"
             >
               <Globe className="w-4 h-4" />
-              Retour à l’accueil
+              {tUi(currentLanguage, 'navHome')}
             </Link>
             {isSuperAdmin && (
               <Link
@@ -185,13 +190,13 @@ export const PersonalLayout: React.FC = () => {
               className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-2xl text-xs font-extrabold text-rose-600 dark:text-rose-400 hover:bg-rose-500/15 transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              Déconnexion
+              {tUi(currentLanguage, 'logout')}
             </button>
           </div>
         </aside>
 
-        {/* Contenu principal de l'onglet personnel */}
-        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 animate-nia-page">
+        {/* Contenu principal de l'onglet personnel (fluide sans superposition mobile/tablette) */}
+        <main className="flex-1 min-w-0 overflow-x-hidden p-3 sm:p-6 lg:p-8 animate-nia-page">
           <Outlet />
         </main>
       </div>

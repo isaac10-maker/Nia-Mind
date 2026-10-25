@@ -296,4 +296,35 @@ describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant
     expect(fourthTry.allowed).toBe(false);
     expect(fourthTry.retryAfterSec).toBeGreaterThan(0);
   });
+
+  it('12. Traduit automatiquement les échanges dans les 5 langues (FR, EN, ES, DE, ZH) et génère le bilan Diagnostic psychique IA', async () => {
+    const {
+      tUi,
+      translateMessageForViewer,
+      generatePsychicDiagnosticBriefing,
+      formatPsychicDiagnosticMessage,
+    } = await import('../src/lib/i18nEngine');
+
+    expect(tUi('fr', 'psychicDiagnosticBtn')).toBe('Diagnostic psychique');
+    expect(tUi('en', 'psychicDiagnosticBtn')).toBe('Psychic Diagnostic');
+    expect(tUi('es', 'psychicDiagnosticBtn')).toBe('Diagnóstico psíquico');
+    expect(tUi('de', 'psychicDiagnosticBtn')).toBe('Psychische Diagnostik');
+    expect(tUi('zh', 'psychicDiagnosticBtn')).toBe('心理诊断简报');
+
+    const msgFr = 'Bonjour. Je ressens beaucoup de stress et de fatigue en ce moment.';
+    expect(translateMessageForViewer(msgFr, 'fr')).toBe(msgFr);
+    expect(translateMessageForViewer(msgFr, 'en')).toContain('[Auto-translated • EN]');
+    expect(translateMessageForViewer(msgFr, 'zh')).toContain('[自动翻译 • 中文]');
+
+    const briefing = generatePsychicDiagnosticBriefing({
+      userPseudonym: 'PlumeSincere',
+      messages: [
+        { sender: 'user', content: 'Je me sens épuisé par la pression au travail et le manque de sommeil.' },
+        { sender: 'assistant', content: 'Je t’entends.' },
+      ],
+    });
+    expect(briefing.emotionalTone).toContain('Surcharge');
+    const formatted = formatPsychicDiagnosticMessage(briefing);
+    expect(formatted).toContain('BILAN D’ANALYSE IA — DIAGNOSTIC PSYCHIQUE (@PlumeSincere)');
+  });
 });

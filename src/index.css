@@ -277,7 +277,7 @@ html.dark .nia-stroke-watermark {
 .animate-nia-marquee {
   display: flex;
   width: max-content;
-  animation: nia-marquee 26s linear infinite;
+  animation: nia-marquee 48s linear infinite;
 }
 
 .animate-nia-marquee:hover {
@@ -429,7 +429,7 @@ html.dark .nia-stroke-watermark {
   display: inline-block;
   white-space: nowrap;
   will-change: transform;
-  animation: nia-rtl-scroll 22s linear infinite;
+  animation: nia-rtl-scroll 42s linear infinite;
 }
 
 .animate-nia-rtl-scroll:hover {
