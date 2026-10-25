@@ -3,9 +3,9 @@ import { useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import {
   canonicalizeToFrench,
+  getHtmlLangAttribute,
   SupportedLanguage,
   translatePlatformText,
-  translateTextNeuralAsync,
 } from '../../lib/i18nEngine';
 
 interface NodeTranslationRecord {
@@ -16,29 +16,26 @@ interface NodeTranslationRecord {
 const nodeRecords = new WeakMap<Text, NodeTranslationRecord>();
 const attrRecords = new WeakMap<Element, Record<string, NodeTranslationRecord>>();
 
-const TRANSLATABLE_ATTRS = ['placeholder', 'title', 'aria-label'] as const;
-
-function hasRemainingFrenchWords(text: string, syncTranslated: string): boolean {
-  if (syncTranslated === text && /[a-zA-ZÀ-ÿ]{3,}/.test(text)) {
-    return true;
-  }
-  return /\b(les|des|une|dans|pour|avec|sans|vous|votre|nous|notre|cette|sont|être|avoir|plus|mais|ou|qui|que)\b/i.test(
-    syncTranslated
-  );
-}
+const TRANSLATABLE_ATTRS = [
+  'placeholder',
+  'title',
+  'aria-label',
+  'alt',
+  'data-text',
+] as const;
 
 /**
- * Traduit automatiquement 100 % de la plateforme Nia-Mind dans tous les onglets,
- * sous-onglets, modales, questionnaires, récits et formulaires dès que la langue
- * est modifiée par l'utilisateur — et uniquement chez cet utilisateur.
+ * Synchronise en temps réel 100 % des textes, attributs, placeholders, modales,
+ * questionnaires, récits et formulaires de la plateforme avec les dictionnaires
+ * centralisés `src/locales/{fr,en,es,de,zh-CN}` dès que la langue change.
  */
 export const PlatformAutoTranslator: React.FC = () => {
   const { currentLanguage } = useApp();
   const location = useLocation();
 
   useEffect(() => {
-    let activeLang: SupportedLanguage = currentLanguage;
-    document.documentElement.lang = activeLang;
+    const activeLang: SupportedLanguage = currentLanguage;
+    document.documentElement.lang = getHtmlLangAttribute(activeLang);
     let isApplying = false;
     let isUnmounted = false;
 
@@ -48,9 +45,6 @@ export const PlatformAutoTranslator: React.FC = () => {
       if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'CODE' || tag === 'NOSCRIPT') {
         return true;
       }
-      if (el.getAttribute('aria-label') === 'Sélecteur de langue') {
-        return true;
-      }
       return Boolean(el.closest('[data-no-translate="true"]'));
     };
 
@@ -58,7 +52,7 @@ export const PlatformAutoTranslator: React.FC = () => {
       if (!root || isApplying || isUnmounted) return;
       isApplying = true;
       try {
-        // 1. Parcourir et traduire tous les nœuds de texte dans tous les onglets
+        // 1. Parcourir et traduire tous les nœuds de texte du DOM
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
           acceptNode(node) {
             const parent = node.parentElement;
@@ -98,44 +92,15 @@ export const PlatformAutoTranslator: React.FC = () => {
             if (textNode.nodeValue !== syncVal) {
               textNode.nodeValue = syncVal;
             }
-
-            // Si c'est une phrase ou un texte qui contient encore des termes français,
-            // lancer la passe de traduction neuronale complète en arrière-plan pour ce nœud
-            if (
-              activeLang !== 'fr' &&
-              hasRemainingFrenchWords(rec.sourceFr, syncVal)
-            ) {
-              const targetLangSnapshot = activeLang;
-              const sourceSnapshot = rec.sourceFr;
-              const recRef = rec;
-              void translateTextNeuralAsync(sourceSnapshot, targetLangSnapshot).then(
-                (neuralTranslated) => {
-                  if (
-                    isUnmounted ||
-                    document.documentElement.lang !== targetLangSnapshot ||
-                    !neuralTranslated
-                  ) {
-                    return;
-                  }
-                  const leadingSpace = sourceSnapshot.match(/^\s*/)?.[0] || '';
-                  const trailingSpace = sourceSnapshot.match(/\s*$/)?.[0] || '';
-                  const finalText = `${leadingSpace}${neuralTranslated}${trailingSpace}`;
-                  recRef.appliedValues.add(finalText);
-                  if (textNode.nodeValue !== finalText) {
-                    isApplying = true;
-                    textNode.nodeValue = finalText;
-                    isApplying = false;
-                  }
-                }
-              );
-            }
           }
           currentNode = walker.nextNode() as Text | null;
         }
 
-        // 2. Traduire tous les attributs (placeholder, title, aria-label)
+        // 2. Traduire tous les attributs accessibles et visuels
         if (root instanceof Element || root instanceof Document) {
-          const elements = root.querySelectorAll('[placeholder], [title], [aria-label]');
+          const elements = root.querySelectorAll(
+            '[placeholder], [title], [aria-label], [alt], [data-text]'
+          );
           elements.forEach((el) => {
             if (shouldSkipElement(el)) return;
             let elAttrMap = attrRecords.get(el);
@@ -170,30 +135,6 @@ export const PlatformAutoTranslator: React.FC = () => {
               if (el.getAttribute(attr) !== nextAttr) {
                 el.setAttribute(attr, nextAttr);
               }
-
-              if (
-                activeLang !== 'fr' &&
-                hasRemainingFrenchWords(attrRec.sourceFr, nextAttr)
-              ) {
-                const targetLangSnapshot = activeLang;
-                const sourceSnapshot = attrRec.sourceFr;
-                const attrRecRef = attrRec;
-                void translateTextNeuralAsync(sourceSnapshot, targetLangSnapshot).then(
-                  (neuralTranslated) => {
-                    if (
-                      isUnmounted ||
-                      document.documentElement.lang !== targetLangSnapshot ||
-                      !neuralTranslated
-                    ) {
-                      return;
-                    }
-                    attrRecRef.appliedValues.add(neuralTranslated);
-                    if (el.getAttribute(attr) !== neuralTranslated) {
-                      el.setAttribute(attr, neuralTranslated);
-                    }
-                  }
-                );
-              }
             }
           });
         }
@@ -203,7 +144,7 @@ export const PlatformAutoTranslator: React.FC = () => {
     };
 
     translateRoot(document.body);
-    const initialTimer = window.setTimeout(() => translateRoot(document.body), 60);
+    const initialTimer = window.setTimeout(() => translateRoot(document.body), 40);
 
     const observer = new MutationObserver(() => {
       if (!isApplying) {

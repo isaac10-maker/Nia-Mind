@@ -81,6 +81,7 @@ export const RoleSwitcherBar: React.FC = () => {
                   <Globe className="w-3 h-3 text-sky-300 shrink-0" />
                   <select
                     aria-label="Sélecteur de langue"
+                    data-no-translate="true"
                     value={currentLanguage}
                     onChange={(e) => setCurrentLanguage(e.target.value as SupportedLanguage)}
                     className="bg-transparent text-[11px] font-extrabold text-white focus:outline-none cursor-pointer pr-1"

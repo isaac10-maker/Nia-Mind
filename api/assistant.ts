@@ -7,7 +7,7 @@ export interface AssistantRequestPayload {
   message: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   countryCode?: string;
-  language?: 'fr' | 'en' | 'es' | 'de' | 'zh';
+  language?: 'fr' | 'en' | 'es' | 'de' | 'zh' | 'zh-CN';
 }
 
 export interface AssistantResponsePayload {
@@ -285,6 +285,26 @@ export async function processAssistantPayload(
   const apiKey = typeof process !== 'undefined' ? process.env?.OPENAI_API_KEY : undefined;
   const aiModel = (typeof process !== 'undefined' && process.env?.AI_MODEL) || 'gpt-4o-mini';
 
+  const rawLang = String(payload.language || 'fr').toLowerCase();
+  const normalizedLang: 'fr' | 'en' | 'es' | 'de' | 'zh' =
+    rawLang.startsWith('en')
+      ? 'en'
+      : rawLang.startsWith('es')
+      ? 'es'
+      : rawLang.startsWith('de')
+      ? 'de'
+      : rawLang.startsWith('zh')
+      ? 'zh'
+      : 'fr';
+
+  const langInstructionMap: Record<'fr' | 'en' | 'es' | 'de' | 'zh', string> = {
+    fr: 'Réponds en français.',
+    en: 'Respond in English.',
+    es: 'Responde en español.',
+    de: 'Antworte auf Deutsch.',
+    zh: '请使用简体中文回答。',
+  };
+
   if (apiKey && !distressDetected) {
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -301,7 +321,7 @@ export async function processAssistantPayload(
             {
               role: 'system',
               content:
-                "Tu es l'Assistant Nia-Mind (« Le vrai sans le masque »). Ton ton est humain, sincère, accessible, chaleureux et non médical. Tu écoutes sans juger, tu poses des questions d'introspection ouvertes, tu ne prétends jamais être un thérapeute ou un médecin, tu ne poses aucun diagnostic clinique et tu ne promets jamais une surveillance continue.",
+                `Tu es l'Assistant Nia-Mind (« Le vrai sans le masque »). Ton ton est humain, sincère, accessible, chaleureux et non médical. Tu écoutes sans juger, tu poses des questions d'introspection ouvertes, tu ne prétends jamais être un thérapeute ou un médecin, tu ne poses aucun diagnostic clinique et tu ne promets jamais une surveillance continue. ${langInstructionMap[normalizedLang]}`,
             },
             ...(Array.isArray(payload.history)
               ? payload.history.slice(-8).map((m) => ({
@@ -341,7 +361,7 @@ export async function processAssistantPayload(
     cleanMessage,
     distressDetected,
     payload.history || [],
-    payload.language || 'fr'
+    normalizedLang
   );
   return {
     status: 200,

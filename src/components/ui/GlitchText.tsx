@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { translatePlatformText } from '../../lib/i18nEngine';
 
 interface GlitchTextProps {
   text: string;
@@ -14,8 +15,9 @@ export const GlitchText: React.FC<GlitchTextProps> = ({
   className = '',
   occasionalIntervalMs = 15000,
 }) => {
-  const { reducedMotion } = useApp();
+  const { reducedMotion, currentLanguage } = useApp();
   const [isGlitching, setIsGlitching] = useState(false);
+  const translatedText = translatePlatformText(text, currentLanguage);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -47,9 +49,9 @@ export const GlitchText: React.FC<GlitchTextProps> = ({
   return (
     <Tag
       className={`nia-glitch ${isGlitching ? 'is-glitching' : ''} ${className}`}
-      data-text={text}
+      data-text={translatedText}
     >
-      {text}
+      {translatedText}
     </Tag>
   );
 };

@@ -1,16 +1,39 @@
 import { DEEP_GRAMMAR_RULES, EXACT_AND_REGEX_BANK } from './platformPhraseBank';
+import {
+  deLocale,
+  enLocale,
+  esLocale,
+  EXTENDED_MULTILINGUAL_ENTRIES,
+  zhCNLocale,
+} from '../locales';
 
 export type SupportedLanguage = 'fr' | 'en' | 'es' | 'de' | 'zh';
+export type LanguageCodeInput = SupportedLanguage | 'zh-CN';
+
+export function normalizeLanguageCode(input?: string | null): SupportedLanguage {
+  if (!input) return 'fr';
+  const cleaned = input.trim().toLowerCase();
+  if (cleaned === 'en' || cleaned.startsWith('en-')) return 'en';
+  if (cleaned === 'es' || cleaned.startsWith('es-')) return 'es';
+  if (cleaned === 'de' || cleaned.startsWith('de-')) return 'de';
+  if (cleaned === 'zh' || cleaned === 'zh-cn' || cleaned.startsWith('zh-')) return 'zh';
+  return 'fr';
+}
+
+export function getHtmlLangAttribute(lang: LanguageCodeInput): string {
+  const norm = normalizeLanguageCode(lang);
+  return norm === 'zh' ? 'zh-CN' : norm;
+}
 
 export const LANGUAGE_META: Record<
   SupportedLanguage,
-  { code: SupportedLanguage; label: string; short: string }
+  { code: SupportedLanguage; htmlLang: string; label: string; short: string }
 > = {
-  fr: { code: 'fr', label: 'Français', short: 'FR' },
-  en: { code: 'en', label: 'English', short: 'EN' },
-  es: { code: 'es', label: 'Español', short: 'ES' },
-  de: { code: 'de', label: 'Deutsch', short: 'DE' },
-  zh: { code: 'zh', label: '中文', short: '中文' },
+  fr: { code: 'fr', htmlLang: 'fr', label: 'Français', short: 'FR' },
+  en: { code: 'en', htmlLang: 'en', label: 'English', short: 'EN' },
+  es: { code: 'es', htmlLang: 'es', label: 'Español', short: 'ES' },
+  de: { code: 'de', htmlLang: 'de', label: 'Deutsch', short: 'DE' },
+  zh: { code: 'zh', htmlLang: 'zh-CN', label: '简体中文', short: '中文' },
 };
 
 export interface UiTranslations {
@@ -213,8 +236,9 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
   },
 };
 
-export function tUi(lang: SupportedLanguage, key: keyof UiTranslations): string {
-  return UI_TRANSLATIONS[lang]?.[key] || UI_TRANSLATIONS.fr[key];
+export function tUi(lang: LanguageCodeInput, key: keyof UiTranslations): string {
+  const norm = normalizeLanguageCode(lang);
+  return UI_TRANSLATIONS[norm]?.[key] || UI_TRANSLATIONS.fr[key];
 }
 
 // ============================================================================
@@ -959,288 +983,312 @@ export function setNeuralCachedTranslation(
 }
 
 /**
- * Retrouve le texte français canonique si un composant React a déjà rendu une chaîne
- * traduite via `tUi`, afin que le changement de langue fonctionne dans tous les sens.
+ * Normalise les espaces multiples / retours à la ligne d'un texte JSX pour une
+ * correspondance exacte déterministe O(1) dans les dictionnaires `src/locales/`.
  */
-export function canonicalizeToFrench(text: string): string {
-  const trimmed = (text || '').trim();
-  if (!trimmed) return text;
+function normalizeLookupKey(str: string): string {
+  return (str || '').replace(/\s+/g, ' ').trim();
+}
+
+// ============================================================================
+// COMPILATION CENTRALISÉE DES DICTIONNAIRES `src/locales/{fr,en,es,de,zh-CN}`
+// ============================================================================
+const EXACT_TRANSLATION_MAPS: Record<
+  Exclude<SupportedLanguage, 'fr'>,
+  Map<string, string>
+> = {
+  en: new Map(),
+  es: new Map(),
+  de: new Map(),
+  zh: new Map(),
+};
+
+const REVERSE_TO_FRENCH_MAP = new Map<string, string>();
+
+const REGEX_TRANSLATION_RULES: Record<
+  Exclude<SupportedLanguage, 'fr'>,
+  Array<[RegExp, string]>
+> = {
+  en: [],
+  es: [],
+  de: [],
+  zh: [],
+};
+
+function registerExactPair(
+  lang: Exclude<SupportedLanguage, 'fr'>,
+  frText: string,
+  targetText: string
+): void {
+  const normFr = normalizeLookupKey(frText);
+  const normTarget = normalizeLookupKey(targetText);
+  if (!normFr || !normTarget) return;
+  EXACT_TRANSLATION_MAPS[lang].set(normFr, targetText.trim());
+  // Egalement indexer la variante apostrophe droite / typographique
+  const straightFr = normFr.replace(/[’‘]/g, "'");
+  if (straightFr !== normFr) {
+    EXACT_TRANSLATION_MAPS[lang].set(straightFr, targetText.trim());
+  }
+  const curlyFr = normFr.replace(/'/g, '’');
+  if (curlyFr !== normFr) {
+    EXACT_TRANSLATION_MAPS[lang].set(curlyFr, targetText.trim());
+  }
+  if (normTarget !== normFr && !REVERSE_TO_FRENCH_MAP.has(normTarget)) {
+    REVERSE_TO_FRENCH_MAP.set(normTarget, frText.trim());
+  }
+}
+
+function initializeCentralizedLocales(): void {
+  const targetLangs = ['en', 'es', 'de', 'zh'] as const;
+
+  // 1. UI_TRANSLATIONS
   const frUi = UI_TRANSLATIONS.fr;
-  for (const lang of ['en', 'es', 'de', 'zh'] as const) {
+  for (const lang of targetLangs) {
     const dict = UI_TRANSLATIONS[lang];
     for (const key of Object.keys(frUi) as Array<keyof UiTranslations>) {
-      if (dict[key] === trimmed) {
-        return text.replace(trimmed, frUi[key]);
+      registerExactPair(lang, frUi[key], dict[key]);
+    }
+  }
+
+  // 2. PLATFORM_TRANSLATION_RULES
+  for (const lang of targetLangs) {
+    for (const [matcher, replacement] of PLATFORM_TRANSLATION_RULES[lang]) {
+      if (typeof matcher === 'string') {
+        registerExactPair(lang, matcher, replacement);
+      } else {
+        REGEX_TRANSLATION_RULES[lang].push([matcher, replacement]);
       }
+    }
+  }
+
+  // 3. EXACT_AND_REGEX_BANK
+  for (const lang of targetLangs) {
+    for (const [matcher, replacement] of EXACT_AND_REGEX_BANK[lang]) {
+      if (typeof matcher === 'string') {
+        registerExactPair(lang, matcher, replacement);
+      } else {
+        REGEX_TRANSLATION_RULES[lang].push([matcher, replacement]);
+      }
+    }
+  }
+
+  // 4. Dictionnaires structurés `src/locales/{en,es,de,zh-CN}`
+  const localeBundles: Record<
+    Exclude<SupportedLanguage, 'fr'>,
+    { strings: Record<string, string>; patterns: Array<[RegExp, string]> }
+  > = {
+    en: enLocale,
+    es: esLocale,
+    de: deLocale,
+    zh: zhCNLocale,
+  };
+
+  for (const lang of targetLangs) {
+    const bundle = localeBundles[lang];
+    for (const [frStr, translatedStr] of Object.entries(bundle.strings)) {
+      registerExactPair(lang, frStr, translatedStr);
+    }
+    for (const [pattern, replacement] of bundle.patterns) {
+      REGEX_TRANSLATION_RULES[lang].push([pattern, replacement]);
+    }
+  }
+
+  // 5. Catalogue étendu 5 langues (`src/locales/extendedCatalog.ts`)
+  for (const [frMatcher, enVal, esVal, deVal, zhVal] of EXTENDED_MULTILINGUAL_ENTRIES) {
+    if (typeof frMatcher === 'string') {
+      registerExactPair('en', frMatcher, enVal);
+      registerExactPair('es', frMatcher, esVal);
+      registerExactPair('de', frMatcher, deVal);
+      registerExactPair('zh', frMatcher, zhVal);
+    } else {
+      REGEX_TRANSLATION_RULES.en.push([frMatcher, enVal]);
+      REGEX_TRANSLATION_RULES.es.push([frMatcher, esVal]);
+      REGEX_TRANSLATION_RULES.de.push([frMatcher, deVal]);
+      REGEX_TRANSLATION_RULES.zh.push([frMatcher, zhVal]);
+    }
+  }
+
+  // 6. Règles grammaticales paramétrées (`DEEP_GRAMMAR_RULES`)
+  for (const lang of targetLangs) {
+    for (const [pattern, replacement] of DEEP_GRAMMAR_RULES[lang]) {
+      REGEX_TRANSLATION_RULES[lang].push([pattern, replacement]);
+    }
+  }
+}
+
+initializeCentralizedLocales();
+
+/**
+ * Retrouve le texte français canonique si un composant React ou le DOM contient déjà
+ * une chaîne traduite, afin que le changement de langue fonctionne dans tous les sens
+ * (ex: FR -> EN -> ES -> DE -> ZH-CN -> FR) sans jamais perdre la source.
+ */
+export function canonicalizeToFrench(text: string): string {
+  if (!text) return text;
+  const norm = normalizeLookupKey(text);
+  if (!norm) return text;
+
+  // Si le texte est déjà une clé française connue, on le garde tel quel
+  if (EXACT_TRANSLATION_MAPS.en.has(norm)) {
+    return text;
+  }
+
+  const reversed = REVERSE_TO_FRENCH_MAP.get(norm);
+  if (reversed) {
+    const trimmed = text.trim();
+    return text.replace(trimmed, reversed);
+  }
+
+  const numberedPrefixMatch = norm.match(/^(\d+[a-z]?\.\s+)(.+)$/i);
+  if (numberedPrefixMatch) {
+    const innerReversed = REVERSE_TO_FRENCH_MAP.get(
+      normalizeLookupKey(numberedPrefixMatch[2])
+    );
+    if (innerReversed) {
+      const trimmed = text.trim();
+      return text.replace(trimmed, `${numberedPrefixMatch[1]}${innerReversed}`);
     }
   }
   return text;
 }
 
-const COMPOSITIONAL_WORDS: Record<Exclude<SupportedLanguage, 'fr'>, Array<[RegExp, string]>> = {
-  en: [
-    [/\bDécouvrez\b/gi, 'Discover'],
-    [/\bExplorez\b/gi, 'Explore'],
-    [/\bChoisissez\b/gi, 'Choose'],
-    [/\bSélectionnez\b/gi, 'Select'],
-    [/\bIndiquez\b/gi, 'Indicate'],
-    [/\bCliquez sur\b/gi, 'Click on'],
-    [/\bcliquez sur\b/gi, 'click on'],
-    [/\b Connectez-vous\b/gi, ' Sign in'],
-    [/\bConnectez-vous\b/gi, 'Sign in'],
-    [/\bInscrivez-vous\b/gi, 'Sign up'],
-    [/\bPartagez\b/gi, 'Share'],
-    [/\bÉcrivez\b/gi, 'Write'],
-    [/\bLisez\b/gi, 'Read'],
-    [/\bVotre\b/g, 'Your'],
-    [/\bvotre\b/g, 'your'],
-    [/\bVos\b/g, 'Your'],
-    [/\bvos\b/g, 'your'],
-    [/\bNotre\b/g, 'Our'],
-    [/\bnotre\b/g, 'our'],
-    [/\bNos\b/g, 'Our'],
-    [/\bnos\b/g, 'our'],
-    [/\bMon\b/g, 'My'],
-    [/\bmon\b/g, 'my'],
-    [/\bMa\b/g, 'My'],
-    [/\bma\b/g, 'my'],
-    [/\bMes\b/g, 'My'],
-    [/\bmes\b/g, 'my'],
-    [/\bTon\b/g, 'Your'],
-    [/\bton\b/g, 'your'],
-    [/\bTa\b/g, 'Your'],
-    [/\bta\b/g, 'your'],
-    [/\bTes\b/g, 'Your'],
-    [/\btes\b/g, 'your'],
-    [/\bavec\b/gi, 'with'],
-    [/\bsans\b/gi, 'without'],
-    [/\bpour\b/gi, 'for'],
-    [/\bdans\b/gi, 'in'],
-    [/\bsur\b/gi, 'on'],
-    [/\bpar\b/gi, 'by'],
-    [/\bentre\b/gi, 'between'],
-    [/\bplus\b/gi, 'more'],
-    [/\bmoins\b/gi, 'less'],
-    [/\btous les\b/gi, 'all'],
-    [/\btoutes les\b/gi, 'all'],
-    [/\baujourd’hui\b/gi, 'today'],
-    [/\baujourd'hui\b/gi, 'today'],
-    [/\bmaintenant\b/gi, 'now'],
-    [/\bgratuitement\b/gi, 'for free'],
-    [/\bgratuit\b/gi, 'free'],
-    [/\banonyme\b/gi, 'anonymous'],
-    [/\bconfidentiel(le)?\b/gi, 'confidential'],
-    [/\bprivé(e)?\b/gi, 'private'],
-    [/\bsécurisé(e)?\b/gi, 'secure'],
-  ],
-  es: [
-    [/\bDécouvrez\b/gi, 'Descubre'],
-    [/\bExplorez\b/gi, 'Explora'],
-    [/\bChoisissez\b/gi, 'Elige'],
-    [/\bSélectionnez\b/gi, 'Selecciona'],
-    [/\bIndiquez\b/gi, 'Indica'],
-    [/\bCliquez sur\b/gi, 'Haz clic en'],
-    [/\bConnectez-vous\b/gi, 'Inicia sesión'],
-    [/\bInscrivez-vous\b/gi, 'Regístrate'],
-    [/\bPartagez\b/gi, 'Comparte'],
-    [/\bÉcrivez\b/gi, 'Escribe'],
-    [/\bLisez\b/gi, 'Lee'],
-    [/\bVotre\b/g, 'Tu'],
-    [/\bvotre\b/g, 'tu'],
-    [/\bVos\b/g, 'Tus'],
-    [/\bvos\b/g, 'tus'],
-    [/\bNotre\b/g, 'Nuestro'],
-    [/\bnotre\b/g, 'nuestro'],
-    [/\bNos\b/g, 'Nuestros'],
-    [/\bnos\b/g, 'nuestros'],
-    [/\bMon\b/g, 'Mi'],
-    [/\bmon\b/g, 'mi'],
-    [/\bMes\b/g, 'Mis'],
-    [/\bmes\b/g, 'mis'],
-    [/\bavec\b/gi, 'con'],
-    [/\bsans\b/gi, 'sin'],
-    [/\bpour\b/gi, 'para'],
-    [/\bdans\b/gi, 'en'],
-    [/\baujourd’hui\b/gi, 'hoy'],
-    [/\baujourd'hui\b/gi, 'hoy'],
-    [/\bmaintenant\b/gi, 'ahora'],
-    [/\banonyme\b/gi, 'anónimo'],
-    [/\bconfidentiel(le)?\b/gi, 'confidencial'],
-    [/\bprivé(e)?\b/gi, 'privado'],
-    [/\bsécurisé(e)?\b/gi, 'seguro'],
-  ],
-  de: [
-    [/\bDécouvrez\b/gi, 'Entdecke'],
-    [/\bExplorez\b/gi, 'Erkunde'],
-    [/\bChoisissez\b/gi, 'Wähle'],
-    [/\bSélectionnez\b/gi, 'Wähle'],
-    [/\bCliquez sur\b/gi, 'Klicke auf'],
-    [/\bConnectez-vous\b/gi, 'Melde dich an'],
-    [/\bInscrivez-vous\b/gi, 'Registriere dich'],
-    [/\bPartagez\b/gi, 'Teile'],
-    [/\bÉcrivez\b/gi, 'Schreibe'],
-    [/\bLisez\b/gi, 'Lies'],
-    [/\bVotre\b/g, 'Dein'],
-    [/\bvotre\b/g, 'dein'],
-    [/\bVos\b/g, 'Deine'],
-    [/\bvos\b/g, 'deine'],
-    [/\bMon\b/g, 'Mein'],
-    [/\bmon\b/g, 'mein'],
-    [/\bMes\b/g, 'Meine'],
-    [/\bmes\b/g, 'meine'],
-    [/\bavec\b/gi, 'mit'],
-    [/\bsans\b/gi, 'ohne'],
-    [/\bpour\b/gi, 'für'],
-    [/\bdans\b/gi, 'in'],
-    [/\baujourd’hui\b/gi, 'heute'],
-    [/\baujourd'hui\b/gi, 'heute'],
-    [/\bmaintenant\b/gi, 'jetzt'],
-    [/\banonyme\b/gi, 'anonym'],
-    [/\bconfidentiel(le)?\b/gi, 'vertraulich'],
-    [/\bprivé(e)?\b/gi, 'privat'],
-    [/\bsécurisé(e)?\b/gi, 'sicher'],
-  ],
-  zh: [
-    [/\bDécouvrez\b/gi, '探索'],
-    [/\bExplorez\b/gi, '浏览'],
-    [/\bChoisissez\b/gi, '选择'],
-    [/\bSélectionnez\b/gi, '选择'],
-    [/\bCliquez sur\b/gi, '点击'],
-    [/\bConnectez-vous\b/gi, '请登录'],
-    [/\bInscrivez-vous\b/gi, '请注册'],
-    [/\bPartagez\b/gi, '分享'],
-    [/\bÉcrivez\b/gi, '书写'],
-    [/\bLisez\b/gi, '阅读'],
-    [/\baujourd’hui\b/gi, '今天'],
-    [/\baujourd'hui\b/gi, '今天'],
-    [/\bmaintenant\b/gi, '现在'],
-    [/\banonyme\b/gi, '匿名'],
-    [/\bconfidentiel(le)?\b/gi, '私密'],
-    [/\bprivé(e)?\b/gi, '私人'],
-    [/\bsécurisé(e)?\b/gi, '安全'],
-  ],
-};
-
 /**
- * Traduit n'importe quel texte de la plateforme (UI, titres, boutons, conseils, résultats)
- * dans la langue choisie par l'utilisateur courant, sans affecter les autres utilisateurs.
+ * Traduit de manière synchrone, déterministe et centralisée n'importe quel texte
+ * de la plateforme (UI, titres, boutons, conseils, questionnaires, histoires, modales)
+ * dans la langue active (`fr`, `en`, `es`, `de`, `zh` / `zh-CN`).
  */
 export function translatePlatformText(
   text: string,
-  targetLang: SupportedLanguage
+  targetLang: LanguageCodeInput
 ): string {
   if (!text) return text;
+  const normLang = normalizeLanguageCode(targetLang);
   const canonicalFr = canonicalizeToFrench(text);
-  if (targetLang === 'fr') return canonicalFr;
+  if (normLang === 'fr') return canonicalFr;
 
   const trimmed = canonicalFr.trim();
   if (!trimmed) return canonicalFr;
 
-  // 1. Vérifier d'abord le cache neuronal haute précision
-  const cachedNeural = getNeuralCachedTranslation(trimmed, targetLang);
-  if (cachedNeural) {
-    return canonicalFr.replace(trimmed, cachedNeural);
+  const normKey = normalizeLookupKey(trimmed);
+
+  // 1. Recherche exacte O(1) dans le dictionnaire centralisé de la langue cible
+  const exactHit = EXACT_TRANSLATION_MAPS[normLang].get(normKey);
+  if (exactHit) {
+    return canonicalFr.replace(trimmed, exactHit);
   }
 
-  let result = canonicalFr;
-
-  // 2. Dictionnaire principal de la plateforme
-  for (const [matcher, replacement] of PLATFORM_TRANSLATION_RULES[targetLang]) {
-    if (typeof matcher === 'string') {
-      if (trimmed === matcher) {
-        return canonicalFr.replace(trimmed, replacement);
-      }
-      if (result.includes(matcher)) {
-        result = result.split(matcher).join(replacement);
-      }
-    } else {
-      result = result.replace(matcher, replacement);
+  // 2. Gestion des textes entourés de guillemets « ... » ou "...":
+  const guillemetMatch = normKey.match(/^«\s*(.+?)\s*»$/);
+  if (guillemetMatch) {
+    const innerHit = EXACT_TRANSLATION_MAPS[normLang].get(normalizeLookupKey(guillemetMatch[1]));
+    if (innerHit) {
+      const wrapped =
+        normLang === 'en'
+          ? `“${innerHit}”`
+          : normLang === 'de'
+          ? `„${innerHit}“`
+          : normLang === 'zh'
+          ? `“${innerHit}”`
+          : `« ${innerHit} »`;
+      return canonicalFr.replace(trimmed, wrapped);
     }
   }
 
-  // 3. Banque exhaustive de tous les onglets, questionnaires, conseils, histoires et guides
-  for (const [matcher, replacement] of EXACT_AND_REGEX_BANK[targetLang]) {
-    if (typeof matcher === 'string') {
-      if (result.trim() === matcher) {
-        return canonicalFr.replace(trimmed, replacement);
-      }
-      if (result.includes(matcher)) {
-        result = result.split(matcher).join(replacement);
-      }
-    } else {
-      result = result.replace(matcher, replacement);
+  // 3. Gestion des textes avec préfixe/suffixe flèche ou puce (ex: "Lire →", "+ Nouvelle entrée")
+  const arrowSuffixMatch = normKey.match(/^(.+?)\s*(→|↗)$/);
+  if (arrowSuffixMatch) {
+    const innerHit = EXACT_TRANSLATION_MAPS[normLang].get(
+      normalizeLookupKey(arrowSuffixMatch[1])
+    );
+    if (innerHit) {
+      return canonicalFr.replace(trimmed, `${innerHit} ${arrowSuffixMatch[2]}`);
     }
   }
 
-  // 4. Règles grammaticales et structurelles des onglets
-  for (const [pattern, replacement] of DEEP_GRAMMAR_RULES[targetLang]) {
-    result = result.replace(pattern, replacement);
+  const plusPrefixMatch = normKey.match(/^(\+\s*)(.+)$/);
+  if (plusPrefixMatch) {
+    const innerHit = EXACT_TRANSLATION_MAPS[normLang].get(
+      normalizeLookupKey(plusPrefixMatch[2])
+    );
+    if (innerHit) {
+      return canonicalFr.replace(trimmed, `+ ${innerHit}`);
+    }
   }
 
-  // 5. Passe de vocabulaire et d'expressions
-  for (const [pattern, replacement] of VOCAB_PASS[targetLang]) {
-    result = result.replace(pattern, replacement);
+  const numberedPrefixMatch = normKey.match(/^(\d+[a-z]?\.\s+)(.+)$/i);
+  if (numberedPrefixMatch) {
+    const innerHit = EXACT_TRANSLATION_MAPS[normLang].get(
+      normalizeLookupKey(numberedPrefixMatch[2])
+    );
+    if (innerHit) {
+      return canonicalFr.replace(trimmed, `${numberedPrefixMatch[1]}${innerHit}`);
+    }
   }
 
-  // 6. Passe compositionnelle pour les phrases libres
-  for (const [pattern, replacement] of COMPOSITIONAL_WORDS[targetLang]) {
-    result = result.replace(pattern, replacement);
+  const parenScoreSuffixMatch = normKey.match(/^(.+?)\s*(\(\d+\))$/);
+  if (parenScoreSuffixMatch) {
+    const innerHit = EXACT_TRANSLATION_MAPS[normLang].get(
+      normalizeLookupKey(parenScoreSuffixMatch[1])
+    );
+    if (innerHit) {
+      return canonicalFr.replace(trimmed, `${innerHit} ${parenScoreSuffixMatch[2]}`);
+    }
   }
 
-  return result;
+  // 4. Règles paramétrées et expressions régulières (compteurs, dates, salutations, scores)
+  let result = normKey;
+  for (const [pattern, replacement] of REGEX_TRANSLATION_RULES[normLang]) {
+    if (pattern.test(result)) {
+      result = result.replace(pattern, replacement);
+      // Si un pattern complet a traduit la chaîne, vérifier si le résultat diffère
+    }
+  }
+  if (result !== normKey) {
+    return canonicalFr.replace(trimmed, result);
+  }
+
+  // 5. Paragraphes multi-phrases : traduire phrase par phrase si chaque phrase est au dictionnaire
+  if (normKey.includes('. ')) {
+    const sentences = normKey.split(/(?<=[.!?])\s+/);
+    if (sentences.length > 1) {
+      let anyTranslated = false;
+      const translatedSentences = sentences.map((s) => {
+        const sNorm = normalizeLookupKey(s);
+        const sHit = EXACT_TRANSLATION_MAPS[normLang].get(sNorm);
+        if (sHit) {
+          anyTranslated = true;
+          return sHit;
+        }
+        return s;
+      });
+      if (anyTranslated) {
+        return canonicalFr.replace(trimmed, translatedSentences.join(' '));
+      }
+    }
+  }
+
+  // 6. Passe d'expressions contrôlées (uniquement expressions complètes sûres, jamais de mot-à-mot)
+  let vocabResult = normKey;
+  for (const [pattern, replacement] of VOCAB_PASS[normLang]) {
+    vocabResult = vocabResult.replace(pattern, replacement);
+  }
+  if (vocabResult !== normKey) {
+    return canonicalFr.replace(trimmed, vocabResult);
+  }
+
+  // Fallback contrôlé vers le français (aucune clé technique brute ni corruption mot-à-mot)
+  return canonicalFr;
 }
 
-const pendingNeuralRequests = new Map<string, Promise<string>>();
-
 /**
- * Traduction neuronale asynchrone pour tout paragraphe, récit, conseil ou texte dynamique
- * afin d'assurer une traduction 100 % totale sur tous les onglets pour l'utilisateur actif.
+ * Traduction asynchrone compatible (retourne immédiatement la traduction centralisée
+ * hors-ligne depuis `src/locales/` sans dépendre d'un service tiers bloqué).
  */
 export async function translateTextNeuralAsync(
   sourceFr: string,
-  targetLang: SupportedLanguage
+  targetLang: LanguageCodeInput
 ): Promise<string> {
-  const clean = canonicalizeToFrench(sourceFr).trim();
-  if (!clean || targetLang === 'fr') return sourceFr;
-
-  const cached = getNeuralCachedTranslation(clean, targetLang);
-  if (cached) return cached;
-
-  const reqKey = `${targetLang}::${clean}`;
-  if (pendingNeuralRequests.has(reqKey)) {
-    return pendingNeuralRequests.get(reqKey)!;
-  }
-
-  const promise = (async () => {
-    try {
-      const tl = targetLang === 'zh' ? 'zh-CN' : targetLang;
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=fr&tl=${encodeURIComponent(
-        tl
-      )}&dt=t&q=${encodeURIComponent(clean)}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && Array.isArray(data[0])) {
-          const translated = data[0]
-            .map((segment: any) => (Array.isArray(segment) ? segment[0] : ''))
-            .join('')
-            .trim();
-          if (translated) {
-            setNeuralCachedTranslation(clean, targetLang, translated);
-            return translated;
-          }
-        }
-      }
-    } catch {
-      // Fallback hors-ligne vers le moteur synchrone complet
-    } finally {
-      pendingNeuralRequests.delete(reqKey);
-    }
-    return translatePlatformText(clean, targetLang);
-  })();
-
-  pendingNeuralRequests.set(reqKey, promise);
-  return promise;
+  return translatePlatformText(sourceFr, targetLang);
 }
 
 /**
@@ -1249,12 +1297,13 @@ export async function translateTextNeuralAsync(
  */
 export function translateMessageForViewer(
   content: string,
-  targetLang: SupportedLanguage
+  targetLang: LanguageCodeInput
 ): string {
+  const normLang = normalizeLanguageCode(targetLang);
   const clean = (content || '').trim();
-  if (!clean || targetLang === 'fr') return content;
+  if (!clean || normLang === 'fr') return content;
 
-  let translated = translatePlatformText(clean, targetLang);
+  let translated = translatePlatformText(clean, normLang);
 
   const tokenReplacements: Record<Exclude<SupportedLanguage, 'fr'>, Array<[RegExp, string]>> = {
     en: [
@@ -1318,7 +1367,7 @@ export function translateMessageForViewer(
     ],
   };
 
-  for (const [pattern, replacement] of tokenReplacements[targetLang]) {
+  for (const [pattern, replacement] of tokenReplacements[normLang]) {
     translated = translated.replace(pattern, replacement);
   }
 
@@ -1395,8 +1444,9 @@ export function generatePsychicDiagnosticBriefing(params: {
 
 export function formatPsychicDiagnosticMessage(
   briefing: PsychicDiagnosticBriefing,
-  lang: SupportedLanguage = 'fr'
+  lang: LanguageCodeInput = 'fr'
 ): string {
-  if (lang === 'fr') return briefing.summaryForUser;
-  return translateMessageForViewer(briefing.summaryForUser, lang);
+  const normLang = normalizeLanguageCode(lang);
+  if (normLang === 'fr') return briefing.summaryForUser;
+  return translateMessageForViewer(briefing.summaryForUser, normLang);
 }

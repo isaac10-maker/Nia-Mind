@@ -346,4 +346,68 @@ describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant
     const formattedEn = formatPsychicDiagnosticMessage(briefing, 'en');
     expect(formattedEn).toContain('AI ANALYSIS BRIEFING — PSYCHIC DIAGNOSTIC');
   });
+
+  it('13. Garantit une traduction centralisée 100 % complète (fr, en, es, de, zh-CN) sans mélange de langues et avec retour exact au français', async () => {
+    const {
+      canonicalizeToFrench,
+      getHtmlLangAttribute,
+      normalizeLanguageCode,
+      translatePlatformText,
+    } = await import('../src/lib/i18nEngine');
+    const { QUESTIONNAIRE_CATALOG, INITIAL_DAILY_TIPS, INITIAL_HELP_RESOURCES } = await import(
+      '../src/lib/seedData'
+    );
+
+    // Support de zh-CN et zh
+    expect(normalizeLanguageCode('zh-CN')).toBe('zh');
+    expect(getHtmlLangAttribute('zh-CN')).toBe('zh-CN');
+    expect(getHtmlLangAttribute('fr')).toBe('fr');
+
+    // Vérifie qu'une phrase complexe contenant des sous-mots ("Conseils", "Histoires") est traduite intégralement sans franglais
+    const complexHeading = 'Bibliothèque de Conseils & Pistes d’Introspection';
+    expect(translatePlatformText(complexHeading, 'en')).toBe(
+      'Library of Tips & Introspection Prompts'
+    );
+    expect(translatePlatformText(complexHeading, 'es')).toBe(
+      'Biblioteca de Consejos y Pistas de Introspección'
+    );
+    expect(translatePlatformText(complexHeading, 'de')).toBe(
+      'Bibliothek für Impulse & Selbstreflexion'
+    );
+    expect(translatePlatformText(complexHeading, 'zh-CN')).toBe('每日建议与自我探索文库');
+
+    // Aller-retour multi-langues FR -> EN -> ES -> DE -> ZH-CN -> FR sans perte
+    const enVal = translatePlatformText(complexHeading, 'en');
+    const esFromEn = translatePlatformText(enVal, 'es');
+    expect(esFromEn).toBe('Biblioteca de Consejos y Pistas de Introspección');
+    const deFromEs = translatePlatformText(esFromEn, 'de');
+    expect(deFromEs).toBe('Bibliothek für Impulse & Selbstreflexion');
+    const zhFromDe = translatePlatformText(deFromEs, 'zh-CN');
+    expect(zhFromDe).toBe('每日建议与自我探索文库');
+    const backToFr = canonicalizeToFrench(zhFromDe);
+    expect(backToFr).toBe(complexHeading);
+
+    // Vérifie la couverture de tous les questionnaires, conseils du jour et ressources d'aide dans les 5 langues
+    for (const q of QUESTIONNAIRE_CATALOG) {
+      for (const lang of ['en', 'es', 'de', 'zh-CN'] as const) {
+        expect(translatePlatformText(q.title, lang)).not.toBe(q.title);
+        for (const item of q.questions) {
+          expect(translatePlatformText(item, lang)).not.toBe(item);
+        }
+      }
+    }
+
+    for (const tip of INITIAL_DAILY_TIPS) {
+      for (const lang of ['en', 'es', 'de', 'zh-CN'] as const) {
+        expect(translatePlatformText(tip.title, lang)).not.toBe(tip.title);
+        expect(translatePlatformText(tip.summary, lang)).not.toBe(tip.summary);
+      }
+    }
+
+    for (const res of INITIAL_HELP_RESOURCES) {
+      for (const lang of ['en', 'es', 'de', 'zh-CN'] as const) {
+        expect(translatePlatformText(res.description, lang)).not.toBe(res.description);
+      }
+    }
+  });
 });

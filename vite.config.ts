@@ -56,10 +56,24 @@ export default defineConfig({
     minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-icons': ['lucide-react'],
+        manualChunks(id) {
+          if (
+            id.includes('/src/locales/') ||
+            id.includes('/src/lib/platformPhraseBank') ||
+            id.includes('/src/lib/i18nEngine')
+          ) {
+            return 'nia-i18n';
+          }
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-router')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/@supabase')) {
+            return 'vendor-supabase';
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons';
+          }
+          return undefined;
         },
       },
     },

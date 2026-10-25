@@ -58,6 +58,9 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   formatPsychicDiagnosticMessage,
   generatePsychicDiagnosticBriefing,
+  getHtmlLangAttribute,
+  LanguageCodeInput,
+  normalizeLanguageCode,
   SupportedLanguage,
   translatePlatformText,
 } from '../lib/i18nEngine';
@@ -78,7 +81,7 @@ interface AppContextValue {
   setReducedMotion: (val: boolean) => void;
   supabaseConnected: boolean;
   currentLanguage: SupportedLanguage;
-  setCurrentLanguage: (lang: SupportedLanguage) => void;
+  setCurrentLanguage: (lang: LanguageCodeInput) => void;
 
   // Authentification & Session
   currentUser: UserProfile | null;
@@ -345,7 +348,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
 
   // Aucun faux compte ni fausse conversation : seul le Superadmin officiel est pré-enregistré, et le visiteur arrive déconnecté (null)
-  const [users, setUsers] = useState<UserProfile[]>([SUPERADMIN_PROFILE]);
+  const [users, setUsers] = useState<UserProfile[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.users) && parsed.users.length > 0) {
+          const hasSuperAdmin = parsed.users.some(
+            (u: UserProfile) => u.email.toLowerCase() === SUPERADMIN_PROFILE.email
+          );
+          return hasSuperAdmin
+            ? parsed.users.map((u: UserProfile) =>
+                u.email.toLowerCase() === SUPERADMIN_PROFILE.email
+                  ? { ...u, role: 'admin' }
+                  : u
+              )
+            : [SUPERADMIN_PROFILE, ...parsed.users];
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [SUPERADMIN_PROFILE];
+  });
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(ACTIVE_USER_KEY) || null;
@@ -371,7 +396,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
   const [userPasswords, setUserPasswords] = useState<Record<string, string>>({});
   const [recoveryCodes, setRecoveryCodes] = useState<Record<string, string>>({});
-  const [visitorLanguage, setVisitorLanguage] = useState<SupportedLanguage>('fr');
+  const [visitorLanguage, setVisitorLanguage] = useState<SupportedLanguage>(() => {
+    try {
+      const savedActive =
+        localStorage.getItem('nia-mind-lang-active') ||
+        localStorage.getItem('nia-mind-lang-visitor');
+      if (savedActive) {
+        return normalizeLanguageCode(savedActive);
+      }
+    } catch {
+      // ignore
+    }
+    return 'fr';
+  });
   const [activeBanNotice, setActiveBanNotice] = useState<{
     pseudo: string;
     reason: string;
@@ -561,15 +598,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [users, currentUserId]
   );
 
-  // Langue isolée par utilisateur : le choix d'un utilisateur n'affecte que son propre affichage
+  // Langue isolée et persistante : le choix de langue est conservé en localStorage et sur le profil
   const currentLanguage: SupportedLanguage = useMemo(() => {
+    try {
+      if (currentUser?.id) {
+        const savedUserLang = localStorage.getItem(`nia-mind-lang-${currentUser.id}`);
+        if (savedUserLang) {
+          return normalizeLanguageCode(savedUserLang);
+        }
+      }
+    } catch {
+      // ignore
+    }
     if (currentUser?.preferredLanguage) {
-      return currentUser.preferredLanguage;
+      return normalizeLanguageCode(currentUser.preferredLanguage);
     }
     try {
-      const saved = localStorage.getItem(`nia-mind-lang-${currentUser?.id || 'visitor'}`);
-      if (saved === 'fr' || saved === 'en' || saved === 'es' || saved === 'de' || saved === 'zh') {
-        return saved;
+      const savedActive =
+        localStorage.getItem('nia-mind-lang-active') ||
+        localStorage.getItem('nia-mind-lang-visitor');
+      if (savedActive) {
+        return normalizeLanguageCode(savedActive);
       }
     } catch {
       // ignore
@@ -577,9 +626,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return visitorLanguage;
   }, [currentUser?.id, currentUser?.preferredLanguage, visitorLanguage]);
 
-  const setCurrentLanguage = (lang: SupportedLanguage) => {
+  useEffect(() => {
+    document.documentElement.lang = getHtmlLangAttribute(currentLanguage);
+  }, [currentLanguage]);
+
+  const setCurrentLanguage = (langInput: LanguageCodeInput) => {
+    const lang = normalizeLanguageCode(langInput);
+    setVisitorLanguage(lang);
     try {
-      localStorage.setItem(`nia-mind-lang-${currentUser?.id || 'visitor'}`, lang);
+      localStorage.setItem('nia-mind-lang-active', lang);
+      localStorage.setItem('nia-mind-lang-visitor', lang);
+      if (currentUser?.id) {
+        localStorage.setItem(`nia-mind-lang-${currentUser.id}`, lang);
+      }
     } catch {
       // ignore
     }
@@ -587,8 +646,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setUsers((prev) =>
         prev.map((u) => (u.id === currentUser.id ? { ...u, preferredLanguage: lang } : u))
       );
-    } else {
-      setVisitorLanguage(lang);
     }
   };
 
@@ -598,7 +655,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     tone: ToastNotification['tone'] = 'orange'
   ) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    setToasts((prev) => [...prev, { id, title, message, tone }]);
+    const translatedTitle = translatePlatformText(title, currentLanguage);
+    const translatedMessage = translatePlatformText(message, currentLanguage);
+    setToasts((prev) => [
+      ...prev,
+      { id, title: translatedTitle, message: translatedMessage, tone },
+    ]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4500);
