@@ -415,6 +415,27 @@ html.dark .nia-stroke-watermark {
   animation: nia-page-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* Défilement de la droite vers la gauche à vitesse moyenne sous "Motivation & Conseils" */
+@keyframes nia-rtl-scroll {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-nia-rtl-scroll {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+  animation: nia-rtl-scroll 22s linear infinite;
+}
+
+.animate-nia-rtl-scroll:hover {
+  animation-play-state: paused;
+}
+
 /* ============================================================================
    C. RESPECT DE PREFERS-REDUCED-MOTION & ACCESSIBILITÉ MOBILE
    ============================================================================ */

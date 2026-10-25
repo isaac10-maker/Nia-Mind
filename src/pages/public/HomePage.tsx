@@ -144,30 +144,6 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative space-y-10">
-          {/* Bulle glissante d'instructions des onglets (avec bouton croix X) */}
-          <InlineSlidingGuideBanner
-            slides={[
-              {
-                badge: 'Bienvenue sur Nia-Mind • Mode Découverte',
-                title: 'Tu n’es pas seul(e) à être seul(e) — explore les onglets à ton rythme',
-                detail:
-                  'En mode visiteur, fais défiler librement nos Ressources, nos Conseils et les Histoires anonymes. Dès que tu veux parler à l’Assistant ou ouvrir ton espace personnel, inscris-toi en quelques secondes avec ton e-mail ou Gmail.',
-              },
-              {
-                badge: 'Astuce Navigation • Onglet Assistance & Bien-être',
-                title: 'Un espace personnel vierge de toute fausse donnée',
-                detail:
-                  'Ton journal, tes conversations et tes courbes de sommeil démarrent à zéro pour refléter uniquement ta propre histoire.',
-              },
-              {
-                badge: 'Astuce Confidentialité • Double Consentement',
-                title: 'Tes écrits restent sous ton contrôle absolu',
-                detail:
-                  'Ton journal intime n’est jamais lisible par quiconque, et aucune histoire anonyme n’est publiée sans ton accord explicite.',
-              },
-            ]}
-          />
-
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             {/* Colonne Éditoriale Principale */}
             <div className="lg:col-span-7 space-y-6">
@@ -269,7 +245,7 @@ export const HomePage: React.FC = () => {
                     </span>
                   </div>
                   <span className="px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-700 dark:text-sky-300 text-[11px] font-extrabold">
-                    « {OFFICIAL_SLOGAN} »
+                    Parole libre & sincère
                   </span>
                 </div>
 
@@ -599,7 +575,7 @@ export const HomePage: React.FC = () => {
         <ScrollReveal>
           <div className="rounded-3xl bg-gradient-to-br from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep text-white p-8 sm:p-14 text-center space-y-6 shadow-2xl relative overflow-hidden">
             <p className="text-xs sm:text-sm font-extrabold uppercase tracking-widest text-amber-200">
-              Nia-Mind — « {OFFICIAL_SLOGAN} »
+              Nia-Mind — Écouter • Comprendre • Avancer
             </p>
             <h2 className="text-3xl sm:text-6xl font-black tracking-tight leading-none">
               Ton histoire compte.<br />

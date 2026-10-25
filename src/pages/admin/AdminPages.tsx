@@ -1436,63 +1436,268 @@ export const AdminSettingsPage: React.FC = () => {
 };
 
 // ============================================================================
-// 10. JOURNAUX D'AUDIT (/admin/audit) — Sans données sensibles en clair
+// 10. JOURNAUX D'AUDIT (/admin/audit) — RANGÉS PAR CATÉGORIES CLAIRES
 // ============================================================================
+type AuditCategoryKey =
+  | 'all'
+  | 'auth'
+  | 'security'
+  | 'stories'
+  | 'listening_privacy'
+  | 'content_config';
+
+interface AuditCategoryMeta {
+  key: Exclude<AuditCategoryKey, 'all'>;
+  label: string;
+  desc: string;
+  badgeClass: string;
+}
+
+const AUDIT_CATEGORIES: AuditCategoryMeta[] = [
+  {
+    key: 'security',
+    label: 'Sécurité & Anti-Intrusion',
+    desc: 'Blocages anti-spam (3 essais/15s), honeypot, anti-pentest et tentatives rejetées',
+    badgeClass: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+  },
+  {
+    key: 'auth',
+    label: 'Authentification & Comptes',
+    desc: 'Connexions, inscriptions, vérifications Push Gmail et récupérations de mot de passe',
+    badgeClass: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
+  },
+  {
+    key: 'stories',
+    label: 'Modération & Témoignages',
+    desc: 'Soumissions, consentements auteurs, décisions de modération et publications',
+    badgeClass: 'bg-nia-orange/15 text-nia-orange-deep dark:text-nia-orange border-nia-orange/30',
+  },
+  {
+    key: 'listening_privacy',
+    label: 'Écoute Humaine & Vie Privée',
+    desc: 'Demandes d’écoute, réponses des écoutants, préférences de profil et demandes RGPD',
+    badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  },
+  {
+    key: 'content_config',
+    label: 'Contenus, Conseils IA & Configuration',
+    desc: 'Conseils du jour, relais IA, notifications Push, couleurs du site et rôles',
+    badgeClass: 'bg-nia-bordeaux/15 text-nia-bordeaux dark:text-amber-200 border-nia-bordeaux/30',
+  },
+];
+
+function classifyAuditEntry(actionCode: string, targetType: string): Exclude<AuditCategoryKey, 'all'> {
+  const code = (actionCode || '').toUpperCase();
+  const target = (targetType || '').toLowerCase();
+
+  if (code.startsWith('SECURITY_')) {
+    return 'security';
+  }
+  if (
+    code.startsWith('AUTH_') ||
+    code.startsWith('USER_REGISTER') ||
+    code.startsWith('SUPERADMIN_AUTH') ||
+    code.startsWith('GMAIL_') ||
+    code.startsWith('PASSWORD_') ||
+    code.startsWith('SESSION_') ||
+    target === 'auth'
+  ) {
+    return 'auth';
+  }
+  if (
+    code.includes('STORY') ||
+    target === 'story'
+  ) {
+    return 'stories';
+  }
+  if (
+    code.startsWith('LISTENING_') ||
+    code.startsWith('PRIVACY_') ||
+    code.startsWith('PROFILE_') ||
+    target === 'listening_request' ||
+    target === 'privacy_request'
+  ) {
+    return 'listening_privacy';
+  }
+  return 'content_config';
+}
+
 export const AdminAuditLogsPage: React.FC = () => {
   const { auditLogs } = useApp();
+  const [selectedCategory, setSelectedCategory] = useState<AuditCategoryKey>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const categorizedLogs = React.useMemo(() => {
+    return auditLogs.map((log) => ({
+      ...log,
+      categoryKey: classifyAuditEntry(log.actionCode, log.targetType),
+    }));
+  }, [auditLogs]);
+
+  const countsByCategory = React.useMemo(() => {
+    const counts: Record<Exclude<AuditCategoryKey, 'all'>, number> = {
+      security: 0,
+      auth: 0,
+      stories: 0,
+      listening_privacy: 0,
+      content_config: 0,
+    };
+    for (const item of categorizedLogs) {
+      counts[item.categoryKey] += 1;
+    }
+    return counts;
+  }, [categorizedLogs]);
+
+  const filteredLogs = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return categorizedLogs.filter((item) => {
+      if (selectedCategory !== 'all' && item.categoryKey !== selectedCategory) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        item.actionCode.toLowerCase().includes(q) ||
+        item.summary.toLowerCase().includes(q) ||
+        item.actorId.toLowerCase().includes(q) ||
+        item.targetType.toLowerCase().includes(q)
+      );
+    });
+  }, [categorizedLogs, selectedCategory, searchQuery]);
+
+  const visibleCategories =
+    selectedCategory === 'all'
+      ? AUDIT_CATEGORIES
+      : AUDIT_CATEGORIES.filter((c) => c.key === selectedCategory);
 
   return (
     <div className="space-y-6">
-      <div>
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-nia-orange">
-          <Archive className="w-4 h-4" />
-          Traçabilité & Journaux d’Audit Sécurisés
-        </span>
-        <h1 className="text-2xl font-extrabold text-nia-gray-dark dark:text-white mt-1">
-          Journaux d’audit ({auditLogs.length})
-        </h1>
-        <p className="text-xs text-nia-gray-mid dark:text-gray-400 mt-1">
-          Minimisation des données : les journaux d’audit enregistrent uniquement le code d’action, le rôle et l’identifiant cible, sans jamais stocker le texte des journaux intimes ou des messages privés.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-nia-orange">
+            <Archive className="w-4 h-4" />
+            Traçabilité & Journaux d’Audit Rangés par Catégories
+          </span>
+          <h1 className="text-2xl font-extrabold text-nia-gray-dark dark:text-white mt-1">
+            Journaux d’audit classés ({auditLogs.length} événements)
+          </h1>
+          <p className="text-xs text-nia-gray-mid dark:text-gray-400 mt-1">
+            Chaque événement est automatiquement classé dans l’une des 5 catégories ci-dessous pour une lecture claire et immédiate (sans jamais stocker de messages privés en clair).
+          </p>
+        </div>
+
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Filtrer par code, cible ou mot-clé…"
+          className="w-full sm:w-72 px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-orange/35 text-xs font-semibold"
+        />
       </div>
 
-      <div className="rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-nia-bg-light dark:bg-nia-bg-dark border-b border-nia-gray-light dark:border-nia-border-dark uppercase text-nia-gray-mid">
-              <tr>
-                <th className="py-3 px-4">Horodatage</th>
-                <th className="py-3 px-4">Acteur & Rôle</th>
-                <th className="py-3 px-4">Code Action</th>
-                <th className="py-3 px-4">Cible</th>
-                <th className="py-3 px-4">Synthèse aseptisée</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-nia-gray-light dark:divide-nia-border-dark">
-              {auditLogs.map((log) => (
-                <tr key={log.id}>
-                  <td className="py-3 px-4 whitespace-nowrap text-nia-gray-mid">
-                    {new Date(log.createdAt).toLocaleString('fr-FR')}
-                  </td>
-                  <td className="py-3 px-4 font-semibold">
-                    <code>{log.actorId}</code> ({log.actorRole})
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded bg-nia-orange/15 text-nia-orange-deep dark:text-nia-orange font-bold">
-                      {log.actionCode}
+      {/* Onglets de filtrage par catégorie avec compteurs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <button
+          type="button"
+          onClick={() => setSelectedCategory('all')}
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
+            selectedCategory === 'all'
+              ? 'bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white border-transparent shadow-md'
+              : 'bg-white dark:bg-nia-surface-dark border-nia-gray-light dark:border-nia-border-dark'
+          }`}
+        >
+          <p className="text-[11px] font-bold opacity-80">Vue globale</p>
+          <p className="text-sm font-extrabold mt-0.5">Toutes les catégories</p>
+          <p className="text-lg font-black mt-1">{auditLogs.length}</p>
+        </button>
+
+        {AUDIT_CATEGORIES.map((cat) => {
+          const active = selectedCategory === cat.key;
+          return (
+            <button
+              key={cat.key}
+              type="button"
+              onClick={() => setSelectedCategory(cat.key)}
+              className={`p-3.5 rounded-2xl border text-left transition-all ${
+                active
+                  ? 'bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white border-transparent shadow-md'
+                  : 'bg-white dark:bg-nia-surface-dark border-nia-gray-light dark:border-nia-border-dark hover:border-nia-orange'
+              }`}
+            >
+              <p className="text-[11px] font-bold opacity-80 truncate">{cat.label}</p>
+              <p className="text-lg font-black mt-1">{countsByCategory[cat.key]}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Affichage structuré bloc par bloc pour chaque catégorie */}
+      <div className="space-y-6">
+        {visibleCategories.map((cat) => {
+          const items = filteredLogs.filter((l) => l.categoryKey === cat.key);
+          return (
+            <div
+              key={cat.key}
+              className="rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark overflow-hidden"
+            >
+              <div className="p-4 sm:p-5 bg-nia-bg-light dark:bg-nia-bg-dark border-b border-nia-gray-light dark:border-nia-border-dark flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${cat.badgeClass}`}>
+                      {cat.label}
                     </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    {log.targetType} / <code>{log.targetId}</code>
-                  </td>
-                  <td className="py-3 px-4 text-nia-gray-dark dark:text-gray-200">
-                    {log.summary}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <span className="text-xs font-extrabold text-nia-gray-mid">
+                      ({items.length} entrée{items.length > 1 ? 's' : ''})
+                    </span>
+                  </div>
+                  <p className="text-xs text-nia-gray-mid mt-1">{cat.desc}</p>
+                </div>
+              </div>
+
+              {items.length === 0 ? (
+                <div className="p-5 text-xs text-nia-gray-mid italic">
+                  Aucun événement enregistré dans cette catégorie pour le moment.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-nia-gray-light dark:border-nia-border-dark uppercase text-[11px] text-nia-gray-mid">
+                      <tr>
+                        <th className="py-2.5 px-4">Horodatage</th>
+                        <th className="py-2.5 px-4">Acteur & Rôle</th>
+                        <th className="py-2.5 px-4">Code Action</th>
+                        <th className="py-2.5 px-4">Cible</th>
+                        <th className="py-2.5 px-4">Détail</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-nia-gray-light dark:divide-nia-border-dark">
+                      {items.map((log) => (
+                        <tr key={log.id}>
+                          <td className="py-2.5 px-4 whitespace-nowrap text-nia-gray-mid">
+                            {new Date(log.createdAt).toLocaleString('fr-FR')}
+                          </td>
+                          <td className="py-2.5 px-4 font-semibold">
+                            <code>{log.actorId}</code> ({log.actorRole})
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <span className={`px-2 py-0.5 rounded font-bold border ${cat.badgeClass}`}>
+                              {log.actionCode}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4">
+                            {log.targetType} / <code>{log.targetId}</code>
+                          </td>
+                          <td className="py-2.5 px-4 text-nia-gray-dark dark:text-gray-200">
+                            {log.summary}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

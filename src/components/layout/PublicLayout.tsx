@@ -46,12 +46,12 @@ export const PublicLayout: React.FC = () => {
       <AmbientBackground />
       <RoleSwitcherBar />
 
-      {/* En-tête officiel : sur /connexion et /inscription, tout est flouté SAUF le logo + titre "Nia-Mind" à gauche et le bouton en haut à droite */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-gradient-to-r from-[#FFF5EE]/85 via-[#FDF0F4]/85 to-[#FFF5EE]/85 dark:from-[#111318]/90 dark:via-[#1F121B]/90 dark:to-[#111318]/90 border-b border-nia-orange/25 dark:border-nia-border-dark shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-          {/* Logo et titre "Nia-Mind" toujours nets (jamais floutés) */}
-          <div className="relative z-50">
-            <BrandLogo showSlogan size="md" />
+      {/* En-tête officiel 100 % opaque au défilement : aucune transparence parasite ("entrevisible") quand on descend la page */}
+      <header className="sticky top-0 z-50 bg-[#FFF8F3] dark:bg-[#14161D] border-b border-nia-orange/30 dark:border-nia-border-dark shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-18 py-2.5 flex items-center justify-between gap-4">
+          {/* Logo et titre "Nia-Mind" toujours nets (sans répéter le slogan dans la barre) */}
+          <div className="relative z-50 shrink-0">
+            <BrandLogo showSlogan={false} size="md" />
           </div>
 
           {/* Navigation centrale : floutée lorsque la page de connexion ou d'inscription est ouverte */}
@@ -238,7 +238,7 @@ export const PublicLayout: React.FC = () => {
                 Nia-Mind est un espace numérique d’écoute, de réflexion, de bien-être et d’expression personnelle où chacun peut parler avec sincérité, écrire ses pensées et raconter son histoire sans être obligé de jouer un rôle.
               </p>
               <p className="text-xs font-extrabold uppercase tracking-wider text-nia-bordeaux dark:text-amber-300">
-                « {OFFICIAL_SLOGAN} »
+                Écouter • Comprendre • Avancer
               </p>
             </div>
 
@@ -370,7 +370,7 @@ export const PublicLayout: React.FC = () => {
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-nia-orange" />
               <span>
-                © {new Date().getFullYear()} Nia-Mind — « {OFFICIAL_SLOGAN} ». Confidentialité & Protection intégrale de vos écrits.
+                © {new Date().getFullYear()} Nia-Mind — Confidentialité & Protection intégrale de vos écrits.
               </span>
             </div>
             <div className="flex items-center gap-4">

@@ -526,7 +526,7 @@ export const AboutPage: React.FC = () => {
             Manifeste & Engagements Nia-Mind
           </span>
           <h1 className="text-3xl sm:text-5xl font-black text-nia-gray-dark dark:text-white tracking-tight">
-            Nia-Mind — « {OFFICIAL_SLOGAN} »
+            Nia-Mind — Écouter • Comprendre • Avancer
           </h1>
           <p className="text-lg text-nia-gray-mid dark:text-gray-300 leading-relaxed">
             Nia-Mind est un espace numérique d’écoute, de réflexion, de bien-être et d’expression personnelle où chacun peut parler avec sincérité, écrire ses pensées et raconter son histoire sans être obligé de jouer un rôle.
@@ -854,30 +854,30 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
-      {/* Notification Push Edge Function sur la page d'inscription : Nouveau Conseil & Motivation */}
+      {/* Bandeau "Motivation & Conseils" avec le message du jour défilant de la droite vers la gauche à vitesse moyenne sous le titre */}
       {mode === 'register' && edgePushBannerOpen && (
-        <div className="rounded-3xl bg-gradient-to-r from-sky-900/90 via-nia-bordeaux to-nia-orange-deep text-white p-4 sm:p-5 shadow-xl border border-white/25 flex items-start justify-between gap-3 animate-nia-slide-in">
-          <div className="space-y-1">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-extrabold uppercase tracking-wider text-amber-200">
-              <Sparkles className="w-3.5 h-3.5 text-nia-orange animate-pulse" />
-              Edge Function Push • Nouveau Conseil & Motivation du jour
+        <div className="rounded-3xl bg-gradient-to-r from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep text-white p-4 sm:p-5 shadow-xl border border-white/25 space-y-2 animate-nia-slide-in">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/15 text-xs font-extrabold uppercase tracking-wider text-amber-200">
+              <Sparkles className="w-3.5 h-3.5 text-nia-orange" />
+              Motivation & Conseils
             </span>
-            <p className="text-sm font-black text-white">
-              {featuredDailyTip?.title || 'Déposer le masque 5 minutes aujourd’hui'}
-            </p>
-            <p className="text-xs font-medium text-white/90 leading-relaxed">
+            <button
+              type="button"
+              onClick={() => setEdgePushBannerOpen(false)}
+              aria-label="Fermer le bandeau Motivation & Conseils"
+              className="w-7 h-7 rounded-full inline-flex items-center justify-center bg-white/15 hover:bg-white/30 text-white shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="relative w-full overflow-hidden border-t border-white/15 pt-2">
+            <div className="animate-nia-rtl-scroll text-xs sm:text-sm font-bold text-white/95">
+              ✺ {featuredDailyTip?.title || 'Conseil du jour'} —{' '}
               {featuredDailyTip?.summary ||
                 'Tu n’as pas besoin de porter toutes les attentes du monde en même temps. Respire et avance à ton rythme.'}
-            </p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setEdgePushBannerOpen(false)}
-            aria-label="Fermer la notification push"
-            className="w-7 h-7 rounded-full inline-flex items-center justify-center bg-white/15 hover:bg-white/30 text-white shrink-0"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
       )}
 
@@ -939,7 +939,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
           </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-nia-orange/15 text-nia-orange-deep dark:text-nia-orange text-xs font-extrabold">
             <Lock className="w-3.5 h-3.5" />
-            Nia-Mind — « {OFFICIAL_SLOGAN} »
+            Écouter • Comprendre • Avancer
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-nia-gray-dark dark:text-white">
             {mode === 'login'

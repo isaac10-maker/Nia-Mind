@@ -49,7 +49,7 @@ export const GlobalModals: React.FC = () => {
         onClose={() => closeDailyTipModal(true)}
         badgeText={`Conseil du jour • ${featuredDailyTip.category}`}
         title={featuredDailyTip.title}
-        subtitle={`Lecture : ${featuredDailyTip.readingTimeMin} min • Nia-Mind « Le vrai sans le masque »`}
+        subtitle={`Lecture : ${featuredDailyTip.readingTimeMin} min • Motivation & Conseils Nia-Mind`}
         accent="orange"
         footer={
           <>

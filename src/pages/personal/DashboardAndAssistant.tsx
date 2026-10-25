@@ -80,7 +80,7 @@ export const PersonalDashboardPage: React.FC = () => {
           <div className="space-y-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-amber-200 text-xs font-bold">
               <ShieldCheck className="w-3.5 h-3.5 text-nia-orange" />
-              Espace Personnel Isolé • « {OFFICIAL_SLOGAN} »
+              Espace Personnel Isolé • Écouter • Comprendre • Avancer
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold">
               Bonjour, {currentUser?.displayName}. Prends le temps d’être toi-même.

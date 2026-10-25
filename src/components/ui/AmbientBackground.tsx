@@ -24,7 +24,7 @@ const FLOATING_PHRASES: FloatingPhrase[] = [
     sizeClass: 'text-xs sm:text-sm',
   },
   {
-    text: 'Le vrai sans le masque ✺',
+    text: 'Écouter • Comprendre • Avancer ✺',
     top: '18%',
     left: '74%',
     delay: '-3s',
