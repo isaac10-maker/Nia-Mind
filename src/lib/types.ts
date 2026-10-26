@@ -265,11 +265,42 @@ export interface SiteNotification {
   createdAt: string;
 }
 
+export interface SitePalette {
+  primary: string;
+  primaryDeep: string;
+  secondary: string;
+  secondaryDark: string;
+  accent: string;
+  headerFrom: string;
+  headerVia: string;
+  headerTo: string;
+  announceFrom: string;
+  announceVia: string;
+  announceTo: string;
+  bgLight: string;
+  cardLight: string;
+  borderLight: string;
+  textPrimary: string;
+  textSecondary: string;
+  bgDark: string;
+  surfaceDark: string;
+  borderDark: string;
+  textDark: string;
+  success: string;
+  danger: string;
+  info: string;
+  publicPrimary: string;
+  personalPrimary: string;
+  assistantPrimary: string;
+  adminPrimary: string;
+}
+
 export interface SiteSettings {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
   themePreset: string;
+  palette: SitePalette;
   aiAutopilotTipsEnabled: boolean;
   strictRateLimitMax: number;
   strictRateLimitWindowSec: number;

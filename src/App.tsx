@@ -37,6 +37,7 @@ import {
   AdminTipsPage,
   AdminUsersPage,
 } from './pages/admin/AdminPages';
+import { AdminColorsPage } from './pages/admin/AdminColorsPage';
 
 const ScrollToTopOnRoute: React.FC = () => {
   const { pathname } = useLocation();
@@ -130,6 +131,7 @@ export const App: React.FC = () => {
             <Route path="conseils" element={<AdminTipsPage />} />
             <Route path="questionnaires" element={<AdminQuestionnairesPage />} />
             <Route path="ressources" element={<AdminResourcesPage />} />
+            <Route path="couleurs" element={<AdminColorsPage />} />
             <Route path="parametres" element={<AdminSettingsPage />} />
             <Route path="audit" element={<AdminAuditLogsPage />} />
           </Route>

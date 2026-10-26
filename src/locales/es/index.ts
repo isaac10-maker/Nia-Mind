@@ -119,8 +119,8 @@ export const esLocale = {
       'Expresa lo que te pesa a cualquier hora: el asistente te ayuda a tomar perspectiva mediante preguntas abiertas.',
     'Mesurer sa météo intérieure (Humeur, Stress, Sommeil & OMS-5)':
       'Medir tu clima interior (Ánimo, Estrés, Sueño y OMS-5)',
-    'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Orange & Bordeaux.':
-      'Sigue tu evolución durante 7 o 30 días con gráficos claros en tonos Naranja y Burdeos.',
+    'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Vert & Bordeaux.':
+      'Sigue tu evolución durante 7 o 30 días con gráficos claros en tonos Verde y Burdeos.',
     'Écrire dans un carnet intime 100 % personnel': 'Escribir en un cuaderno íntimo 100 % personal',
     'Tes notes et brouillons n’appartiennent qu’à toi : jamais publiés, jamais lus par des tiers.':
       'Tus notas y borradores te pertenecen solo a ti: nunca publicados, nunca leídos por terceros.',

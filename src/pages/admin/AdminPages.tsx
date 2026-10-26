@@ -44,16 +44,17 @@ import {
   assertRlsIsolationSnapshot,
   validateStoryPublicationEligibility,
 } from '../../lib/securityEngine';
+import { withBrandColors } from '../../lib/sitePalette';
 
 // ============================================================================
 // 1. VUE D'ENSEMBLE ADMIN (/admin/vue-ensemble) + COMMANDEMENT SUPERADMIN UNIQUE
 // ============================================================================
 const THEME_PRESETS = [
   {
-    name: 'Symbiose Nia-Mind (Orange & Bordeaux)',
-    primary: '#F97316',
+    name: 'Symbiose Nia-Mind (Vert & Bordeaux)',
+    primary: '#0F9F6E',
     secondary: '#7F1D3F',
-    accent: '#0EA5E9',
+    accent: '#0F766E',
   },
   {
     name: 'Aurore Électrique (Bleu & Violet)',
@@ -301,7 +302,11 @@ export const AdminOverviewPage: React.FC = () => {
             </h2>
             <p className="text-xs text-nia-gray-mid dark:text-gray-300">
               Changez instantanément l’harmonie chromatique de toute la plateforme Nia-Mind.
+              L’atelier complet classe fonds, textes, en-tête et couleurs de chaque espace.
             </p>
+            <Link to="/admin/couleurs" className="text-xs font-extrabold text-nia-orange underline">
+              Ouvrir l’atelier des couleurs
+            </Link>
           </div>
 
           <div className="grid grid-cols-3 gap-3 text-xs">
@@ -313,7 +318,7 @@ export const AdminOverviewPage: React.FC = () => {
                   value={siteSettings.primaryColor}
                   onChange={(e) =>
                     updateSiteSettings({
-                      primaryColor: e.target.value,
+                      palette: withBrandColors(siteSettings.palette, { primary: e.target.value }),
                       themePreset: 'Palette Personnalisée SuperAdmin',
                     })
                   }
@@ -330,7 +335,7 @@ export const AdminOverviewPage: React.FC = () => {
                   value={siteSettings.secondaryColor}
                   onChange={(e) =>
                     updateSiteSettings({
-                      secondaryColor: e.target.value,
+                      palette: withBrandColors(siteSettings.palette, { secondary: e.target.value }),
                       themePreset: 'Palette Personnalisée SuperAdmin',
                     })
                   }
@@ -347,7 +352,7 @@ export const AdminOverviewPage: React.FC = () => {
                   value={siteSettings.accentColor}
                   onChange={(e) =>
                     updateSiteSettings({
-                      accentColor: e.target.value,
+                      palette: withBrandColors(siteSettings.palette, { accent: e.target.value }),
                       themePreset: 'Palette Personnalisée SuperAdmin',
                     })
                   }
@@ -368,9 +373,11 @@ export const AdminOverviewPage: React.FC = () => {
                 type="button"
                 onClick={() =>
                   updateSiteSettings({
-                    primaryColor: preset.primary,
-                    secondaryColor: preset.secondary,
-                    accentColor: preset.accent,
+                    palette: withBrandColors(siteSettings.palette, {
+                      primary: preset.primary,
+                      secondary: preset.secondary,
+                      accent: preset.accent,
+                    }),
                     themePreset: preset.name,
                   })
                 }
@@ -1830,35 +1837,17 @@ export const AdminSettingsPage: React.FC = () => {
         <h2 className="text-base font-extrabold text-nia-gray-dark dark:text-white">
           Personnalisation des couleurs & règles de protection (SuperAdmin uniquement)
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-          <label className="p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark flex items-center justify-between">
-            <span className="font-bold">Couleur Principale</span>
-            <input
-              type="color"
-              value={siteSettings.primaryColor}
-              onChange={(e) => updateSiteSettings({ primaryColor: e.target.value })}
-              className="w-8 h-8 rounded cursor-pointer"
-            />
-          </label>
-          <label className="p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark flex items-center justify-between">
-            <span className="font-bold">Couleur Secondaire</span>
-            <input
-              type="color"
-              value={siteSettings.secondaryColor}
-              onChange={(e) => updateSiteSettings({ secondaryColor: e.target.value })}
-              className="w-8 h-8 rounded cursor-pointer"
-            />
-          </label>
-          <label className="p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark flex items-center justify-between">
-            <span className="font-bold">Couleur d’Accent</span>
-            <input
-              type="color"
-              value={siteSettings.accentColor}
-              onChange={(e) => updateSiteSettings({ accentColor: e.target.value })}
-              className="w-8 h-8 rounded cursor-pointer"
-            />
-          </label>
-        </div>
+        <Link
+          to="/admin/couleurs"
+          className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-orange/25 text-xs font-bold"
+        >
+          <span>
+            Ouvrir l’atelier des couleurs — principale, arrière-plans, textes et couleurs de chaque section.
+          </span>
+          <span className="shrink-0 px-2 py-1 rounded-lg text-white" style={{ backgroundColor: siteSettings.primaryColor }}>
+            {siteSettings.primaryColor}
+          </span>
+        </Link>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-2">
           <label className="p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark flex items-center justify-between cursor-pointer">

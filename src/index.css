@@ -3,20 +3,60 @@
 @tailwind utilities;
 
 :root {
-  --nia-orange: #F97316;
-  --nia-orange-deep: #EA580C;
+  --nia-orange: #0F9F6E;
+  --nia-orange-deep: #047857;
   --nia-bordeaux: #7F1D3F;
   --nia-bordeaux-dark: #57152D;
-  --nia-accent: #0EA5E9;
-  --nia-gray-dark: #374151;
-  --nia-gray-mid: #6B7280;
-  --nia-gray-light: #E5E7EB;
-  --nia-bg-light: #FFF5EE;
+  --nia-accent: #0F766E;
+  --nia-gray-dark: #1F2937;
+  --nia-gray-mid: #5C6D64;
+  --nia-gray-light: #D5E7DC;
+  --nia-bg-light: #F3FBF6;
   --nia-white: #FFFFFF;
-  --nia-bg-dark: #111318;
-  --nia-surface-dark: #1B1D24;
-  --nia-border-dark: #343741;
-  --nia-text-dark: #F5F5F5;
+  --nia-bg-dark: #0E1512;
+  --nia-surface-dark: #17211C;
+  --nia-border-dark: #2C3B34;
+  --nia-text-dark: #F4FBF7;
+  --nia-success: #059669;
+  --nia-danger: #E11D48;
+  --nia-info: #0284C7;
+  --nia-header-from: #047857;
+  --nia-header-via: #0F9F6E;
+  --nia-header-to: #7F1D3F;
+  --nia-announce-from: #57152D;
+  --nia-announce-via: #7F1D3F;
+  --nia-announce-to: #047857;
+  --nia-public-primary: #0F9F6E;
+  --nia-personal-primary: #0F9F6E;
+  --nia-assistant-primary: #0F9F6E;
+  --nia-admin-primary: #0F9F6E;
+  --nia-orange-rgb: 15 159 110;
+  --nia-orange-deep-rgb: 4 120 87;
+  --nia-bordeaux-rgb: 127 29 63;
+  --nia-bordeaux-dark-rgb: 87 21 45;
+  --nia-accent-rgb: 15 118 110;
+  --nia-text-primary-rgb: 31 41 55;
+  --nia-text-secondary-rgb: 92 109 100;
+  --nia-border-light-rgb: 213 231 220;
+  --nia-bg-light-rgb: 243 251 246;
+  --nia-card-rgb: 255 255 255;
+  --nia-bg-dark-rgb: 14 21 18;
+  --nia-surface-dark-rgb: 23 33 28;
+  --nia-border-dark-rgb: 44 59 52;
+  --nia-text-dark-rgb: 244 251 247;
+  --nia-success-rgb: 5 150 105;
+  --nia-danger-rgb: 225 29 72;
+  --nia-info-rgb: 2 132 199;
+  --nia-header-from-rgb: 4 120 87;
+  --nia-header-via-rgb: 15 159 110;
+  --nia-header-to-rgb: 127 29 63;
+  --nia-announce-from-rgb: 87 21 45;
+  --nia-announce-via-rgb: 127 29 63;
+  --nia-announce-to-rgb: 4 120 87;
+  --nia-public-primary-rgb: 15 159 110;
+  --nia-personal-primary-rgb: 15 159 110;
+  --nia-assistant-primary-rgb: 15 159 110;
+  --nia-admin-primary-rgb: 15 159 110;
 
   --surface-bg: var(--nia-bg-light);
   --surface-card: var(--nia-white);
@@ -51,28 +91,57 @@ img {
   user-select: none;
 }
 
-/* Application dynamique des couleurs personnalisables par le SuperAdmin */
-.bg-nia-orange {
-  background-color: var(--nia-orange) !important;
+.nia-header-bar {
+  background-image: linear-gradient(
+    to right,
+    rgb(var(--nia-header-from-rgb) / 1),
+    rgb(var(--nia-header-via-rgb) / 1),
+    rgb(var(--nia-header-to-rgb) / 1)
+  );
 }
-.text-nia-orange {
-  color: var(--nia-orange) !important;
+
+.nia-announce-bar {
+  background-image: linear-gradient(
+    to right,
+    rgb(var(--nia-announce-from-rgb) / 1),
+    rgb(var(--nia-announce-via-rgb) / 1),
+    rgb(var(--nia-announce-to-rgb) / 1)
+  );
 }
-.border-nia-orange {
-  border-color: var(--nia-orange) !important;
+
+[data-nia-zone='public'] {
+  --nia-orange: var(--nia-public-primary);
+  --nia-orange-rgb: var(--nia-public-primary-rgb);
 }
-.bg-nia-bordeaux {
-  background-color: var(--nia-bordeaux) !important;
+[data-nia-zone='personal'] {
+  --nia-orange: var(--nia-personal-primary);
+  --nia-orange-rgb: var(--nia-personal-primary-rgb);
 }
-.text-nia-bordeaux {
-  color: var(--nia-bordeaux) !important;
+[data-nia-zone='assistant'] {
+  --nia-orange: var(--nia-assistant-primary);
+  --nia-orange-rgb: var(--nia-assistant-primary-rgb);
 }
-.from-nia-orange {
-  --tw-gradient-from: var(--nia-orange) var(--tw-gradient-from-position) !important;
+[data-nia-zone='admin'] {
+  --nia-orange: var(--nia-admin-primary);
+  --nia-orange-rgb: var(--nia-admin-primary-rgb);
 }
-.to-nia-bordeaux {
-  --tw-gradient-to: var(--nia-bordeaux) var(--tw-gradient-to-position) !important;
+
+html.dark .dark\:text-orange-300 {
+  color: var(--nia-orange);
 }
+
+.nia-float-shadow {
+  box-shadow:
+    2px 0 0 rgb(var(--nia-bordeaux-rgb) / 0.22),
+    -2px 0 0 rgb(var(--nia-orange-rgb) / 0.22);
+}
+
+.text-nia-success { color: var(--nia-success); }
+.bg-nia-success { background-color: var(--nia-success); }
+.text-nia-danger { color: var(--nia-danger); }
+.bg-nia-danger { background-color: var(--nia-danger); }
+.text-nia-info { color: var(--nia-info); }
+.bg-nia-info { background-color: var(--nia-info); }
 
 .dark {
   --surface-bg: var(--nia-bg-dark);
@@ -90,10 +159,10 @@ html {
 body {
   background-color: var(--surface-bg);
   background-image:
-    radial-gradient(circle at 12% 16%, rgba(249, 115, 22, 0.16) 0%, transparent 42%),
-    radial-gradient(circle at 88% 22%, rgba(127, 29, 63, 0.16) 0%, transparent 45%),
-    radial-gradient(circle at 50% 85%, rgba(249, 115, 22, 0.13) 0%, rgba(127, 29, 63, 0.10) 38%, transparent 70%),
-    linear-gradient(135deg, #FFF6EE 0%, #FDF0F4 48%, #FFF4EB 100%);
+    radial-gradient(circle at 12% 16%, rgb(var(--nia-orange-rgb) / 0.16) 0%, transparent 42%),
+    radial-gradient(circle at 88% 22%, rgb(var(--nia-bordeaux-rgb) / 0.16) 0%, transparent 45%),
+    radial-gradient(circle at 50% 85%, rgb(var(--nia-orange-rgb) / 0.13) 0%, rgb(var(--nia-bordeaux-rgb) / 0.10) 38%, transparent 70%),
+    linear-gradient(135deg, var(--nia-bg-light) 0%, var(--nia-white) 48%, var(--nia-bg-light) 100%);
   background-attachment: fixed;
   color: var(--text-primary);
   transition: background-color 0.28s ease, color 0.28s ease;
@@ -101,35 +170,35 @@ body {
 }
 
 html.dark body {
-  background-color: #111318;
+  background-color: var(--nia-bg-dark);
   background-image:
-    radial-gradient(circle at 14% 18%, rgba(249, 115, 22, 0.18) 0%, transparent 42%),
-    radial-gradient(circle at 86% 24%, rgba(127, 29, 63, 0.28) 0%, transparent 46%),
-    radial-gradient(circle at 48% 88%, rgba(249, 115, 22, 0.12) 0%, rgba(87, 21, 45, 0.24) 42%, transparent 72%),
-    linear-gradient(135deg, #111318 0%, #1B121C 52%, #171419 100%);
+    radial-gradient(circle at 14% 18%, rgb(var(--nia-orange-rgb) / 0.18) 0%, transparent 42%),
+    radial-gradient(circle at 86% 24%, rgb(var(--nia-bordeaux-rgb) / 0.28) 0%, transparent 46%),
+    radial-gradient(circle at 48% 88%, rgb(var(--nia-orange-rgb) / 0.12) 0%, rgb(var(--nia-bordeaux-dark-rgb) / 0.24) 42%, transparent 72%),
+    linear-gradient(135deg, var(--nia-bg-dark) 0%, var(--nia-surface-dark) 52%, var(--nia-bg-dark) 100%);
   background-attachment: fixed;
 }
 
 /* Harmonisation des surfaces : plus de blanc froid/opaque, mais un voile flottant Orange/Bordeaux */
 html:not(.dark) .bg-white {
-  background-color: rgba(255, 250, 246, 0.82) !important;
+  background-color: rgb(var(--nia-card-rgb) / 0.82) !important;
   background-image: linear-gradient(
     145deg,
-    rgba(255, 252, 249, 0.88) 0%,
-    rgba(255, 239, 227, 0.68) 52%,
-    rgba(250, 229, 237, 0.68) 100%
+    rgb(var(--nia-card-rgb) / 0.9) 0%,
+    rgb(var(--nia-orange-rgb) / 0.12) 52%,
+    rgb(var(--nia-bordeaux-rgb) / 0.12) 100%
   );
   backdrop-filter: blur(12px);
-  border-color: rgba(249, 115, 22, 0.22);
+  border-color: rgb(var(--nia-orange-rgb) / 0.22);
 }
 
 html.dark .dark\:bg-nia-surface-dark {
-  background-color: rgba(27, 29, 36, 0.82) !important;
+  background-color: rgb(var(--nia-surface-dark-rgb) / 0.82) !important;
   background-image: linear-gradient(
     145deg,
-    rgba(27, 29, 36, 0.90) 0%,
-    rgba(56, 22, 38, 0.58) 54%,
-    rgba(52, 29, 19, 0.56) 100%
+    rgb(var(--nia-surface-dark-rgb) / 0.9) 0%,
+    rgb(var(--nia-bordeaux-rgb) / 0.28) 54%,
+    rgb(var(--nia-orange-rgb) / 0.18) 100%
   );
   backdrop-filter: blur(12px);
 }
@@ -137,9 +206,9 @@ html.dark .dark\:bg-nia-surface-dark {
 .nia-glass-card {
   background: linear-gradient(
     135deg,
-    rgba(255, 249, 244, 0.88) 0%,
-    rgba(254, 235, 220, 0.76) 50%,
-    rgba(249, 224, 234, 0.78) 100%
+    rgb(var(--nia-card-rgb) / 0.9) 0%,
+    rgb(var(--nia-orange-rgb) / 0.14) 50%,
+    rgb(var(--nia-bordeaux-rgb) / 0.14) 100%
   );
   backdrop-filter: blur(16px);
 }
@@ -147,33 +216,33 @@ html.dark .dark\:bg-nia-surface-dark {
 html.dark .nia-glass-card {
   background: linear-gradient(
     135deg,
-    rgba(27, 29, 36, 0.92) 0%,
-    rgba(64, 22, 41, 0.76) 52%,
-    rgba(58, 30, 17, 0.76) 100%
+    rgb(var(--nia-surface-dark-rgb) / 0.92) 0%,
+    rgb(var(--nia-bordeaux-rgb) / 0.32) 52%,
+    rgb(var(--nia-orange-rgb) / 0.2) 100%
   );
   backdrop-filter: blur(16px);
 }
 
 .nia-ambient-grid {
   background-image:
-    linear-gradient(to right, rgba(249, 115, 22, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(127, 29, 63, 0.06) 1px, transparent 1px);
+    linear-gradient(to right, rgb(var(--nia-orange-rgb) / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--nia-bordeaux-rgb) / 0.06) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
 .nia-stroke-watermark {
   color: transparent;
-  -webkit-text-stroke: 2px rgba(249, 115, 22, 0.18);
+  -webkit-text-stroke: 2px rgb(var(--nia-orange-rgb) / 0.18);
   user-select: none;
   pointer-events: none;
 }
 
 html.dark .nia-stroke-watermark {
-  -webkit-text-stroke: 2px rgba(249, 115, 22, 0.22);
+  -webkit-text-stroke: 2px rgb(var(--nia-orange-rgb) / 0.22);
 }
 
 /* ============================================================================
-   A. GLITCH DYNAMIQUE DE MARQUE NIA-MIND (Subtil, Orange #F97316 & Bordeaux #7F1D3F)
+   A. GLITCH DYNAMIQUE DE MARQUE NIA-MIND (Subtil, Vert & Bordeaux)
    Ne jamais appliquer aux questionnaires, résultats de bien-être, messages ou alertes.
    ============================================================================ */
 .nia-glitch {
@@ -376,7 +445,7 @@ html.dark .nia-stroke-watermark {
 
 .nia-chat-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(249, 115, 22, 0.45) transparent;
+  scrollbar-color: rgb(var(--nia-orange-rgb) / 0.45) transparent;
 }
 
 .nia-chat-scroll::-webkit-scrollbar {
@@ -385,14 +454,14 @@ html.dark .nia-stroke-watermark {
 }
 
 .nia-chat-scroll::-webkit-scrollbar-thumb {
-  background: rgba(249, 115, 22, 0.38);
+  background: rgb(var(--nia-orange-rgb) / 0.38);
   border-radius: 999px;
 }
 
 @keyframes nia-message-focus {
-  0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.45); }
-  45% { box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.16); }
-  100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+  0% { box-shadow: 0 0 0 0 rgb(var(--nia-orange-rgb) / 0.45); }
+  45% { box-shadow: 0 0 0 6px rgb(var(--nia-orange-rgb) / 0.16); }
+  100% { box-shadow: 0 0 0 0 rgb(var(--nia-orange-rgb) / 0); }
 }
 
 .nia-message-focus {
@@ -402,22 +471,22 @@ html.dark .nia-stroke-watermark {
 /* Boutons et options tactiles inspirés de MAMAORA adaptés à Orange & Bordeaux */
 .nia-tactile-card {
   transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.2, 1), box-shadow 0.22s ease;
-  box-shadow: 0 6px 0 rgba(127, 29, 63, 0.18);
+  box-shadow: 0 6px 0 rgb(var(--nia-bordeaux-rgb) / 0.18);
 }
 
 .nia-tactile-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 0 rgba(249, 115, 22, 0.28);
+  box-shadow: 0 10px 0 rgb(var(--nia-orange-rgb) / 0.28);
 }
 
 .nia-tactile-opt {
   transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.2s ease;
-  box-shadow: 0 4px 0 rgba(127, 29, 63, 0.25);
+  box-shadow: 0 4px 0 rgb(var(--nia-bordeaux-rgb) / 0.25);
 }
 
 .nia-tactile-opt:hover {
   transform: translate(-2px, -2px);
-  box-shadow: 3px 6px 0 rgba(249, 115, 22, 0.45);
+  box-shadow: 3px 6px 0 rgb(var(--nia-orange-rgb) / 0.45);
 }
 
 @keyframes nia-modal-enter {

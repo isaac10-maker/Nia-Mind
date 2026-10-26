@@ -49,12 +49,12 @@ export const PublicLayout: React.FC = () => {
     currentUser?.email.toLowerCase() === SUPERADMIN_EMAIL;
 
   return (
-    <div className="relative min-h-screen flex flex-col text-nia-gray-dark dark:text-nia-text-dark">
+    <div data-nia-zone="public" className="relative min-h-screen flex flex-col text-nia-gray-dark dark:text-nia-text-dark">
       <AmbientBackground />
       <BanNoticeModal />
 
       {/* En-tête Orange unifié en haut (cadrage plein écran sans marge perdue dans les angles) + Bandeau d'annonce TV en dessous */}
-      <header className="sticky top-0 z-50 w-full bg-gradient-to-r from-nia-orange-deep via-nia-orange to-nia-bordeaux text-white shadow-lg border-b border-white/15">
+      <header className="nia-header-bar sticky top-0 z-50 w-full text-white shadow-lg border-b border-white/15">
         <div className="w-full px-2.5 sm:px-4 py-1.5 flex items-center justify-between gap-2">
           {/* Gauche : Logo Nia-Mind + Slogan en dessous + Sigles Langue (FR, EN, ES, DE, ZH) & Icône Lune/Soleil seule */}
           <div className="relative z-50 flex flex-col items-start shrink-0">
@@ -236,7 +236,7 @@ export const PublicLayout: React.FC = () => {
             </div>
             <div
               aria-hidden="true"
-              className="fixed inset-0 top-24 z-10 bg-gradient-to-br from-[#FFF5EE]/55 via-[#FDF0F4]/60 to-[#57152D]/35 dark:from-[#111318]/70 dark:via-[#1F121B]/75 dark:to-black/75 backdrop-blur-md pointer-events-none"
+              className="fixed inset-0 top-24 z-10 bg-gradient-to-br from-nia-bg-light/55 via-white/60 to-nia-bordeaux/35 dark:from-nia-bg-dark/70 dark:via-nia-surface-dark/75 dark:to-black/75 backdrop-blur-md pointer-events-none"
             />
             {/* Fenêtre Connexion / Inscription au premier plan */}
             <div className="relative z-20">

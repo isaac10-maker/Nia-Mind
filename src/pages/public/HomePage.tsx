@@ -104,7 +104,7 @@ const FIVE_AMBIANCES = [
   {
     num: '02',
     title: 'Mesurer sa météo intérieure (Humeur, Stress, Sommeil & OMS-5)',
-    desc: 'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Orange & Bordeaux.',
+    desc: 'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Vert & Bordeaux.',
     tone: 'from-nia-bordeaux/25 to-nia-bordeaux/5 border-nia-bordeaux/40',
     numColor: 'text-nia-bordeaux dark:text-amber-300',
     to: '/espace/bien-etre',

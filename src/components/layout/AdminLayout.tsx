@@ -10,6 +10,7 @@ import {
   Globe,
   HeartHandshake,
   LifeBuoy,
+  Palette,
   Settings,
   Sparkles,
   Users,
@@ -27,6 +28,7 @@ const ADMIN_NAV_ITEMS = [
   { label: 'Conseils et contenus', to: '/admin/conseils', icon: Sparkles },
   { label: 'Questionnaires', to: '/admin/questionnaires', icon: ClipboardList },
   { label: 'Ressources d’aide', to: '/admin/ressources', icon: LifeBuoy },
+  { label: 'Couleurs', to: '/admin/couleurs', icon: Palette },
   { label: 'Paramètres', to: '/admin/parametres', icon: Settings },
   { label: 'Journaux d’audit', to: '/admin/audit', icon: Archive },
 ];
@@ -46,7 +48,7 @@ export const AdminLayout: React.FC = () => {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col text-nia-gray-dark dark:text-nia-text-dark">
+    <div data-nia-zone="admin" className="relative min-h-screen flex flex-col text-nia-gray-dark dark:text-nia-text-dark">
       <AmbientBackground />
       <RoleSwitcherBar
         onToggleMobileMenu={() => setMobileOpen((o) => !o)}

@@ -139,7 +139,7 @@ export const TvAnnouncementTicker: React.FC<{ blurred?: boolean }> = ({
 
   return (
     <div
-      className={`relative w-full bg-gradient-to-r from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep text-white border-t border-white/15 overflow-hidden transition-all duration-300 ${
+      className={`nia-announce-bar relative w-full text-white border-t border-white/15 overflow-hidden transition-all duration-300 ${
         blurred ? 'blur-[6px] opacity-25 pointer-events-none select-none' : ''
       }`}
     >
@@ -253,7 +253,7 @@ export const RoleSwitcherBar: React.FC<{
   return (
     <>
       <div
-        className={`sticky top-0 z-40 w-full bg-gradient-to-r from-nia-orange-deep via-nia-orange to-nia-bordeaux text-white shadow-md transition-all duration-300 ${
+        className={`nia-header-bar sticky top-0 z-40 w-full text-white shadow-md transition-all duration-300 ${
           isAuthPage ? 'blur-md opacity-35 pointer-events-none select-none' : ''
         }`}
       >

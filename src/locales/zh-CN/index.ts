@@ -119,8 +119,8 @@ export const zhCNLocale = {
       '随时倾诉内心的沉重：助手通过开放式提问帮助你理清思绪。',
     'Mesurer sa météo intérieure (Humeur, Stress, Sommeil & OMS-5)':
       '记录你的内心晴雨表（情绪、压力、睡眠与 WHO-5）',
-    'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Orange & Bordeaux.':
-      '通过清晰的橙色与酒红色图表追踪 7 天或 30 天的身心变化。',
+    'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Vert & Bordeaux.':
+      '通过清晰的翠绿与酒红图表追踪 7 天或 30 天的身心变化。',
     'Écrire dans un carnet intime 100 % personnel': '在 100% 私密的个人笔记中书写',
     'Tes notes et brouillons n’appartiennent qu’à toi : jamais publiés, jamais lus par des tiers.':
       '你的笔记与草稿仅属于你一人：绝不公开，绝不被第三方阅读。',

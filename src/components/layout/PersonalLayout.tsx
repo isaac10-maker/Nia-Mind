@@ -55,7 +55,7 @@ export const PersonalLayout: React.FC = () => {
   const displayedPseudo = currentUser.publicPseudonym || currentUser.displayName || 'Plume';
 
   return (
-    <div className="relative min-h-screen flex flex-col text-nia-gray-dark dark:text-nia-text-dark">
+    <div data-nia-zone="personal" className="relative min-h-screen flex flex-col text-nia-gray-dark dark:text-nia-text-dark">
       <AmbientBackground />
       <RoleSwitcherBar
         onToggleMobileMenu={() => setMobileDrawerOpen((o) => !o)}

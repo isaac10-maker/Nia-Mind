@@ -185,7 +185,7 @@ export const WellnessPage: React.FC = () => {
           },
           {
             badge: 'Instructions Bien-être • Défilement automatique (4/4)',
-            title: 'Onglet 4 : Courbes de Progression Orange & Bordeaux',
+            title: 'Onglet 4 : Courbes de Progression Vert & Bordeaux',
             detail:
               'Visualisez vos courbes d’évolution sur 7 jours, 30 jours ou une période personnalisée.',
           },
@@ -773,11 +773,11 @@ export const WellnessPage: React.FC = () => {
                   const y = 130 - (m.moodScore / 5) * 100;
                   return (
                     <g key={m.id}>
-                      <circle cx={x} cy={y} r="6" fill="#F97316" />
+                      <circle cx={x} cy={y} r="6" fill="var(--nia-orange)" />
                       <text x={x} y={145} textAnchor="middle" fontSize="9" fill="#6B7280">
                         {m.recordedAt.slice(5)}
                       </text>
-                      <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#F97316" fontWeight="bold">
+                      <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="var(--nia-orange)" fontWeight="bold">
                         {m.moodScore}/5
                       </text>
                     </g>
@@ -807,7 +807,7 @@ export const WellnessPage: React.FC = () => {
                         width="10"
                         height={sleepH}
                         rx="3"
-                        fill="#F97316"
+fill="var(--nia-orange)"
                       />
                       <rect
                         x={x + 2}
@@ -815,7 +815,7 @@ export const WellnessPage: React.FC = () => {
                         width="10"
                         height={stressH}
                         rx="3"
-                        fill="#7F1D3F"
+                        fill="var(--nia-bordeaux)"
                       />
                       <text x={x} y={145} textAnchor="middle" fontSize="9" fill="#6B7280">
                         {s.recordedDate.slice(5)}

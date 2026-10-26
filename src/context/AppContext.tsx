@@ -39,6 +39,13 @@ import {
   QUESTIONNAIRE_CATALOG,
 } from '../lib/seedData';
 import {
+  applySitePalette,
+  DEFAULT_PALETTE,
+  DEFAULT_THEME_PRESET,
+  mergePalette,
+  migrateSiteSettings,
+} from '../lib/sitePalette';
+import {
   canAccessJournalEntry,
   canModifyUserRole,
   checkActionAntiSpam,
@@ -126,7 +133,10 @@ interface AppContextValue {
 
   // SuperAdmin : Notifications Push, Couleurs dynamiques, Relais IA & Gouvernance
   siteSettings: SiteSettings;
-  updateSiteSettings: (patch: Partial<SiteSettings>) => { ok: boolean; error?: string };
+  updateSiteSettings: (
+    patch: Partial<SiteSettings>,
+    options?: { quiet?: boolean }
+  ) => { ok: boolean; error?: string };
   siteNotifications: SiteNotification[];
   publishSiteNotification: (params: {
     title: string;
@@ -321,10 +331,11 @@ const CLEAN_PUBLIC_STORIES: StoryRecord[] = INITIAL_STORIES.filter(
 );
 
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
-  primaryColor: '#F97316',
-  secondaryColor: '#7F1D3F',
-  accentColor: '#0EA5E9',
-  themePreset: 'Symbiose Nia-Mind (Orange & Bordeaux)',
+  primaryColor: DEFAULT_PALETTE.primary,
+  secondaryColor: DEFAULT_PALETTE.secondary,
+  accentColor: DEFAULT_PALETTE.accent,
+  themePreset: DEFAULT_THEME_PRESET,
+  palette: DEFAULT_PALETTE,
   aiAutopilotTipsEnabled: true,
   strictRateLimitMax: 3,
   strictRateLimitWindowSec: 15,
@@ -425,10 +436,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequestRecord[]>([]);
   const [sessions, setSessions] = useState<UserSessionInfo[]>(INITIAL_SESSIONS);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => ({
-    ...DEFAULT_SITE_SETTINGS,
-    ...loadStoredStateField<Partial<SiteSettings>>('siteSettings', {}),
-  }));
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() =>
+    migrateSiteSettings({
+      ...DEFAULT_SITE_SETTINGS,
+      ...loadStoredStateField<Partial<SiteSettings>>('siteSettings', {}),
+    })
+  );
   const [siteNotifications, setSiteNotifications] = useState<SiteNotification[]>(() => {
     const stored = loadStoredStateField<SiteNotification[]>(
       'siteNotifications',
@@ -463,13 +476,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
 
-  // Synchronisation en direct des couleurs personnalisées par le SuperAdmin sur les variables CSS :root
   useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty('--nia-orange', siteSettings.primaryColor || '#F97316');
-    root.style.setProperty('--nia-bordeaux', siteSettings.secondaryColor || '#7F1D3F');
-    root.style.setProperty('--nia-accent', siteSettings.accentColor || '#0EA5E9');
-  }, [siteSettings.primaryColor, siteSettings.secondaryColor, siteSettings.accentColor]);
+    applySitePalette(siteSettings.palette || DEFAULT_PALETTE);
+  }, [siteSettings.palette]);
 
   // Synchronisation du thème avec la classe .dark sur <html>
   useEffect(() => {
@@ -2105,30 +2114,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     currentUser?.role === 'admin' &&
     currentUser?.email.toLowerCase() === SUPERADMIN_PROFILE.email;
 
-  const updateSiteSettings = (patch: Partial<SiteSettings>) => {
+  const updateSiteSettings = (patch: Partial<SiteSettings>, options?: { quiet?: boolean }) => {
     if (!isSuperAdminActor) {
       return {
         ok: false,
         error: 'Accès refusé : seul le SuperAdmin unique (isaacamegan10@gmail.com) peut modifier la configuration globale du site.',
       };
     }
+    const palette = mergePalette({
+      ...(siteSettings.palette || DEFAULT_PALETTE),
+      ...(patch.palette || {}),
+      ...(patch.primaryColor ? { primary: patch.primaryColor } : {}),
+      ...(patch.secondaryColor ? { secondary: patch.secondaryColor } : {}),
+      ...(patch.accentColor ? { accent: patch.accentColor } : {}),
+    });
     const next: SiteSettings = {
       ...siteSettings,
       ...patch,
+      palette,
+      primaryColor: palette.primary,
+      secondaryColor: palette.secondary,
+      accentColor: palette.accent,
       updatedAt: new Date().toISOString(),
     };
     setSiteSettings(next);
-    recordAudit(
-      'SUPERADMIN_SITE_SETTINGS_UPDATED',
-      'site_settings',
-      'global',
-      `Mise à jour des couleurs (${next.primaryColor} / ${next.secondaryColor}) et paramètres par le SuperAdmin.`
-    );
-    pushToast(
-      'Paramètres & Couleurs appliqués',
-      `Thème « ${next.themePreset} » (${next.primaryColor} / ${next.secondaryColor}) activé sur tout le site.`,
-      'bordeaux'
-    );
+    if (!options?.quiet) {
+      recordAudit(
+        'SUPERADMIN_SITE_SETTINGS_UPDATED',
+        'site_settings',
+        'global',
+        `Mise à jour des couleurs (${next.primaryColor} / ${next.secondaryColor}) et paramètres par le SuperAdmin.`
+      );
+      pushToast(
+        'Paramètres & Couleurs appliqués',
+        `Thème « ${next.themePreset} » (${next.primaryColor} / ${next.secondaryColor}) activé sur tout le site.`,
+        'bordeaux'
+      );
+    }
     return { ok: true };
   };
 

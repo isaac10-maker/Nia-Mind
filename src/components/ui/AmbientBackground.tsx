@@ -139,7 +139,7 @@ export const AmbientBackground: React.FC = () => {
       {FLOATING_PHRASES.map((item, idx) => {
         const badgeStyles =
           item.tone === 'orange'
-            ? 'bg-nia-orange/12 dark:bg-nia-orange/15 border-nia-orange/30 text-nia-orange-deep dark:text-orange-300 shadow-[2px_0_0_rgba(127,29,63,0.22),-2px_0_0_rgba(249,115,22,0.22)]'
+            ? 'bg-nia-orange/12 dark:bg-nia-orange/15 border-nia-orange/30 text-nia-orange-deep dark:text-orange-300 nia-float-shadow'
             : item.tone === 'bordeaux'
             ? 'bg-nia-bordeaux/12 dark:bg-nia-bordeaux/25 border-nia-bordeaux/30 text-nia-bordeaux dark:text-rose-200 shadow-[-2px_0_0_rgba(249,115,22,0.25),2px_0_0_rgba(127,29,63,0.25)]'
             : 'bg-gradient-to-r from-nia-orange/12 to-nia-bordeaux/15 dark:from-nia-orange/20 dark:to-nia-bordeaux/30 border-nia-orange/25 text-nia-gray-dark dark:text-amber-200';

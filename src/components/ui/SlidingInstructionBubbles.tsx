@@ -72,7 +72,7 @@ const PERSONAL_SLIDES_BY_PATH: Record<string, InstructionSlide[]> = {
       badge: 'Guide Bien-être • 4 sous-onglets',
       title: '1. Humeur • 2. Stress & Sommeil • 3. Bilan OMS-5 • 4. Progression',
       detail:
-        'Enregistrez votre premier ressenti du jour pour voir vos graphiques Orange & Bordeaux se construire automatiquement sur 7 ou 30 jours.',
+        'Enregistrez votre premier ressenti du jour pour voir vos graphiques Vert & Bordeaux se construire automatiquement sur 7 ou 30 jours.',
     },
     {
       badge: 'Indice OMS-5 Vérifié',

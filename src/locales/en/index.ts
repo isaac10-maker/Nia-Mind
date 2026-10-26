@@ -119,8 +119,8 @@ export const enLocale = {
       'Set down what weighs on you at any hour: the assistant helps you gain perspective through open questions.',
     'Mesurer sa météo intérieure (Humeur, Stress, Sommeil & OMS-5)':
       'Track your inner weather (Mood, Stress, Sleep & WHO-5)',
-    'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Orange & Bordeaux.':
-      'Track your progress over 7 or 30 days with clear Orange & Burgundy charts.',
+    'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Vert & Bordeaux.':
+      'Track your progress over 7 or 30 days with clear Green & Burgundy charts.',
     'Écrire dans un carnet intime 100 % personnel': 'Write in a 100% personal private notebook',
     'Tes notes et brouillons n’appartiennent qu’à toi : jamais publiés, jamais lus par des tiers.':
       'Your notes and drafts belong only to you: never published, never read by third parties.',

@@ -119,8 +119,8 @@ export const deLocale = {
       'Lege jederzeit ab, was dich belastet: Der Assistent hilft dir durch offene Fragen, Abstand zu gewinnen.',
     'Mesurer sa météo intérieure (Humeur, Stress, Sommeil & OMS-5)':
       'Dein inneres Wetter messen (Stimmung, Stress, Schlaf & WHO-5)',
-    'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Orange & Bordeaux.':
-      'Verfolge deine Entwicklung über 7 oder 30 Tage mit klaren Diagrammen in Orange & Bordeaux.',
+    'Suis ton évolution sur 7 ou 30 jours avec des graphiques clairs en symbiose Vert & Bordeaux.':
+      'Verfolge deine Entwicklung über 7 oder 30 Tage mit klaren Diagrammen in Grün & Bordeaux.',
     'Écrire dans un carnet intime 100 % personnel': 'In einem 100 % persönlichen Tagebuch schreiben',
     'Tes notes et brouillons n’appartiennent qu’à toi : jamais publiés, jamais lus par des tiers.':
       'Deine Notizen und Entwürfe gehören nur dir: niemals veröffentlicht, niemals von Dritten gelesen.',
