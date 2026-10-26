@@ -458,4 +458,49 @@ describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant
     );
     expect(stressReply).toContain('Respire doucement');
   });
+
+  it('15. Propose le basculement humain et refuse poliment les sujets hors Nia-Mind', () => {
+    expect(classifyConversationalIntent('je veux parler à un humain', false)).toBe(
+      'request_human_assistance'
+    );
+    expect(classifyConversationalIntent('je demande une assistance humaine', false)).toBe(
+      'request_human_assistance'
+    );
+    const humanReply = generateServerReflectiveReply(
+      'je veux parler à un humain',
+      false,
+      [],
+      'fr'
+    );
+    expect(humanReply).toContain('Basculer');
+    expect(humanReply).toContain("Passer à l'Humain");
+    expect(humanReply).not.toContain("Dis-m'en un petit peu plus");
+
+    expect(classifyConversationalIntent('écris-moi un code python pour trier une liste', false)).toBe(
+      'off_topic'
+    );
+    const outsideReply = generateServerReflectiveReply(
+      'écris-moi un code python pour trier une liste',
+      false,
+      [],
+      'fr'
+    );
+    expect(outsideReply).toContain('Nia-Mind');
+    expect(outsideReply).toContain('assistance humaine');
+
+    expect(
+      classifyConversationalIntent('dans ma culture on cache sa tristesse', false)
+    ).not.toBe('off_topic');
+    expect(
+      classifyConversationalIntent('Parle-moi des proverbes sur la parole et le silence', false)
+    ).toBe('general_culture');
+    const cultureReply = generateServerReflectiveReply(
+      'Parle-moi du masque social dans les cultures d’Afrique de l’Ouest',
+      false,
+      [],
+      'fr'
+    );
+    expect(cultureReply).toContain('masque');
+    expect(cultureReply).not.toContain('Désolé, je ne réponds qu');
+  });
 });

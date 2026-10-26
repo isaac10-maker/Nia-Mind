@@ -9,6 +9,7 @@ import {
   Send,
   Sparkles,
   Trash2,
+  UserCheck,
   X,
 } from 'lucide-react';
 import { NeuralChipIcon } from '../ui/NeuralChipIcon';
@@ -66,6 +67,7 @@ interface AssistantMessengerProps {
   onClearMessages: (id: string) => void;
   onDeleteMessage: (conversationId: string, messageId: string) => void;
   onToggleHandover: () => void;
+  onRequestHumanHandover: () => void;
   onShowList: () => void;
   onDismissSuggestion: (suggestion: string) => void;
   onCloseSuggestions: () => void;
@@ -100,6 +102,7 @@ export const AssistantMessenger: React.FC<AssistantMessengerProps> = ({
   onClearMessages,
   onDeleteMessage,
   onToggleHandover,
+  onRequestHumanHandover,
   onShowList,
   onDismissSuggestion,
   onCloseSuggestions,
@@ -107,6 +110,8 @@ export const AssistantMessenger: React.FC<AssistantMessengerProps> = ({
   onRestoreSuggestions,
 }) => {
   const messages = activeConversation?.messages ?? [];
+  const latestAssistant = [...messages].reverse().find((item) => item.sender === 'assistant');
+  const handoverSuggested = Boolean(latestAssistant?.offerHumanHandover) && !isHandedOver;
   const title = translateMessageForViewer(
     activeConversation?.title || 'Assistant Nia-Mind',
     currentLanguage
@@ -292,7 +297,9 @@ export const AssistantMessenger: React.FC<AssistantMessengerProps> = ({
                 className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[11px] font-extrabold border transition-colors ${
                   isHandedOver
                     ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-800 dark:text-emerald-200'
-                    : 'bg-nia-orange/10 border-nia-orange/30 text-nia-bordeaux dark:text-amber-200'
+                    : handoverSuggested
+                      ? 'bg-nia-orange text-white border-nia-orange shadow-sm animate-pulse'
+                      : 'bg-nia-orange/10 border-nia-orange/30 text-nia-bordeaux dark:text-amber-200'
                 }`}
               >
                 <span
@@ -428,6 +435,22 @@ export const AssistantMessenger: React.FC<AssistantMessengerProps> = ({
                       <time className="mt-1 px-1 text-[10px] text-nia-gray-mid dark:text-gray-500">
                         {formatMessageTime(msg.createdAt, currentLanguage)}
                       </time>
+                    )}
+                    {!isUser && msg.offerHumanHandover && (
+                      <button
+                        type="button"
+                        onClick={onRequestHumanHandover}
+                        disabled={isHandedOver}
+                        title="Même interrupteur que « Passer à l’Humain » en haut"
+                        className={`mt-2 inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-extrabold transition-colors ${
+                          isHandedOver
+                            ? 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 cursor-default'
+                            : 'bg-gradient-to-r from-nia-bordeaux to-nia-orange text-white hover:opacity-95 shadow-sm'
+                        }`}
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>{isHandedOver ? 'Relais humain actif' : 'Basculer'}</span>
+                      </button>
                     )}
                   </div>
                 </div>

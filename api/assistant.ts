@@ -15,6 +15,7 @@ export interface AssistantRequestPayload {
 export interface AssistantResponsePayload {
   reply: string;
   distressDetected: boolean;
+  offerHumanHandover: boolean;
   mode: 'cloud-llm' | 'server-reflective';
   disclaimer: string;
   timestamp: string;
@@ -95,6 +96,9 @@ type ConversationalIntent =
   | 'sadness_heaviness'
   | 'relationship_family_work'
   | 'positive_sharing'
+  | 'general_culture'
+  | 'request_human_assistance'
+  | 'off_topic'
   | 'deep_reflection';
 
 function normalizeForIntent(raw: string): string {
@@ -104,6 +108,62 @@ function normalizeForIntent(raw: string): string {
     .replace(/[!?.,;:…()«»"']/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function foldAccents(raw: string): string {
+  return raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function isHumanAssistanceRequest(folded: string): boolean {
+  return (
+    /parler (a|avec) (un |une |l )?(humain|personne|admin|conseiller|quelqu)/.test(folded) ||
+    /(assistance|ecoute) humaine|relais humain|passer a l humain|basculer vers l humain|je veux un humain|un vrai humain|quelqu un de vrai|une vraie personne|parler a l admin/.test(
+      folded
+    ) ||
+    /talk to (a |the )?(human|person|someone)|human (support|handover|assistance)|real person|switch to human/.test(
+      folded
+    ) ||
+    /hablar con (un humano|una persona)|asistencia humana|pasar a humano/.test(folded) ||
+    /mit einem menschen|menschliche (hilfe|unterstutzung)|zu einem menschen/.test(folded) ||
+    folded.includes('转人工') ||
+    folded.includes('真人') ||
+    folded.includes('人工倾听')
+  );
+}
+
+function hasNiaScope(folded: string): boolean {
+  return /stress|anxi|fatigu|sommeil|triste|seul|solitude|famille|relation|couple|masque|emotion|ressent|bien-etre|bien etre|humeur|colere|honte|culpab|journal|nia-mind|nia mind|ecoute|motivation|identit|valeur|culture|tradition|societ|proverbe|deuil|peur|bonheur|confiance|estime|pression|injust|coeur|spirituel|religion|priere|travail|ecole|etude|parent|decision|choix|perdu|heureux|fier|larme|pleur|silence|jugement|quotidien|sentiment|vive |vécu|vecu|isolement|burnout|angoiss/.test(
+    folded
+  );
+}
+
+function isClearlyOffTopic(folded: string): boolean {
+  if (hasNiaScope(folded)) return false;
+  return (
+    /\b(python|javascript|typescript|html|css|sql|algorithme)\b/.test(folded) ||
+    /ecris.{0,24}(code|script|programme)|donne.{0,16}code/.test(folded) ||
+    /\b(recette|gateau|meteo|bitcoin|crypto|horoscope|netflix|ordonnance|posologie|medicament)\b/.test(
+      folded
+    ) ||
+    /\b(score|classement) (du|de) match\b|\bqui a gagne\b/.test(folded) ||
+    /\b(equation|devoirs de maths|racine carree)\b|\bfais mes devoirs\b/.test(folded) ||
+    /\btraduis\b|\btraduction de ce\b/.test(folded) ||
+    /\bcapitale (de|du|des)\b/.test(folded) ||
+    /\b(cours de la bourse|action en bourse)\b/.test(folded) ||
+    /\bqui a invente\b|\bcombien fait\b|\bcalcule\b/.test(folded)
+  );
+}
+
+function isGeneralCulture(folded: string): boolean {
+  if (isClearlyOffTopic(folded)) return false;
+  return /culture|tradition|proverbe|philosophie|sagesse|humanite|societe|generation|diaspora|communaute|valeur humaine|monde actuel|afrique de l ouest/.test(
+    folded
+  );
+}
+
+export function shouldOfferHumanHandover(message: string, distress = false): boolean {
+  const intent = classifyConversationalIntent(message, distress);
+  return intent === 'request_human_assistance' || intent === 'off_topic';
 }
 
 /**
@@ -160,6 +220,13 @@ export function classifyConversationalIntent(
     norm.includes('不知道说什么')
   ) {
     return 'meta_hesitation_dont_know';
+  }
+
+  const folded = foldAccents(norm);
+
+  // 2b. Demande explicite d'assistance humaine → proposer le basculement
+  if (isHumanAssistanceRequest(folded)) {
+    return 'request_human_assistance';
   }
 
   // 3. Fonctionnement de la plateforme Nia-Mind
@@ -440,7 +507,137 @@ export function classifyConversationalIntent(
     return 'positive_sharing';
   }
 
+  if (isClearlyOffTopic(folded)) {
+    return 'off_topic';
+  }
+
+  if (isGeneralCulture(folded)) {
+    return 'general_culture';
+  }
+
   return 'deep_reflection';
+}
+
+type ReplyLanguage = 'fr' | 'en' | 'es' | 'de' | 'zh';
+
+function echoFragment(message: string): string {
+  const clean = message.replace(/\s+/g, ' ').trim();
+  if (clean.length <= 96) return clean;
+  const cut = clean.slice(0, 92);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${lastSpace > 36 ? cut.slice(0, lastSpace) : cut}…`;
+}
+
+function pickVariant(seed: string, items: string[]): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 33 + seed.charCodeAt(i)) >>> 0;
+  }
+  return items[hash % items.length];
+}
+
+function boundaryReply(intent: 'request_human_assistance' | 'off_topic', language: ReplyLanguage): string {
+  const human: Record<ReplyLanguage, string> = {
+    fr: "Tu as raison de demander une présence humaine. Je peux continuer à t'écouter ici, mais si tu préfères l'Admin, bascule maintenant. Le bouton Basculer sous ce message actionne le même interrupteur que « Passer à l'Humain » en haut de la discussion.",
+    en: 'You are right to ask for a human presence. I can keep listening here, but if you prefer the Admin, switch now. The Switch button under this message uses the same control as “Switch to Human” at the top of the chat.',
+    es: 'Tienes razón al pedir una presencia humana. Puedo seguir escuchándote aquí, pero si prefieres al Admin, cambia ahora. El botón Cambiar bajo este mensaje usa el mismo interruptor que « Pasar a Humano » arriba del chat.',
+    de: 'Du hast recht, eine menschliche Präsenz zu wünschen. Ich kann hier weiter zuhören, aber wenn du den Admin bevorzugst, wechsle jetzt. Die Schaltfläche Wechseln unter dieser Nachricht ist derselbe Schalter wie « Zu Mensch wechseln » oben im Chat.',
+    zh: '你想要人工陪伴，这完全合理。我可以继续在这里倾听，但如果你更希望管理员接手，现在就可以切换。这条消息下方的「切换」按钮，和对话顶部的「切换至人工」是同一个开关。',
+  };
+  const outside: Record<ReplyLanguage, string> = {
+    fr: "Désolé, je ne réponds qu'aux questions en lien avec les sujets de Nia-Mind : l'écoute, les émotions, le bien-être, les relations, l'identité et le vrai sans le masque. Pour plus de détails sur un autre sujet, tu peux demander une assistance humaine.",
+    en: 'Sorry, I only answer questions linked to Nia-Mind topics: listening, emotions, well-being, relationships, identity, and living without the mask. For anything else, you can request human assistance.',
+    es: 'Lo siento, solo respondo preguntas vinculadas a los temas de Nia-Mind: la escucha, las emociones, el bienestar, las relaciones, la identidad y vivir sin máscara. Para otro tema, puedes pedir asistencia humana.',
+    de: 'Entschuldigung, ich beantworte nur Fragen zu Nia-Mind-Themen: Zuhören, Gefühle, Wohlbefinden, Beziehungen, Identität und das Leben ohne Maske. Für ein anderes Thema kannst du menschliche Hilfe anfragen.',
+    zh: '抱歉，我只回答与 Nia-Mind 主题相关的问题：倾听、情绪、身心健康、关系、身份，以及卸下面具。若需要其他方面的细节，可以请求人工协助。',
+  };
+  return intent === 'request_human_assistance' ? human[language] : outside[language];
+}
+
+function flexibleReflection(
+  message: string,
+  language: ReplyLanguage,
+  intent: 'deep_reflection' | 'general_culture'
+): string {
+  const echo = echoFragment(message);
+  const folded = foldAccents(normalizeForIntent(message));
+  const isQuestion = /[?？]/.test(message) || /^(pourquoi|comment|qu est ce|que penses tu|what|why|how|por que|wie|为什么|怎么)/.test(folded);
+
+  const bridges: Record<ReplyLanguage, string[]> = {
+    fr: [
+      intent === 'general_culture'
+        ? "Je ne vais pas te réciter une fiche. Les cultures n'apprennent pas toutes à dire la même chose à voix haute : certaines protègent la pudeur, d'autres célèbrent la parole. Ici, le masque peut tomber."
+        : "Je pars de ce que tu viens d'écrire, pas d'une formule répétée. Nia-Mind est là pour l'écoute, le bien-être et le vrai sans le masque — je m'adapte à ton sujet tant qu'il reste dans ce cadre.",
+      /culture|tradition|proverbe|afrique|burkina|diaspora/.test(folded)
+        ? "Entre plusieurs sociétés, les codes du silence et de la parole changent, mais le besoin d'être entendu sans jugement reste le même. Je reste sur ton vécu, pas sur un cours abstrait."
+        : "Une idée générale n'a de poids ici que si elle éclaire ce que tu vis. Je peux m'appuyer sur une culture commune, puis on revient à toi.",
+      isQuestion
+        ? "Tu poses une vraie question, je ne vais pas l'esquiver avec une phrase toute faite."
+        : "Je te lis vraiment. Ce n'est pas un menu de réponses, c'est une discussion.",
+    ],
+    en: [
+      intent === 'general_culture'
+        ? 'Cultures do not all teach people to say the same things out loud. Some protect reserve, others celebrate speech. Here the mask can come off.'
+        : 'I am starting from what you just wrote, not from a repeated script. Nia-Mind stays with listening, well-being, relationships and living without the mask.',
+      isQuestion
+        ? 'That is a real question. I will not dodge it with a canned line.'
+        : 'I am actually reading you. This is a conversation, not a fixed menu.',
+    ],
+    es: [
+      intent === 'general_culture'
+        ? 'Las culturas no enseñan a decir lo mismo en voz alta. Unas protegen el pudor, otras celebran la palabra. Aquí la máscara puede caer.'
+        : 'Parto de lo que acabas de escribir, no de una fórmula repetida. Nia-Mind acompaña la escucha, el bienestar, las relaciones y la vida sin máscara.',
+      isQuestion
+        ? 'Haces una pregunta real. No la voy a esquivar con una frase hecha.'
+        : 'Te leo de verdad. Esto es una conversación, no un menú fijo.',
+    ],
+    de: [
+      intent === 'general_culture'
+        ? 'Kulturen lehren nicht alle, dasselbe laut zu sagen. Manche schützen die Zurückhaltung, andere feiern das Wort. Hier darf die Maske fallen.'
+        : 'Ich gehe von dem aus, was du gerade geschrieben hast, nicht von einem festen Skript. Nia-Mind bleibt bei Zuhören, Wohlbefinden, Beziehungen und dem Leben ohne Maske.',
+      isQuestion
+        ? 'Das ist eine echte Frage. Ich weiche ihr nicht mit einem Standardsatz aus.'
+        : 'Ich lese dich wirklich. Das ist ein Gespräch, kein festes Menü.',
+    ],
+    zh: [
+      intent === 'general_culture'
+        ? '不同文化并不都教人把同一件事说出口。有的保护含蓄，有的鼓励表达。在这里，面具可以放下。'
+        : '我从你刚才写的话出发，而不是重复同一套说辞。Nia-Mind 陪伴的是倾听、身心、关系和卸下面具之后的真实。',
+      isQuestion ? '这是一个真实的问题，我不会用套话躲开。' : '我在认真读你写的内容。这是对话，不是固定菜单。',
+    ],
+  };
+
+  const questions: Record<ReplyLanguage, string[]> = {
+    fr: [
+      'Qu’est-ce que tu veux clarifier en premier dans ce que tu viens de dire ?',
+      'Dans tout ça, qu’est-ce qui te touche le plus personnellement, là, maintenant ?',
+      'Si on reste sur ton vécu, quelle est la phrase que tu n’oses pas encore dire à voix haute ?',
+    ],
+    en: [
+      'What do you most want to clarify in what you just said?',
+      'In all of that, what touches you most personally right now?',
+      'If we stay with your own life, what sentence are you not ready to say out loud yet?',
+    ],
+    es: [
+      '¿Qué quieres aclarar primero en lo que acabas de decir?',
+      'En todo eso, ¿qué te toca más personalmente ahora mismo?',
+      'Si nos quedamos en tu vivencia, ¿qué frase aún no te atreves a decir en voz alta?',
+    ],
+    de: [
+      'Was möchtest du an dem, was du gerade gesagt hast, zuerst klären?',
+      'Was davon berührt dich gerade am persönlichsten?',
+      'Wenn wir bei deinem Erleben bleiben: welchen Satz wagst du noch nicht laut zu sagen?',
+    ],
+    zh: [
+      '在你刚才说的话里，你最想先理清的是哪一点？',
+      '这一切里，此刻最触动你个人的是什么？',
+      '如果只谈你自己的经历，哪一句你还不敢说出口？',
+    ],
+  };
+
+  const bridge = pickVariant(folded + intent, bridges[language]);
+  const question = pickVariant(echo, questions[language]);
+  return `${bridge}\n\n« ${echo} »\n\n${question}`;
 }
 
 export function generateServerReflectiveReply(
@@ -452,6 +649,13 @@ export function generateServerReflectiveReply(
   const intent = classifyConversationalIntent(message, distress);
   const turnCount = history.filter((h) => h.role === 'user').length;
   const cleanedUserMsg = message.trim();
+
+  if (intent === 'request_human_assistance' || intent === 'off_topic') {
+    return boundaryReply(intent, language);
+  }
+  if (intent === 'deep_reflection' || intent === 'general_culture') {
+    return flexibleReflection(cleanedUserMsg, language, intent);
+  }
 
   // ==========================================================================
   // LANGUES ÉTRANGÈRES (EN, ES, DE, ZH) AVEC DIFFÉRENCIATION DES INTENTIONS
@@ -731,7 +935,6 @@ export function generateServerReflectiveReply(
         "Raconte-moi : qu'est-ce qui t'a apporté cet élan positif aujourd'hui ?"
       );
 
-    case 'deep_reflection':
     default: {
       // S'adapte à la longueur et au style du message de l'internaute sans plaquer de menu tactique
       if (cleanedUserMsg.length < 30) {
@@ -792,6 +995,10 @@ export async function processAssistantPayload(
   const disclaimer =
     "Assistant IA Nia-Mind : espace de réflexion et d'expression. Ne remplace pas un professionnel de santé, n'établit aucun diagnostic médical et n'assure pas de surveillance permanente.";
 
+  const intentNow = classifyConversationalIntent(cleanMessage, distressDetected);
+  const offerHumanHandover =
+    intentNow === 'request_human_assistance' || intentNow === 'off_topic';
+
   const apiKey = typeof process !== 'undefined' ? process.env?.OPENAI_API_KEY : undefined;
   const aiModel = (typeof process !== 'undefined' && process.env?.AI_MODEL) || 'gpt-4o-mini';
 
@@ -815,7 +1022,7 @@ export async function processAssistantPayload(
     zh: '请使用简体中文回答。',
   };
 
-  if (apiKey && !distressDetected) {
+  if (apiKey && !distressDetected && !offerHumanHandover) {
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -831,12 +1038,14 @@ export async function processAssistantPayload(
             {
               role: 'system',
               content:
-                `Tu es l'Assistant Nia-Mind (« Le vrai sans le masque »). Ton rôle premier est la mise en confiance, l'écoute sincère et la stabilisation émotionnelle et psychologique douce. ` +
-                `RÈGLES ESSENTIELLES DE CONVERSATION : ` +
-                `1) Différencie toujours les salutations (« salut », « bonjour », « coucou »), les formules de politesse (« ça va ? », « merci ») et les remarques méta (« je n'ai encore rien dit ») d'un sujet profond : si l'internaute te salue simplement, réponds-lui naturellement, chaleureusement et simplement sans faire comme s'il t'avait déjà raconté un problème ! ` +
-                `2) Adapte-toi au style, au registre (familier, courant ou soutenu) et au rythme de ton interlocuteur sans être robotique ni trop tactique. ` +
-                `3) Privilégie une écoute humaine, rassurante et progressive : une seule question ouverte et naturelle à la fois. ` +
-                `4) Tu ne prétends jamais être un médecin ni établir de diagnostic clinique. ${langInstructionMap[normalizedLang]}`,
+                `Tu es l'Assistant Nia-Mind (« Le vrai sans le masque »). Tu es interactif, cognitif et souple : tu réponds à ce qui vient d'être dit, tu t'appuies sur une culture générale humaine et globale quand elle éclaire la personne, et tu ne répètes pas une formule figée. ` +
+                `CADRE : écoute, émotions, bien-être, relations, identité, motivation, vie quotidienne et le vrai sans le masque. ` +
+                `RÈGLES : ` +
+                `1) Salutations, politesse et remarques méta (« je n'ai encore rien dit ») ne sont pas un problème déjà raconté : réponds naturellement. ` +
+                `2) Si la personne demande une assistance humaine (« je veux parler à un humain », « assistance humaine »), dis-lui clairement qu'elle peut basculer : le bouton Basculer sous le message actionne le même interrupteur que « Passer à l'Humain » en haut. Ne prétends pas être cet humain. ` +
+                `3) Si le sujet est hors contexte du site (code, devoirs, scores, recettes, météo, finance, traduction technique, quiz factuel sans lien avec le vécu), réponds : tu ne réponds qu'aux questions en lien avec les sujets de Nia-Mind, et pour plus de détails elle peut demander une assistance humaine. N'improvise pas la réponse hors cadre. ` +
+                `4) Dans le cadre, sois flexible : rebondis sur les mots exacts, apporte une idée utile (culture, société, expérience humaine) puis une seule question ouverte. ` +
+                `5) Aucun diagnostic médical. ${langInstructionMap[normalizedLang]}`,
             },
             ...(Array.isArray(payload.history)
               ? payload.history.slice(-8).map((m) => ({
@@ -860,6 +1069,7 @@ export async function processAssistantPayload(
             body: {
               reply: content,
               distressDetected,
+              offerHumanHandover: false,
               mode: 'cloud-llm',
               disclaimer,
               timestamp: new Date().toISOString(),
@@ -883,6 +1093,7 @@ export async function processAssistantPayload(
     body: {
       reply,
       distressDetected,
+      offerHumanHandover,
       mode: 'server-reflective',
       disclaimer,
       timestamp: new Date().toISOString(),

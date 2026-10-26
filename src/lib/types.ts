@@ -75,6 +75,7 @@ export interface AssistantMessage {
   sourceLanguage?: 'fr' | 'en' | 'es' | 'de' | 'zh';
   isDiagnosticBriefing?: boolean;
   distressFlagged?: boolean;
+  offerHumanHandover?: boolean;
   createdAt: string;
 }
 

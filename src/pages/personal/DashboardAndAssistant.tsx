@@ -20,6 +20,7 @@ import { InlineSlidingGuideBanner } from '../../components/ui/SlidingInstruction
 import {
   detectDistress,
   generateServerReflectiveReply,
+  shouldOfferHumanHandover,
 } from '../../../api/assistant';
 
 const OFFICIAL_SUGGESTIONS = [
@@ -549,7 +550,13 @@ export const AssistantPage: React.FC = () => {
             recentHistory,
             currentLanguage
           );
-          appendAssistantMessage(conv.id, 'assistant', fallbackReply, isDistress);
+          appendAssistantMessage(
+            conv.id,
+            'assistant',
+            fallbackReply,
+            isDistress,
+            shouldOfferHumanHandover(content, isDistress)
+          );
         }
       } else {
         if (data.distressDetected) {
@@ -559,7 +566,8 @@ export const AssistantPage: React.FC = () => {
           conv.id,
           'assistant',
           data.reply,
-          Boolean(data.distressDetected)
+          Boolean(data.distressDetected),
+          Boolean(data.offerHumanHandover) || shouldOfferHumanHandover(content, Boolean(data.distressDetected))
         );
       }
     } catch {
@@ -571,7 +579,13 @@ export const AssistantPage: React.FC = () => {
         recentHistory,
         currentLanguage
       );
-      appendAssistantMessage(conv.id, 'assistant', fallbackReply, isDistress);
+      appendAssistantMessage(
+        conv.id,
+        'assistant',
+        fallbackReply,
+        isDistress,
+        shouldOfferHumanHandover(content, isDistress)
+      );
     } finally {
       setIsLoading(false);
     }
@@ -648,6 +662,10 @@ export const AssistantPage: React.FC = () => {
         onToggleHandover={() => {
           if (!activeConversation) return;
           toggleConversationHumanHandover(activeConversation.id, !isHandedOver);
+        }}
+        onRequestHumanHandover={() => {
+          if (!activeConversation || isHandedOver) return;
+          toggleConversationHumanHandover(activeConversation.id, true);
         }}
         onShowList={() => setMobilePane('list')}
         onDismissSuggestion={dismissSuggestion}

@@ -185,7 +185,8 @@ interface AppContextValue {
     conversationId: string,
     sender: 'user' | 'assistant',
     content: string,
-    distressFlagged?: boolean
+    distressFlagged?: boolean,
+    offerHumanHandover?: boolean
   ) => void;
   deleteConversation: (conversationId: string) => void;
   deleteAssistantMessage: (conversationId: string, messageId: string) => void;
@@ -1184,7 +1185,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     conversationId: string,
     sender: 'user' | 'assistant',
     content: string,
-    distressFlagged = false
+    distressFlagged = false,
+    offerHumanHandover = false
   ) => {
     const uid = currentUser?.id || 'user-a';
     const clean = sanitizeUserText(content);
@@ -1196,6 +1198,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sourceLanguage: currentLanguage,
       content: clean,
       distressFlagged,
+      offerHumanHandover: sender === 'assistant' && offerHumanHandover,
       createdAt: new Date().toISOString(),
     };
     setConversations((prev) =>
