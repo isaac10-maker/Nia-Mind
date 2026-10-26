@@ -27,7 +27,11 @@ import {
   INITIAL_STORIES,
   INITIAL_STRESS_SLEEP_ENTRIES,
 } from '../src/lib/seedData';
-import { processAssistantPayload } from '../api/assistant';
+import {
+  classifyConversationalIntent,
+  generateServerReflectiveReply,
+  processAssistantPayload,
+} from '../api/assistant';
 
 describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant Serveur', () => {
   it('1. Vérifie l’identité officielle exacte et le slogan « Le vrai sans le masque »', () => {
@@ -409,5 +413,49 @@ describe('Nia-Mind — Identité, Sécurité RLS, Histoires Anonymes & Assistant
         expect(translatePlatformText(res.description, lang)).not.toBe(res.description);
       }
     }
+  });
+
+  it('14. Différencie intelligemment les salutations, la politesse, les remarques méta et la stabilisation émotionnelle', async () => {
+    // 1. Simple salutation ("salut", "bonjour")
+    expect(classifyConversationalIntent('salut', false)).toBe('greeting_casual');
+    expect(classifyConversationalIntent('Bonjour', false)).toBe('greeting_polite');
+    const salutReply = generateServerReflectiveReply('salut', false, [], 'fr');
+    expect(salutReply).toContain('Salut');
+    expect(salutReply).not.toContain('ce sujet compte vraiment pour toi');
+
+    // 2. Remarque méta ("je n'ai encore rien dit")
+    expect(classifyConversationalIntent("je n'ai encore rien dit", false)).toBe(
+      'meta_nothing_said_yet'
+    );
+    const metaReply = generateServerReflectiveReply(
+      "je n'ai encore rien dit",
+      false,
+      [],
+      'fr'
+    );
+    expect(metaReply).toContain('Tu as tout à fait raison');
+
+    // 3. Courtoisie ("salut ça va ?", "merci beaucoup")
+    expect(classifyConversationalIntent('salut ça va ?', false)).toBe(
+      'greeting_with_how_are_you'
+    );
+    expect(classifyConversationalIntent('merci beaucoup', false)).toBe(
+      'politeness_thanks'
+    );
+
+    // 4. Stabilisation émotionnelle face au stress / anxiété
+    expect(
+      classifyConversationalIntent(
+        'Je me sens vraiment stressé et sous pression au travail',
+        false
+      )
+    ).toBe('stress_anxiety');
+    const stressReply = generateServerReflectiveReply(
+      'Je me sens vraiment stressé et sous pression au travail',
+      false,
+      [],
+      'fr'
+    );
+    expect(stressReply).toContain('Respire doucement');
   });
 });

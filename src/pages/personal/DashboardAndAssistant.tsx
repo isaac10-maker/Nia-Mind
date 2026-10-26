@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
@@ -24,6 +24,10 @@ import { Modal } from '../../components/ui/Modal';
 import { NeuralChipIcon } from '../../components/ui/NeuralChipIcon';
 import { InlineSlidingGuideBanner } from '../../components/ui/SlidingInstructionBubbles';
 import { translateMessageForViewer, tUi } from '../../lib/i18nEngine';
+import {
+  detectDistress,
+  generateServerReflectiveReply,
+} from '../../../api/assistant';
 
 const OFFICIAL_SUGGESTIONS = [
   'J\'ai besoin de mettre des mots sur ce que je ressens.',
@@ -329,6 +333,7 @@ export const AssistantPage: React.FC = () => {
   const [distressAlert, setDistressAlert] = useState(false);
   const [convToDelete, setConvToDelete] = useState<string | null>(null);
   const [didInitConv, setDidInitConv] = useState<boolean>(false);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (userConversations.length > 0 && !userConversations.some((c) => c.id === selectedConvId)) {
@@ -345,6 +350,14 @@ export const AssistantPage: React.FC = () => {
     userConversations.find((c) => c.id === selectedConvId) || userConversations[0];
   const isHandedOver = Boolean(activeConversation?.handedOverToAdmin);
 
+  // Défilement automatique vers le dernier message dès qu'un message est envoyé ou reçu
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [activeConversation?.messages.length, isLoading]);
+
   const handleSendMessage = async (textToSend?: string) => {
     const content = (textToSend ?? inputMessage).trim();
     if (!content || isLoading) return;
@@ -354,6 +367,11 @@ export const AssistantPage: React.FC = () => {
       conv = createConversation();
       setSelectedConvId(conv.id);
     }
+
+    const recentHistory = conv.messages.slice(-6).map((m) => ({
+      role: (m.sender === 'admin' ? 'assistant' : m.sender) as 'user' | 'assistant',
+      content: m.content,
+    }));
 
     setInputMessage('');
     setApiError(null);
@@ -375,10 +393,7 @@ export const AssistantPage: React.FC = () => {
             message: content,
             countryCode: currentUser?.countryCode || 'BF',
             language: currentLanguage,
-            history: conv.messages.slice(-6).map((m) => ({
-              role: m.sender === 'admin' ? 'assistant' : m.sender,
-              content: m.content,
-            })),
+            history: recentHistory,
           }),
         }),
         // Pause d'exactement 1 seconde de réflexion (« Nia analyse votre requête… »)
@@ -387,7 +402,19 @@ export const AssistantPage: React.FC = () => {
 
       const data = await response.json();
       if (!response.ok) {
-        setApiError(data?.error || 'Le service IA a rencontré une erreur temporaire.');
+        if (response.status === 400 || response.status === 429) {
+          setApiError(data?.error || 'Le service IA a rencontré une erreur temporaire.');
+        } else {
+          const isDistress = detectDistress(content);
+          if (isDistress) setDistressAlert(true);
+          const fallbackReply = generateServerReflectiveReply(
+            content,
+            isDistress,
+            recentHistory,
+            currentLanguage
+          );
+          appendAssistantMessage(conv.id, 'assistant', fallbackReply, isDistress);
+        }
       } else {
         if (data.distressDetected) {
           setDistressAlert(true);
@@ -400,9 +427,15 @@ export const AssistantPage: React.FC = () => {
         );
       }
     } catch {
-      setApiError(
-        'Connexion temporairement indisponible. Réessayez dans un instant.'
+      const isDistress = detectDistress(content);
+      if (isDistress) setDistressAlert(true);
+      const fallbackReply = generateServerReflectiveReply(
+        content,
+        isDistress,
+        recentHistory,
+        currentLanguage
       );
+      appendAssistantMessage(conv.id, 'assistant', fallbackReply, isDistress);
     } finally {
       setIsLoading(false);
     }
@@ -663,7 +696,10 @@ export const AssistantPage: React.FC = () => {
           </div>
 
           {/* Fil de messages avec bouton de suppression individuel sur chaque message */}
-          <div className="flex-1 p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[420px]">
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[420px] scroll-smooth"
+          >
             {(!activeConversation || activeConversation.messages.length === 0) && (
               <div className="p-6 rounded-2xl bg-nia-bg-light dark:bg-nia-bg-dark border border-dashed border-nia-gray-light dark:border-nia-border-dark text-center text-xs text-nia-gray-mid">
                 Aucun message dans cette discussion. Écris librement ci-dessous ou clique sur une suggestion pour commencer.

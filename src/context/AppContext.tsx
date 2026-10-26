@@ -1201,8 +1201,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setConversations((prev) =>
       prev.map((c) => {
         if (c.id !== conversationId || c.userId !== uid) return c;
-        const shouldUpdateTitle =
-          sender === 'user' && (c.title === 'Nouvelle réflexion' || c.messages.length <= 1);
+        const lowerClean = clean.toLowerCase().trim();
+        const isJustSmallTalk =
+          lowerClean.length < 12 ||
+          /^(salut|slt|coucou|cc|bonjour|bjr|bonsoir|bsr|hello|hey|hi|yo|hola|hallo|ca va|ça va|comment tu vas|comment vas-tu|merci|ok|d'accord|oui|non|je n'ai encore rien dit|j'ai rien dit)\b/i.test(
+            lowerClean
+          );
+        const isGenericTitle =
+          c.title === 'Nouvelle réflexion' ||
+          /^(salut|slt|coucou|bonjour|bonsoir|hello|hey|hi|ca va|ça va)$/i.test(c.title.trim());
+        const shouldUpdateTitle = sender === 'user' && isGenericTitle && !isJustSmallTalk;
         return {
           ...c,
           userPseudonym:
