@@ -8,7 +8,13 @@ export default defineConfig({
     {
       name: 'nia-mind-local-api',
       configureServer(server) {
-        server.middlewares.use('/api/assistant', (req, res) => {
+        server.middlewares.use((req, res, next) => {
+          const pathname = (req.url || '').split('?')[0];
+          // N'intercepter que l'endpoint. Le module source /api/assistant.ts doit rester servi par Vite.
+          if (pathname !== '/api/assistant') {
+            next();
+            return;
+          }
           if (req.method !== 'POST') {
             res.statusCode = 405;
             res.setHeader('Content-Type', 'application/json');

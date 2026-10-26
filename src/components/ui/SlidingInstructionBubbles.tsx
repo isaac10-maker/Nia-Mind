@@ -273,7 +273,8 @@ export const FloatingInstructionPopup: React.FC = () => {
 export const InlineSlidingGuideBanner: React.FC<{
   slides: InstructionSlide[];
   storageKey?: string;
-}> = ({ slides }) => {
+  compact?: boolean;
+}> = ({ slides, compact = false }) => {
   const { reducedMotion } = useApp();
   const [closed, setClosed] = useState(false);
   const [index, setIndex] = useState(0);
@@ -290,17 +291,29 @@ export const InlineSlidingGuideBanner: React.FC<{
   const current = slides[index] || slides[0];
 
   return (
-    <div className="relative overflow-hidden rounded-3xl nia-glass-card border border-nia-orange/35 dark:border-nia-orange/40 p-5 sm:p-6 shadow-nia-soft">
+    <div
+      className={`relative overflow-hidden nia-glass-card border border-nia-orange/35 dark:border-nia-orange/40 shadow-nia-soft ${
+        compact ? 'rounded-2xl p-3' : 'rounded-3xl p-5 sm:p-6'
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
-        <div key={index} className="space-y-1.5 animate-nia-slide-in pr-4">
-          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-nia-orange/15 text-nia-orange-deep dark:text-orange-300 text-xs font-extrabold">
+        <div key={index} className={`animate-nia-slide-in pr-2 ${compact ? 'space-y-1' : 'space-y-1.5 pr-4'}`}>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-nia-orange/15 text-nia-orange-deep dark:text-orange-300 text-[11px] font-extrabold">
             <Sparkles className="w-3.5 h-3.5" />
             {current.badge}
           </span>
-          <h3 className="text-base sm:text-lg font-extrabold text-nia-gray-dark dark:text-white">
+          <h3
+            className={`font-extrabold text-nia-gray-dark dark:text-white ${
+              compact ? 'text-sm' : 'text-base sm:text-lg'
+            }`}
+          >
             {current.title}
           </h3>
-          <p className="text-xs sm:text-sm text-nia-gray-mid dark:text-gray-300 leading-relaxed max-w-3xl">
+          <p
+            className={`text-nia-gray-mid dark:text-gray-300 leading-relaxed max-w-3xl ${
+              compact ? 'text-xs line-clamp-1' : 'text-xs sm:text-sm'
+            }`}
+          >
             {current.detail}
           </p>
         </div>
@@ -317,7 +330,7 @@ export const InlineSlidingGuideBanner: React.FC<{
       </div>
 
       {slides.length > 1 && (
-        <div className="mt-4 flex items-center gap-2">
+        <div className={`${compact ? 'mt-2' : 'mt-4'} flex items-center gap-2`}>
           {slides.map((_, i) => (
             <button
               key={i}
