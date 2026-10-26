@@ -66,6 +66,7 @@ export const PersonalStoriesPage: React.FC = () => {
     userStories,
     publicStories,
     saveOrSubmitStory,
+    deleteStoryRecord,
     authorRespondToPublicationRequest,
     authorWithdrawStory,
   } = useApp();
@@ -370,6 +371,16 @@ export const PersonalStoriesPage: React.FC = () => {
                       Retirer / Dépublier mon histoire
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => deleteStoryRecord(story.id)}
+                    className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-bold"
+                    title="Supprimer définitivement ce récit"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Supprimer</span>
+                  </button>
                 </div>
               </div>
 
@@ -514,7 +525,12 @@ export const PersonalStoriesPage: React.FC = () => {
 // 2. DEMANDER UNE ÉCOUTE HUMAINE (/espace/ecoute) — 5 statuts officiels
 // ============================================================================
 export const ListeningRequestPage: React.FC = () => {
-  const { userListeningRequests, createListeningRequest } = useApp();
+  const {
+    userListeningRequests,
+    createListeningRequest,
+    deleteListeningRequest,
+    clearListeningRequests,
+  } = useApp();
 
   const [topic, setTopic] = useState('');
   const [preferredMode, setPreferredMode] =
@@ -662,7 +678,18 @@ export const ListeningRequestPage: React.FC = () => {
             <h2 className="text-base font-bold text-nia-gray-dark dark:text-white">
               Suivi de mes demandes ({userListeningRequests.length})
             </h2>
-            <div className="flex flex-wrap gap-1.5 text-[11px]">
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+              {userListeningRequests.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => clearListeningRequests()}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-bold"
+                  title="Vider et nettoyer toutes mes demandes d'écoute"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Vider mes demandes</span>
+                </button>
+              )}
               {ALL_LISTENING_STATUSES.map((st) => (
                 <span
                   key={st}
@@ -674,6 +701,12 @@ export const ListeningRequestPage: React.FC = () => {
             </div>
           </div>
 
+          {userListeningRequests.length === 0 && (
+            <div className="p-6 rounded-2xl bg-white dark:bg-nia-surface-dark border border-dashed border-nia-gray-light dark:border-nia-border-dark text-center text-xs text-nia-gray-mid">
+              Aucune demande d’écoute enregistrée. Vous pouvez rédiger un message confidentiel à gauche à tout moment.
+            </div>
+          )}
+
           {userListeningRequests.map((req) => (
             <div
               key={req.id}
@@ -683,10 +716,21 @@ export const ListeningRequestPage: React.FC = () => {
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-nia-orange/15 text-nia-orange-deep dark:text-nia-orange">
                   Statut : {req.status}
                 </span>
-                <span className="text-xs text-nia-gray-mid flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  {new Date(req.createdAt).toLocaleDateString('fr-FR')} • {req.preferredMode}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-nia-gray-mid flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" />
+                    {new Date(req.createdAt).toLocaleDateString('fr-FR')} • {req.preferredMode}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => deleteListeningRequest(req.id)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-bold"
+                    title="Supprimer ce message"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Supprimer</span>
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -779,6 +823,23 @@ export const PersonalDailyTipsPage: React.FC = () => {
   );
 };
 
+const PROFILE_INTEREST_OPTIONS = [
+  'Parler sans masque à l’Assistant réflexif',
+  'Apaiser mon stress & améliorer mon sommeil',
+  'Écrire librement dans mon journal intime',
+  'Lire ou partager une histoire anonyme',
+  'Demander une écoute humaine bienveillante',
+  'Recevoir le conseil de réflexion du jour',
+];
+
+const PROFILE_LIFE_MOMENT_OPTIONS = [
+  'Pression au travail ou dans mes études',
+  'Questionnements sur mes relations ou ma famille',
+  'Sentiment de solitude (« seul(e) au milieu des autres »)',
+  'Fatigue mentale et besoin de lâcher prise',
+  'Envie de mieux me connaître à mon rythme',
+];
+
 // ============================================================================
 // 4. PROFIL & CONFIDENTIALITÉ (/espace/profil & /espace/confidentialite)
 // ============================================================================
@@ -821,6 +882,19 @@ export const ProfileAndPrivacyPage: React.FC<{ section: 'profile' | 'privacy' }>
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
 
+  // Questionnaires « Dites-nous-en plus sur vous » intégrés dans Profil & Paramètres
+  const [selectedInterests, setSelectedInterests] = useState<string[]>(
+    currentUser?.interests || []
+  );
+  const [selectedMoment, setSelectedMoment] = useState<string>('');
+  const [freeNote, setFreeNote] = useState<string>('');
+
+  const toggleInterest = (item: string) => {
+    setSelectedInterests((prev) =>
+      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
+    );
+  };
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     const chosenPseudo = pseudonym.trim() || displayName.trim() || 'PlumeSincere';
@@ -832,7 +906,28 @@ export const ProfileAndPrivacyPage: React.FC<{ section: 'profile' | 'privacy' }>
       countryCode,
       notificationsEnabled,
       dailyTipModalEnabled,
+      interests: selectedInterests,
     });
+  };
+
+  const handleSaveOnboardingQuestionnaire = () => {
+    const mergedBio = [
+      bio.trim(),
+      selectedMoment ? `Moment actuel : ${selectedMoment}` : '',
+      freeNote.trim() ? `Souhait : ${freeNote.trim()}` : '',
+    ]
+      .filter(Boolean)
+      .join(' • ');
+    setBio(mergedBio || bio);
+    updateCurrentUserProfile({
+      interests: selectedInterests,
+      bio: mergedBio || bio,
+    });
+    pushToast(
+      'Questionnaire enregistré',
+      'Vos centres d’intérêt et repères personnels ont été sauvegardés dans votre profil.',
+      'orange'
+    );
   };
 
   const handleExportUserData = () => {
@@ -1232,6 +1327,123 @@ export const ProfileAndPrivacyPage: React.FC<{ section: 'profile' | 'privacy' }>
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ====================================================================
+          QUESTIONNAIRE DE PERSONNALISATION : « DITES-NOUS-EN PLUS SUR VOUS »
+          (Déplacé depuis l'inscription vers Mon profil & Confidentialité et paramètres)
+          ==================================================================== */}
+      <div className="p-6 rounded-2xl bg-white dark:bg-nia-surface-dark border-2 border-nia-orange/35 space-y-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-nia-gray-light dark:border-nia-border-dark pb-3">
+          <div>
+            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-nia-orange">
+              <Sparkles className="w-4 h-4" />
+              Facultatif • Personnalisation Douce
+            </span>
+            <h2 className="text-lg font-extrabold text-nia-gray-dark dark:text-white mt-0.5">
+              Dites-nous-en plus sur vous
+            </h2>
+            <p className="text-xs text-nia-gray-mid dark:text-gray-400">
+              Il n’y a pas de bonne ou de mauvaise réponse. Adaptez votre espace à vos besoins du moment.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSaveOnboardingQuestionnaire}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white text-xs font-extrabold shadow-sm"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Enregistrer mes centres d’intérêt</span>
+          </button>
+        </div>
+
+        {/* Question 1 : Centres d'intérêt */}
+        <div className="space-y-2.5">
+          <p className="text-sm font-black text-nia-gray-dark dark:text-white">
+            1. Qu’est-ce qui vous attire le plus sur Nia-Mind ? (Plusieurs choix possibles)
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {PROFILE_INTEREST_OPTIONS.map((opt) => {
+              const checked = selectedInterests.includes(opt);
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => toggleInterest(opt)}
+                  className={`nia-tactile-opt text-left p-3 rounded-2xl border-2 text-xs font-extrabold flex items-center gap-2.5 ${
+                    checked
+                      ? 'bg-gradient-to-r from-nia-bordeaux to-nia-orange text-white border-nia-orange'
+                      : 'bg-nia-bg-light dark:bg-nia-bg-dark text-nia-gray-dark dark:text-gray-200 border-nia-bordeaux/30'
+                  }`}
+                >
+                  <span
+                    className={`w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                      checked ? 'bg-white text-nia-bordeaux border-white' : 'border-nia-orange'
+                    }`}
+                  >
+                    {checked ? '✓' : ''}
+                  </span>
+                  <span>{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Question 2 : Ce que vous traversez */}
+        <div className="space-y-2.5">
+          <p className="text-sm font-black text-nia-gray-dark dark:text-white">
+            2. Quel sujet résonne le plus avec votre quotidien actuel ?
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {PROFILE_LIFE_MOMENT_OPTIONS.map((moment) => {
+              const active = selectedMoment === moment;
+              return (
+                <button
+                  key={moment}
+                  type="button"
+                  onClick={() => setSelectedMoment(moment)}
+                  className={`nia-tactile-opt w-full text-left p-3 rounded-2xl border-2 text-xs font-extrabold flex items-center gap-2.5 ${
+                    active
+                      ? 'bg-nia-orange text-white border-nia-bordeaux'
+                      : 'bg-nia-bg-light dark:bg-nia-bg-dark text-nia-gray-dark dark:text-gray-200 border-nia-orange/30'
+                  }`}
+                >
+                  <span
+                    className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      active ? 'bg-white border-white' : 'border-nia-bordeaux'
+                    }`}
+                  />
+                  <span>{moment}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Question 3 : Un mot libre facultatif */}
+        <div className="flex flex-col sm:flex-row gap-3 items-end">
+          <div className="flex-1 w-full">
+            <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
+              3. Un mot ou un souhait pour votre espace ? (Facultatif)
+            </label>
+            <input
+              type="text"
+              value={freeNote}
+              onChange={(e) => setFreeNote(e.target.value)}
+              placeholder="Ex. : Prendre 10 minutes chaque soir pour souffler…"
+              className="w-full px-4 py-2.5 rounded-2xl bg-nia-bg-light dark:bg-nia-bg-dark border-2 border-nia-orange/35 text-xs font-semibold"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleSaveOnboardingQuestionnaire}
+            className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-nia-orange hover:bg-nia-orange-deep text-white text-xs font-extrabold"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Enregistrer mes réponses</span>
+          </button>
         </div>
       </div>
 

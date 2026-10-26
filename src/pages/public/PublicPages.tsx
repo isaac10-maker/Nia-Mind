@@ -14,7 +14,6 @@ import {
   PhoneCall,
   Search,
   ShieldCheck,
-  SkipForward,
   Sparkles,
   UserPlus,
   X,
@@ -604,26 +603,8 @@ export const AboutPage: React.FC = () => {
 
 // ============================================================================
 // 5. PAGES PUBLIQUES : CONNEXION (/connexion) & INSCRIPTION (/inscription)
-//    Avec E-mail / Gmail, Politique de confidentialité, Cookies &
-//    Enquête facultative « Dites-nous-en plus sur vous » avec touche Skip
+//    Avec E-mail / Gmail, Politique de confidentialité & Cookies
 // ============================================================================
-const INTEREST_OPTIONS = [
-  'Parler sans masque à l’Assistant réflexif',
-  'Apaiser mon stress & améliorer mon sommeil',
-  'Écrire librement dans mon journal intime',
-  'Lire ou partager une histoire anonyme',
-  'Demander une écoute humaine bienveillante',
-  'Recevoir le conseil de réflexion du jour',
-];
-
-const LIFE_MOMENT_OPTIONS = [
-  'Pression au travail ou dans mes études',
-  'Questionnements sur mes relations ou ma famille',
-  'Sentiment de solitude (« seul(e) au milieu des autres »)',
-  'Fatigue mentale et besoin de lâcher prise',
-  'Envie de mieux me connaître à mon rythme',
-];
-
 export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => {
   const {
     loginWithEmail,
@@ -684,23 +665,6 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotStatusMsg, setForgotStatusMsg] = useState<string | null>(null);
 
-  // Enquête facultative « Dites-nous-en plus sur vous » avec bouton Skip & bouton Croix (X)
-  const [showOnboardingSurvey, setShowOnboardingSurvey] = useState(false);
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [selectedMoment, setSelectedMoment] = useState<string>('');
-  const [freeNote, setFreeNote] = useState<string>('');
-
-  const toggleInterest = (item: string) => {
-    setSelectedInterests((prev) =>
-      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
-    );
-  };
-
-  const finishAndEnterSpace = () => {
-    setShowOnboardingSurvey(false);
-    navigate(redirectTarget);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -739,8 +703,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         setErrorMsg(res.error || 'Erreur lors de la création du compte.');
         return;
       }
-      // Ouvre l'enquête facultative « Dites-nous-en plus sur vous » avec touche Skip
-      setShowOnboardingSurvey(true);
+      navigate(redirectTarget);
     }
   };
 
@@ -818,7 +781,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     }
 
     setIsGmailModalOpen(false);
-    setShowOnboardingSurvey(true);
+    navigate(redirectTarget);
   };
 
   const handleRequestPasswordRecovery = (e: React.FormEvent) => {
@@ -1426,135 +1389,6 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
               </button>
             </form>
           )}
-        </div>
-      </Modal>
-
-      {/* ====================================================================
-          MODALE ENQUÊTE FACULTATIVE : « DITES-NOUS-EN PLUS SUR VOUS »
-          Style tactile MAMAORA + Bouton Skip (Passer) + Bouton Croix (X)
-          ==================================================================== */}
-      <Modal
-        isOpen={showOnboardingSurvey}
-        onClose={finishAndEnterSpace}
-        badgeText="Facultatif • Personnalisation Douce"
-        title="Dites-nous-en plus sur vous"
-        subtitle="Il n’y a pas de bonne ou de mauvaise réponse. Vous pouvez passer cette étape à tout moment."
-        accent="bordeaux"
-        maxWidthClass="max-w-2xl"
-        footer={
-          <div className="w-full flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={finishAndEnterSpace}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full border-2 border-nia-bordeaux/35 hover:border-nia-orange text-xs sm:text-sm font-extrabold text-nia-gray-dark dark:text-gray-200"
-            >
-              <SkipForward className="w-4 h-4 text-nia-orange" />
-              <span>Passer cette étape (Skip)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={finishAndEnterSpace}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white text-xs sm:text-sm font-extrabold shadow-md"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Enregistrer mes centres d’intérêt & entrer</span>
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-5">
-          {/* Bandeau supérieur Skip rapide */}
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-nia-orange/15 to-nia-bordeaux/15">
-            <span className="text-xs font-bold text-nia-bordeaux dark:text-amber-200">
-              ✺ Adaptons votre espace à vos besoins du moment
-            </span>
-            <button
-              type="button"
-              onClick={finishAndEnterSpace}
-              className="text-xs font-extrabold text-nia-orange hover:underline inline-flex items-center gap-1"
-            >
-              <span>Skip →</span>
-            </button>
-          </div>
-
-          {/* Question 1 : Centres d'intérêt */}
-          <div className="space-y-2.5">
-            <p className="text-sm font-black text-nia-gray-dark dark:text-white">
-              1. Qu’est-ce qui vous attire le plus sur Nia-Mind ? (Plusieurs choix possibles)
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {INTEREST_OPTIONS.map((opt) => {
-                const checked = selectedInterests.includes(opt);
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => toggleInterest(opt)}
-                    className={`nia-tactile-opt text-left p-3 rounded-2xl border-2 text-xs font-extrabold flex items-center gap-2.5 ${
-                      checked
-                        ? 'bg-gradient-to-r from-nia-bordeaux to-nia-orange text-white border-nia-orange'
-                        : 'bg-white dark:bg-nia-bg-dark text-nia-gray-dark dark:text-gray-200 border-nia-bordeaux/30'
-                    }`}
-                  >
-                    <span
-                      className={`w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                        checked ? 'bg-white text-nia-bordeaux border-white' : 'border-nia-orange'
-                      }`}
-                    >
-                      {checked ? '✓' : ''}
-                    </span>
-                    <span>{opt}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Question 2 : Ce que vous traversez */}
-          <div className="space-y-2.5">
-            <p className="text-sm font-black text-nia-gray-dark dark:text-white">
-              2. Quel sujet résonne le plus avec votre quotidien actuel ?
-            </p>
-            <div className="space-y-2">
-              {LIFE_MOMENT_OPTIONS.map((moment) => {
-                const active = selectedMoment === moment;
-                return (
-                  <button
-                    key={moment}
-                    type="button"
-                    onClick={() => setSelectedMoment(moment)}
-                    className={`nia-tactile-opt w-full text-left p-3 rounded-2xl border-2 text-xs font-extrabold flex items-center gap-2.5 ${
-                      active
-                        ? 'bg-nia-orange text-white border-nia-bordeaux'
-                        : 'bg-white dark:bg-nia-bg-dark text-nia-gray-dark dark:text-gray-200 border-nia-orange/30'
-                    }`}
-                  >
-                    <span
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        active ? 'bg-white border-white' : 'border-nia-bordeaux'
-                      }`}
-                    />
-                    <span>{moment}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Question 3 : Un mot libre facultatif */}
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-              3. Un mot ou un souhait pour votre espace ? (Facultatif)
-            </label>
-            <input
-              type="text"
-              value={freeNote}
-              onChange={(e) => setFreeNote(e.target.value)}
-              placeholder="Ex. : Prendre 10 minutes chaque soir pour souffler…"
-              className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/35 text-xs font-semibold"
-            />
-          </div>
         </div>
       </Modal>
     </div>

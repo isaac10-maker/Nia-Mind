@@ -744,9 +744,14 @@ export const AdminListeningPage: React.FC = () => {
     currentLanguage,
     allListeningRequests,
     adminUpdateListeningRequest,
+    deleteListeningRequest,
     allAssistantConversationsForAdmin,
     adminReplyInAssistantConversation,
     sendPsychicDiagnosticToUser,
+    deleteConversation,
+    deleteAssistantMessage,
+    clearConversationMessages,
+    clearAllUserConversations,
   } = useApp();
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [convReplyDrafts, setConvReplyDrafts] = useState<Record<string, string>>({});
@@ -823,10 +828,21 @@ export const AdminListeningPage: React.FC = () => {
                     </h3>
                   </div>
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-nia-bordeaux/10 text-nia-bordeaux dark:text-amber-300 text-[11px] font-bold">
-                  <Lock className="w-3.5 h-3.5 text-nia-orange" />
-                  Lisible uniquement par l’Admin et @{pack.userPseudonym}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-nia-bordeaux/10 text-nia-bordeaux dark:text-amber-300 text-[11px] font-bold">
+                    <Lock className="w-3.5 h-3.5 text-nia-orange" />
+                    Lisible uniquement par l’Admin et @{pack.userPseudonym}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => clearAllUserConversations(pack.userId)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-[11px] font-extrabold transition-colors"
+                    title="Nettoyer toutes les discussions de ce pack"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Nettoyer le pack</span>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -856,11 +872,33 @@ export const AdminListeningPage: React.FC = () => {
                           </p>
                         </div>
 
-                        {conv.handedOverToAdmin && (
-                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold">
-                            Main donnée à l’Admin
-                          </span>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {conv.handedOverToAdmin && (
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-extrabold">
+                              Main donnée à l’Admin
+                            </span>
+                          )}
+                          {conv.messages.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => clearConversationMessages(conv.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-[11px] font-extrabold"
+                              title="Vider tous les messages de cette discussion"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Vider les messages</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => deleteConversation(conv.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold"
+                            title="Supprimer cette discussion"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Supprimer</span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* Messages de la discussion traduits automatiquement pour l'Admin */}
@@ -876,15 +914,25 @@ export const AdminListeningPage: React.FC = () => {
                                 : 'bg-nia-bg-light dark:bg-nia-bg-dark text-nia-gray-mid dark:text-gray-300'
                             }`}
                           >
-                            <span className="font-extrabold uppercase text-[10px] text-nia-bordeaux dark:text-amber-300 block mb-0.5">
-                              {m.sender === 'user'
-                                ? `@${pack.userPseudonym}`
-                                : m.isDiagnosticBriefing
-                                ? 'Diagnostic psychique transmis'
-                                : m.sender === 'admin'
-                                ? 'Admin (Vous)'
-                                : 'IA Nia-Mind'}
-                            </span>
+                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                              <span className="font-extrabold uppercase text-[10px] text-nia-bordeaux dark:text-amber-300">
+                                {m.sender === 'user'
+                                  ? `@${pack.userPseudonym}`
+                                  : m.isDiagnosticBriefing
+                                  ? 'Diagnostic psychique transmis'
+                                  : m.sender === 'admin'
+                                  ? 'Admin (Vous)'
+                                  : 'IA Nia-Mind'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => deleteAssistantMessage(conv.id, m.id)}
+                                className="p-0.5 rounded hover:bg-rose-500/15 text-nia-gray-mid hover:text-rose-600 transition-colors"
+                                title="Supprimer ce message"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
                             <p className="whitespace-pre-line">
                               {translateMessageForViewer(m.content, currentLanguage)}
                             </p>
@@ -1028,22 +1076,33 @@ export const AdminListeningPage: React.FC = () => {
                   {translateMessageForViewer(req.topic, currentLanguage)}
                 </h2>
               </div>
-              <select
-                value={req.status}
-                onChange={(e) =>
-                  adminUpdateListeningRequest({
-                    requestId: req.id,
-                    status: e.target.value as ListeningStatus,
-                  })
-                }
-                className="px-3 py-1.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-xs font-bold"
-              >
-                {ALL_LISTENING_STATUSES.map((st) => (
-                  <option key={st} value={st}>
-                    Statut : {st}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                <select
+                  value={req.status}
+                  onChange={(e) =>
+                    adminUpdateListeningRequest({
+                      requestId: req.id,
+                      status: e.target.value as ListeningStatus,
+                    })
+                  }
+                  className="px-3 py-1.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark text-xs font-bold"
+                >
+                  {ALL_LISTENING_STATUSES.map((st) => (
+                    <option key={st} value={st}>
+                      Statut : {st}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => deleteListeningRequest(req.id)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-extrabold"
+                  title="Supprimer cette demande d'écoute"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Supprimer</span>
+                </button>
+              </div>
             </div>
 
             <p className="text-sm text-nia-gray-dark dark:text-gray-200 p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark">

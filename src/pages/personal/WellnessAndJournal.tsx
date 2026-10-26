@@ -42,11 +42,14 @@ export const WellnessPage: React.FC = () => {
   const {
     userMoodEntries,
     addMoodEntry,
+    deleteMoodEntry,
     userStressSleepEntries,
     addStressSleepEntry,
+    deleteStressSleepEntry,
     questionnairesCatalog,
     userQuestionnaireResponses,
     submitQuestionnaireResponse,
+    deleteQuestionnaireResponse,
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<
@@ -312,13 +315,23 @@ export const WellnessPage: React.FC = () => {
                   key={entry.id}
                   className="p-4 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-gray-light dark:border-nia-border-dark space-y-2"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-bold text-nia-gray-dark dark:text-white">
                       {entry.moodLabel} ({entry.moodScore}/5)
                     </span>
-                    <span className="text-xs text-nia-gray-mid dark:text-gray-400">
-                      {entry.recordedAt}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-nia-gray-mid dark:text-gray-400">
+                        {entry.recordedAt}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => deleteMoodEntry(entry.id)}
+                        className="p-1 rounded-lg text-nia-gray-mid hover:text-rose-600 transition-colors"
+                        title="Supprimer ce relevé d'humeur"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   {entry.note && (
                     <p className="text-xs text-nia-gray-mid dark:text-gray-300">{entry.note}</p>
@@ -452,9 +465,19 @@ export const WellnessPage: React.FC = () => {
                 >
                   <div className="flex items-center justify-between text-xs font-bold">
                     <span>{item.recordedDate}</span>
-                    <span className="text-nia-gray-mid dark:text-gray-400">
-                      Qualité sommeil : {item.sleepQuality}/5
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-nia-gray-mid dark:text-gray-400">
+                        Qualité sommeil : {item.sleepQuality}/5
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => deleteStressSleepEntry(item.id)}
+                        className="p-1 rounded-lg text-nia-gray-mid hover:text-rose-600 transition-colors"
+                        title="Supprimer ce relevé"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
@@ -639,13 +662,23 @@ export const WellnessPage: React.FC = () => {
                       : 'bg-nia-bg-light dark:bg-nia-bg-dark border-nia-gray-light dark:border-nia-border-dark'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-bold text-nia-bordeaux dark:text-amber-300">
                       {resp.questionnaireTitle}
                     </span>
-                    <span className="text-xs text-nia-gray-mid">
-                      {new Date(resp.createdAt).toLocaleDateString('fr-FR')}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-nia-gray-mid">
+                        {new Date(resp.createdAt).toLocaleDateString('fr-FR')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => deleteQuestionnaireResponse(resp.id)}
+                        className="p-1 rounded-lg text-nia-gray-mid hover:text-rose-600 transition-colors"
+                        title="Supprimer ce bilan"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-baseline gap-3">
                     <span className="text-2xl font-extrabold text-nia-orange">
@@ -811,7 +844,12 @@ export const WellnessPage: React.FC = () => {
 // 2. JOURNAL PERSONNEL (/espace/journal) — Strictement privé
 // ============================================================================
 export const JournalPage: React.FC = () => {
-  const { userJournalEntries, saveJournalEntry, deleteJournalEntry } = useApp();
+  const {
+    userJournalEntries,
+    saveJournalEntry,
+    deleteJournalEntry,
+    clearAllJournalEntries,
+  } = useApp();
 
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [title, setTitle] = useState('');
@@ -1012,9 +1050,22 @@ export const JournalPage: React.FC = () => {
 
         {/* Historique & Recherche du journal */}
         <div className="lg:col-span-5 p-6 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark space-y-4">
-          <h2 className="text-base font-bold text-nia-gray-dark dark:text-white">
-            Historique de mon journal ({filteredEntries.length})
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base font-bold text-nia-gray-dark dark:text-white">
+              Historique de mon journal ({filteredEntries.length})
+            </h2>
+            {userJournalEntries.length > 0 && (
+              <button
+                type="button"
+                onClick={() => clearAllJournalEntries()}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-bold"
+                title="Vider toutes mes notes de journal"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Vider</span>
+              </button>
+            )}
+          </div>
 
           <div className="relative">
             <Search className="w-4 h-4 text-nia-gray-mid absolute left-3.5 top-1/2 -translate-y-1/2" />

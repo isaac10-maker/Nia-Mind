@@ -13,18 +13,26 @@ import {
 
 export const SUPERADMIN_EMAIL = 'isaacamegan10@gmail.com';
 
+const TICKER_TWO_LINE_LABELS: Record<SupportedLanguage, { line1: string; line2: string }> = {
+  fr: { line1: 'Conseils &', line2: 'Motivation du Jour' },
+  en: { line1: 'Daily Advice &', line2: 'Motivation' },
+  es: { line1: 'Consejos y', line2: 'Motivación del Día' },
+  de: { line1: 'Tagesimpulse &', line2: 'Motivation' },
+  zh: { line1: '今日建议 &', line2: '每日激励' },
+};
+
 /**
- * Contrôles compacts Langue (sigles FR, EN, ES, DE, ZH uniquement) + Thème sombre/clair
+ * Contrôles compacts Langue (sigles FR, EN, ES, DE, ZH uniquement) + Icône Lune/Soleil seule
  * placés conjointement juste en dessous du logo et du slogan dans le header.
  */
 export const HeaderLangAndThemeControls: React.FC = () => {
   const { theme, toggleTheme, currentLanguage, setCurrentLanguage } = useApp();
 
   return (
-    <div className="inline-flex flex-wrap items-center gap-1.5 pt-1">
+    <div className="inline-flex items-center gap-1.5 pt-0.5">
       {/* Bouton de traduction : uniquement les sigles (FR, EN, ES, DE, ZH) au visuel */}
       <div
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/30 hover:bg-black/40 border border-white/25 text-white transition-colors"
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 text-white transition-colors"
         title="Sélecteur de langue"
       >
         <Globe className="w-3 h-3 text-sky-200 shrink-0" />
@@ -33,7 +41,7 @@ export const HeaderLangAndThemeControls: React.FC = () => {
           data-no-translate="true"
           value={currentLanguage}
           onChange={(e) => setCurrentLanguage(e.target.value as SupportedLanguage)}
-          className="bg-transparent text-[11px] font-extrabold text-white focus:outline-none cursor-pointer pr-0.5 uppercase tracking-wider"
+          className="bg-transparent text-[10px] sm:text-[11px] font-extrabold text-white focus:outline-none cursor-pointer pr-0.5 uppercase tracking-wider"
         >
           {(Object.keys(LANGUAGE_META) as SupportedLanguage[]).map((langKey) => (
             <option
@@ -47,23 +55,18 @@ export const HeaderLangAndThemeControls: React.FC = () => {
         </select>
       </div>
 
-      {/* Bouton de thème sombre / clair conjoint juste à côté du bouton de langue */}
+      {/* Bouton de bascule Sombre / Clair : uniquement l'icône Lune ou Soleil */}
       <button
         type="button"
         onClick={toggleTheme}
-        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 text-[11px] font-extrabold text-white transition-colors"
+        title={theme === 'dark' ? tUi(currentLanguage, 'lightMode') : tUi(currentLanguage, 'darkMode')}
         aria-label={theme === 'dark' ? 'Passer au thème clair' : 'Passer au thème sombre'}
+        className="w-6 h-6 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 flex items-center justify-center text-white transition-colors shrink-0"
       >
         {theme === 'dark' ? (
-          <>
-            <Sun className="w-3 h-3 text-amber-300 shrink-0" />
-            <span>{tUi(currentLanguage, 'lightMode')}</span>
-          </>
+          <Sun className="w-3.5 h-3.5 text-amber-300" />
         ) : (
-          <>
-            <Moon className="w-3 h-3 text-amber-200 shrink-0" />
-            <span>{tUi(currentLanguage, 'darkMode')}</span>
-          </>
+          <Moon className="w-3.5 h-3.5 text-amber-200" />
         )}
       </button>
     </div>
@@ -71,10 +74,40 @@ export const HeaderLangAndThemeControls: React.FC = () => {
 };
 
 /**
+ * Bouton « Mon espace » avec retour à la ligne après « Mon espace » et « (@Pseudo) » en dessous.
+ */
+export const UserSpaceCompactButton: React.FC = () => {
+  const { currentUser, currentLanguage } = useApp();
+  if (!currentUser) return null;
+
+  const pseudo = currentUser.publicPseudonym || currentUser.displayName;
+
+  return (
+    <Link
+      to="/espace/tableau-de-bord"
+      className="inline-flex items-center gap-2 px-3 py-1 rounded-2xl bg-nia-bordeaux-dark/90 hover:bg-nia-bordeaux-dark border border-white/25 text-white shadow-md transition-all"
+    >
+      <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+      <span className="flex flex-col items-start leading-[1.1] text-left">
+        <span className="text-[11px] sm:text-xs font-extrabold">
+          {tUi(currentLanguage, 'mySpace')}
+        </span>
+        <span
+          data-no-translate="true"
+          className="text-[9px] sm:text-[10px] font-bold text-amber-200 truncate max-w-[130px] sm:max-w-[160px]"
+        >
+          (@{pseudo})
+        </span>
+      </span>
+      <ArrowRight className="w-3.5 h-3.5 shrink-0 text-amber-200" />
+    </Link>
+  );
+};
+
+/**
  * Bandeau d'annonce style Télévision (TV Ticker) placé sous le header :
- * - À gauche : badge fixe « Conseils & Motivation du Jour » (z-10)
- * - À droite : le texte de l'annonce (détaché du titre) défile de droite à gauche
- *   et disparaît proprement en dessous du badge gauche comme une annonce télévisée.
+ * - À gauche : badge fixe sur 2 lignes « Conseils & » / « Motivation du Jour » avec taille de police réduite (z-10)
+ * - À droite : le texte de l'annonce défile de droite à gauche et disparaît en dessous du badge gauche.
  */
 export const TvAnnouncementTicker: React.FC<{ blurred?: boolean }> = ({
   blurred = false,
@@ -88,7 +121,6 @@ export const TvAnnouncementTicker: React.FC<{ blurred?: boolean }> = ({
 
   const activeNotification = siteNotifications.find((n) => n.isActive);
 
-  // On détache le titre ("Nouveau Conseil & Motivation du jour") pour ne faire défiler que l'annonce
   const rawAnnouncementBody = activeNotification
     ? activeNotification.message
     : featuredDailyTip?.summary ||
@@ -98,10 +130,8 @@ export const TvAnnouncementTicker: React.FC<{ blurred?: boolean }> = ({
     rawAnnouncementBody,
     currentLanguage
   );
-  const tickerBadgeLabel = translatePlatformText(
-    'Conseils & Motivation du Jour',
-    currentLanguage
-  );
+  const twoLineBadge =
+    TICKER_TWO_LINE_LABELS[currentLanguage] || TICKER_TWO_LINE_LABELS.fr;
   const mottoLabel = translatePlatformText(
     'Écouter • Comprendre • Avancer',
     currentLanguage
@@ -113,20 +143,26 @@ export const TvAnnouncementTicker: React.FC<{ blurred?: boolean }> = ({
         blurred ? 'blur-[6px] opacity-25 pointer-events-none select-none' : ''
       }`}
     >
-      <div className="max-w-7xl mx-auto flex items-stretch">
-        {/* Coin gauche fixe (style bandeau TV) : l'annonce défilante disparaît en dessous */}
+      <div className="w-full flex items-stretch">
+        {/* Coin gauche fixe sur 2 lignes (police réduite) : l'annonce défilante disparaît en dessous */}
         <button
           type="button"
           onClick={openDailyTipModal}
-          className="relative z-10 shrink-0 inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 bg-nia-bordeaux-dark hover:bg-black/60 text-amber-200 hover:text-white text-[10px] sm:text-xs font-extrabold uppercase tracking-wider border-r border-amber-300/30 shadow-[10px_0_18px_rgba(0,0,0,0.55)] transition-colors"
+          className="relative z-10 shrink-0 inline-flex items-center gap-1.5 pl-2.5 sm:pl-4 pr-2.5 sm:pr-3.5 py-1 bg-nia-bordeaux-dark hover:bg-black/65 text-amber-200 hover:text-white border-r border-amber-300/30 shadow-[10px_0_18px_rgba(0,0,0,0.55)] transition-colors text-left"
         >
-          <Sparkles className="w-3.5 h-3.5 text-nia-orange shrink-0" />
-          <span>{tickerBadgeLabel}</span>
+          <Sparkles className="w-3 h-3 text-nia-orange shrink-0" />
+          <span
+            data-no-translate="true"
+            className="flex flex-col leading-[1.1] text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider"
+          >
+            <span>{twoLineBadge.line1}</span>
+            <span className="text-white">{twoLineBadge.line2}</span>
+          </span>
         </button>
 
         {/* Piste de défilement (z-0) qui glisse et disparaît sous le badge gauche */}
-        <div className="relative z-0 flex-1 overflow-hidden flex items-center py-1.5 pl-3">
-          <div className="animate-nia-rtl-scroll text-xs font-semibold text-amber-50/95">
+        <div className="relative z-0 flex-1 overflow-hidden flex items-center py-1 pl-3">
+          <div className="animate-nia-rtl-scroll text-[11px] sm:text-xs font-semibold text-amber-50/95">
             ✺ {translatedAnnouncement} &nbsp;&nbsp;•&nbsp;&nbsp; {mottoLabel} — Nia-Mind
           </div>
         </div>
@@ -196,10 +232,13 @@ export const BanNoticeModal: React.FC = () => {
 
 /**
  * Barre supérieure utilisée dans les espaces Personnel (/espace/*) et Admin (/admin/*).
- * Sur les pages publiques, `PublicLayout` intègre directement le Header Orange unifié
- * et le bandeau d'annonce TV.
+ * Le logo Nia-Mind (anciennement situé sous le bandeau de conseils) est ramené ici
+ * juste au-dessus des icônes de traduction et de lune/soleil, avec cadrage plein écran sans marge perdue.
  */
-export const RoleSwitcherBar: React.FC = () => {
+export const RoleSwitcherBar: React.FC<{
+  onToggleMobileMenu?: () => void;
+  mobileMenuOpen?: boolean;
+}> = ({ onToggleMobileMenu, mobileMenuOpen }) => {
   const { currentUser, currentLanguage } = useApp();
   const location = useLocation();
 
@@ -214,40 +253,51 @@ export const RoleSwitcherBar: React.FC = () => {
   return (
     <>
       <div
-        className={`relative z-30 bg-gradient-to-r from-nia-orange-deep via-nia-orange to-nia-bordeaux text-white shadow-md transition-all duration-300 ${
+        className={`sticky top-0 z-40 w-full bg-gradient-to-r from-nia-orange-deep via-nia-orange to-nia-bordeaux text-white shadow-md transition-all duration-300 ${
           isAuthPage ? 'blur-md opacity-35 pointer-events-none select-none' : ''
         }`}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-3">
-          {/* Gauche : Logo + Slogan juste en dessous + Sigles Langue & Thème sombre conjoints */}
-          <div className="flex flex-col items-start">
-            <BrandLogo variant="header-orange" showSlogan={true} size="sm" />
+        <div className="w-full px-2.5 sm:px-4 py-1.5 flex items-center justify-between gap-2">
+          {/* Gauche : Logo Nia-Mind ramené en haut + Slogan + Sigle Langue & Icône Lune/Soleil en dessous */}
+          <div className="flex flex-col items-start min-w-0">
+            <BrandLogo showSlogan={true} size="sm" />
             <HeaderLangAndThemeControls />
           </div>
 
-          {/* Droite épurée : uniquement le bouton avec le pseudo (+ Superadmin si autorisé) */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Droite : Accueil, Superadmin et Mon espace / (@Pseudo) sur 2 lignes */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <Link
+              to="/"
+              className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full bg-black/25 hover:bg-black/40 border border-white/20 text-white text-xs font-extrabold transition-colors"
+            >
+              {tUi(currentLanguage, 'navHome')}
+            </Link>
+
             {isSuperAdmin && !location.pathname.startsWith('/admin') && (
               <Link
                 to="/admin/vue-ensemble"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 text-white text-xs font-extrabold shadow-sm transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 text-white text-[11px] sm:text-xs font-extrabold shadow-sm transition-colors"
               >
-                <Crown className="w-3.5 h-3.5 text-amber-300" />
+                <Crown className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                 <span>Superadmin</span>
               </Link>
             )}
 
-            {currentUser && (
-              <Link
-                to="/espace/tableau-de-bord"
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-nia-bordeaux-dark/90 hover:bg-nia-bordeaux-dark border border-white/20 text-white text-xs font-extrabold shadow-sm transition-all"
+            <UserSpaceCompactButton />
+
+            {onToggleMobileMenu && (
+              <button
+                type="button"
+                onClick={onToggleMobileMenu}
+                className="lg:hidden p-2 rounded-xl bg-black/25 hover:bg-black/40 border border-white/25 text-white"
+                aria-label="Ouvrir ou fermer le menu"
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                <span className="truncate max-w-[180px] sm:max-w-none">
-                  {tUi(currentLanguage, 'mySpace')} (@{currentUser.publicPseudonym || currentUser.displayName})
-                </span>
-                <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-              </Link>
+                {mobileMenuOpen ? (
+                  <span className="text-sm font-black px-1">✕</span>
+                ) : (
+                  <span className="text-sm font-black px-1">☰</span>
+                )}
+              </button>
             )}
           </div>
         </div>

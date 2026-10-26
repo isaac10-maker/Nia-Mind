@@ -52,6 +52,7 @@ export interface UserProfile {
   banReason?: string | null;
   bannedAt?: string | null;
   bio: string;
+  interests?: string[];
   countryCode: 'BF' | 'FR' | 'SN' | 'CI' | 'BE' | 'CA' | 'INT';
   role: UserRole;
   themePreference: 'light' | 'dark';

@@ -17,6 +17,7 @@ import {
   HeaderLangAndThemeControls,
   SUPERADMIN_EMAIL,
   TvAnnouncementTicker,
+  UserSpaceCompactButton,
 } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
@@ -52,12 +53,12 @@ export const PublicLayout: React.FC = () => {
       <AmbientBackground />
       <BanNoticeModal />
 
-      {/* En-tête Orange unifié en haut (100 % opaque au défilement) + Bandeau d'annonce TV juste en dessous */}
-      <header className="sticky top-0 z-50 bg-gradient-to-r from-nia-orange-deep via-nia-orange to-nia-bordeaux text-white shadow-lg border-b border-white/15">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
-          {/* Gauche : Logo + Barre du Slogan juste en dessous + Sigles de traduction (FR, EN, ES, DE, ZH) conjoints avec Thème sombre */}
+      {/* En-tête Orange unifié en haut (cadrage plein écran sans marge perdue dans les angles) + Bandeau d'annonce TV en dessous */}
+      <header className="sticky top-0 z-50 w-full bg-gradient-to-r from-nia-orange-deep via-nia-orange to-nia-bordeaux text-white shadow-lg border-b border-white/15">
+        <div className="w-full px-2.5 sm:px-4 py-1.5 flex items-center justify-between gap-2">
+          {/* Gauche : Logo Nia-Mind + Slogan en dessous + Sigles Langue (FR, EN, ES, DE, ZH) & Icône Lune/Soleil seule */}
           <div className="relative z-50 flex flex-col items-start shrink-0">
-            <BrandLogo variant="header-orange" showSlogan={true} size="md" />
+            <BrandLogo showSlogan={true} size="sm" />
             <div
               className={`transition-all duration-300 ${
                 isAuthRoute ? 'blur-[6px] opacity-25 pointer-events-none select-none' : ''
@@ -80,7 +81,7 @@ export const PublicLayout: React.FC = () => {
                 to={item.to}
                 end={item.to === '/'}
                 className={({ isActive }) =>
-                  `px-3.5 py-2 rounded-full text-xs xl:text-sm font-extrabold transition-all whitespace-nowrap ${
+                  `px-3 py-1.5 rounded-full text-xs xl:text-sm font-extrabold transition-all whitespace-nowrap ${
                     isActive
                       ? 'bg-white text-nia-bordeaux shadow-md'
                       : 'text-white/95 hover:text-white hover:bg-white/15'
@@ -94,19 +95,19 @@ export const PublicLayout: React.FC = () => {
             {/* Onglet Assistance & Espace avec icône cerveau + puce clignotante bleu/vert */}
             <Link
               to={currentUser ? '/espace/assistant' : '/inscription?from=assistant'}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs xl:text-sm font-extrabold bg-black/25 hover:bg-black/40 text-white transition-all border border-white/25 whitespace-nowrap shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs xl:text-sm font-extrabold bg-black/25 hover:bg-black/40 text-white transition-all border border-white/25 whitespace-nowrap shadow-sm"
             >
               <NeuralChipIcon className="w-4 h-4 shrink-0" />
               <span>{tUi(currentLanguage, 'navAssistant')}</span>
             </Link>
           </nav>
 
-          {/* Droite aérée : uniquement le bouton avec le pseudo (+ Superadmin si autorisé), sans doublon */}
-          <div className="relative z-50 flex items-center gap-2 shrink-0">
+          {/* Droite aérée : Superadmin + bouton sur 2 lignes « Mon espace / (@Pseudo) » */}
+          <div className="relative z-50 flex items-center gap-1.5 sm:gap-2 shrink-0">
             {!isAuthRoute && isSuperAdmin && (
               <Link
                 to="/admin/vue-ensemble"
-                className="hidden sm:inline-flex items-center gap-1 px-3 py-2 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 text-white text-xs font-extrabold shadow-sm transition-colors"
+                className="hidden sm:inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 text-white text-[11px] sm:text-xs font-extrabold shadow-sm transition-colors"
               >
                 <Crown className="w-3.5 h-3.5 text-amber-300" />
                 <span>Superadmin</span>
@@ -114,20 +115,11 @@ export const PublicLayout: React.FC = () => {
             )}
 
             {currentUser ? (
-              <Link
-                to="/espace/tableau-de-bord"
-                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-nia-bordeaux-dark/90 hover:bg-nia-bordeaux-dark border border-white/25 text-white text-xs sm:text-sm font-extrabold shadow-md transition-all max-w-[190px] sm:max-w-none truncate"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                <span className="truncate">
-                  {tUi(currentLanguage, 'mySpace')} (@{currentUser.publicPseudonym || currentUser.displayName})
-                </span>
-                <ArrowRight className="w-4 h-4 shrink-0" />
-              </Link>
+              <UserSpaceCompactButton />
             ) : isAuthRoute ? (
               <Link
                 to={isLoginRoute ? '/inscription' : '/connexion'}
-                className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-nia-bordeaux-dark hover:bg-black/60 border border-white/25 text-white text-xs sm:text-sm font-extrabold shadow-md transition-all"
+                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-nia-bordeaux-dark hover:bg-black/60 border border-white/25 text-white text-xs sm:text-sm font-extrabold shadow-md transition-all"
               >
                 <span>
                   {isLoginRoute ? tUi(currentLanguage, 'register') : tUi(currentLanguage, 'login')}
@@ -138,13 +130,13 @@ export const PublicLayout: React.FC = () => {
               <>
                 <Link
                   to="/connexion"
-                  className="hidden sm:inline-flex px-3.5 py-2 rounded-full text-xs sm:text-sm font-extrabold text-white hover:bg-white/15 border border-white/30 transition-colors"
+                  className="hidden sm:inline-flex px-3 py-1.5 rounded-full text-xs sm:text-sm font-extrabold text-white hover:bg-white/15 border border-white/30 transition-colors"
                 >
                   {tUi(currentLanguage, 'login')}
                 </Link>
                 <Link
                   to="/inscription"
-                  className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-nia-bordeaux-dark hover:bg-black/60 border border-white/25 text-white text-xs sm:text-sm font-extrabold shadow-md transition-all"
+                  className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-nia-bordeaux-dark hover:bg-black/60 border border-white/25 text-white text-xs sm:text-sm font-extrabold shadow-md transition-all"
                 >
                   <span>{tUi(currentLanguage, 'register')}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -167,8 +159,8 @@ export const PublicLayout: React.FC = () => {
           </div>
         </div>
 
-        {/* Bandeau d'annonce TV sous le nouveau header du logo :
-            "Conseils & Motivation du Jour" fixe dans le coin gauche + annonce défilant et disparaissant en dessous */}
+        {/* Bandeau d'annonce TV sous le header :
+            "Conseils &" / "Motivation du Jour" sur 2 lignes dans le coin gauche + annonce défilant et disparaissant en dessous */}
         <TvAnnouncementTicker blurred={isAuthRoute} />
 
         {/* Menu Mobile Compact et Accessible au toucher */}

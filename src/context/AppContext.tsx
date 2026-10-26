@@ -188,13 +188,19 @@ interface AppContextValue {
     distressFlagged?: boolean
   ) => void;
   deleteConversation: (conversationId: string) => void;
+  deleteAssistantMessage: (conversationId: string, messageId: string) => void;
+  clearConversationMessages: (conversationId: string) => void;
+  clearAllUserConversations: (targetUserId?: string) => void;
 
   // Actions Bien-être
   addMoodEntry: (entry: Omit<MoodEntry, 'id' | 'userId' | 'recordedAt'> & { recordedAt?: string }) => void;
+  deleteMoodEntry: (entryId: string) => void;
   addStressSleepEntry: (entry: Omit<StressSleepEntry, 'id' | 'userId'>) => void;
+  deleteStressSleepEntry: (entryId: string) => void;
   submitQuestionnaireResponse: (
     payload: Omit<QuestionnaireResponse, 'id' | 'userId' | 'createdAt'>
   ) => QuestionnaireResponse;
+  deleteQuestionnaireResponse: (respId: string) => void;
 
   // Actions Journal Personnel (Strictement privé)
   saveJournalEntry: (entry: {
@@ -206,6 +212,7 @@ interface AppContextValue {
     isDraft: boolean;
   }) => JournalEntry;
   deleteJournalEntry: (entryId: string) => void;
+  clearAllJournalEntries: () => void;
 
   // Actions Histoires (Parcours 8 étapes + Modération + Consentement explicite)
   saveOrSubmitStory: (params: {
@@ -216,6 +223,7 @@ interface AppContextValue {
     originalContent: string;
     submitToModeration: boolean;
   }) => StoryRecord;
+  deleteStoryRecord: (storyId: string) => void;
   authorRespondToPublicationRequest: (
     storyId: string,
     approve: boolean,
@@ -236,12 +244,15 @@ interface AppContextValue {
     preferredSlot: string;
     message: string;
   }) => ListeningRequest;
+  deleteListeningRequest: (requestId: string) => void;
+  clearListeningRequests: (targetUserId?: string) => void;
   adminUpdateListeningRequest: (params: {
     requestId: string;
     status: ListeningStatus;
     listenerReply?: string;
     assignedListener?: string;
   }) => { ok: boolean; error?: string };
+  clearAuditLogs: () => void;
 
   // Actions Contenus Admin (Conseils, Questionnaires, Ressources)
   adminSaveDailyTip: (tip: Omit<DailyTip, 'id' | 'publishedAt'> & { id?: string }) => void;
@@ -334,6 +345,21 @@ const INITIAL_SITE_NOTIFICATIONS: SiteNotification[] = [
   },
 ];
 
+function loadStoredStateField<T>(field: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed[field] !== undefined) {
+        return parsed[field] as T;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return fallback;
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
     try {
@@ -349,25 +375,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Aucun faux compte ni fausse conversation : seul le Superadmin officiel est pré-enregistré, et le visiteur arrive déconnecté (null)
   const [users, setUsers] = useState<UserProfile[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.users) && parsed.users.length > 0) {
-          const hasSuperAdmin = parsed.users.some(
-            (u: UserProfile) => u.email.toLowerCase() === SUPERADMIN_PROFILE.email
-          );
-          return hasSuperAdmin
-            ? parsed.users.map((u: UserProfile) =>
-                u.email.toLowerCase() === SUPERADMIN_PROFILE.email
-                  ? { ...u, role: 'admin' }
-                  : u
-              )
-            : [SUPERADMIN_PROFILE, ...parsed.users];
-        }
-      }
-    } catch {
-      // ignore
+    const storedUsers = loadStoredStateField<UserProfile[]>('users', []);
+    if (Array.isArray(storedUsers) && storedUsers.length > 0) {
+      const hasSuperAdmin = storedUsers.some(
+        (u: UserProfile) => u.email.toLowerCase() === SUPERADMIN_PROFILE.email
+      );
+      return hasSuperAdmin
+        ? storedUsers.map((u: UserProfile) =>
+            u.email.toLowerCase() === SUPERADMIN_PROFILE.email
+              ? { ...u, role: 'admin' }
+              : u
+          )
+        : [SUPERADMIN_PROFILE, ...storedUsers];
     }
     return [SUPERADMIN_PROFILE];
   });
@@ -378,23 +397,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return null;
     }
   });
-  const [conversations, setConversations] = useState<AssistantConversation[]>([]);
-  const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
-  const [stressSleepEntries, setStressSleepEntries] = useState<StressSleepEntry[]>([]);
-  const [questionnaireResponses, setQuestionnaireResponses] = useState<QuestionnaireResponse[]>([]);
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [stories, setStories] = useState<StoryRecord[]>(CLEAN_PUBLIC_STORIES);
-  const [listeningRequests, setListeningRequests] = useState<ListeningRequest[]>([]);
+  const [conversations, setConversations] = useState<AssistantConversation[]>(() =>
+    loadStoredStateField<AssistantConversation[]>('conversations', [])
+  );
+  const [moodEntries, setMoodEntries] = useState<MoodEntry[]>(() =>
+    loadStoredStateField<MoodEntry[]>('moodEntries', [])
+  );
+  const [stressSleepEntries, setStressSleepEntries] = useState<StressSleepEntry[]>(() =>
+    loadStoredStateField<StressSleepEntry[]>('stressSleepEntries', [])
+  );
+  const [questionnaireResponses, setQuestionnaireResponses] = useState<QuestionnaireResponse[]>(() =>
+    loadStoredStateField<QuestionnaireResponse[]>('questionnaireResponses', [])
+  );
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(() =>
+    loadStoredStateField<JournalEntry[]>('journalEntries', [])
+  );
+  const [stories, setStories] = useState<StoryRecord[]>(() => {
+    const stored = loadStoredStateField<StoryRecord[]>('stories', CLEAN_PUBLIC_STORIES);
+    return Array.isArray(stored) && stored.length > 0 ? stored : CLEAN_PUBLIC_STORIES;
+  });
+  const [listeningRequests, setListeningRequests] = useState<ListeningRequest[]>(() =>
+    loadStoredStateField<ListeningRequest[]>('listeningRequests', [])
+  );
   const [dailyTips, setDailyTips] = useState<DailyTip[]>(INITIAL_DAILY_TIPS);
   const [helpResources, setHelpResources] = useState<VerifiedHelpResource[]>(INITIAL_HELP_RESOURCES);
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequestRecord[]>([]);
   const [sessions, setSessions] = useState<UserSessionInfo[]>(INITIAL_SESSIONS);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
-  const [siteNotifications, setSiteNotifications] = useState<SiteNotification[]>(
-    INITIAL_SITE_NOTIFICATIONS
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => ({
+    ...DEFAULT_SITE_SETTINGS,
+    ...loadStoredStateField<Partial<SiteSettings>>('siteSettings', {}),
+  }));
+  const [siteNotifications, setSiteNotifications] = useState<SiteNotification[]>(() => {
+    const stored = loadStoredStateField<SiteNotification[]>(
+      'siteNotifications',
+      INITIAL_SITE_NOTIFICATIONS
+    );
+    return Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_SITE_NOTIFICATIONS;
+  });
+  const [userPasswords, setUserPasswords] = useState<Record<string, string>>(() =>
+    loadStoredStateField<Record<string, string>>('userPasswords', {})
   );
-  const [userPasswords, setUserPasswords] = useState<Record<string, string>>({});
   const [recoveryCodes, setRecoveryCodes] = useState<Record<string, string>>({});
   const [visitorLanguage, setVisitorLanguage] = useState<SupportedLanguage>(() => {
     try {
@@ -503,49 +546,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Persistance locale légère pour conserver les ajouts durant la session
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.users) && parsed.users.length > 0) {
-          const hasSuperAdmin = parsed.users.some(
-            (u: UserProfile) => u.email.toLowerCase() === SUPERADMIN_PROFILE.email
-          );
-          setUsers(
-            hasSuperAdmin
-              ? parsed.users.map((u: UserProfile) =>
-                  u.email.toLowerCase() === SUPERADMIN_PROFILE.email
-                    ? { ...u, role: 'admin' }
-                    : u
-                )
-              : [SUPERADMIN_PROFILE, ...parsed.users]
-          );
-        }
-        if (Array.isArray(parsed.conversations)) setConversations(parsed.conversations);
-        if (Array.isArray(parsed.questionnaireResponses))
-          setQuestionnaireResponses(parsed.questionnaireResponses);
-        if (Array.isArray(parsed.stories) && parsed.stories.length > 0) setStories(parsed.stories);
-        if (Array.isArray(parsed.journalEntries)) setJournalEntries(parsed.journalEntries);
-        if (Array.isArray(parsed.moodEntries)) setMoodEntries(parsed.moodEntries);
-        if (Array.isArray(parsed.stressSleepEntries)) setStressSleepEntries(parsed.stressSleepEntries);
-        if (Array.isArray(parsed.listeningRequests)) setListeningRequests(parsed.listeningRequests);
-        if (parsed.siteSettings) {
-          setSiteSettings({ ...DEFAULT_SITE_SETTINGS, ...parsed.siteSettings });
-        }
-        if (Array.isArray(parsed.siteNotifications) && parsed.siteNotifications.length > 0) {
-          setSiteNotifications(parsed.siteNotifications);
-        }
-        if (parsed.userPasswords && typeof parsed.userPasswords === 'object') {
-          setUserPasswords(parsed.userPasswords);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
+  // Persistance automatique dans localStorage à chaque mise à jour
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -1216,8 +1217,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteConversation = (conversationId: string) => {
     const uid = currentUser?.id || '';
-    setConversations((prev) => prev.filter((c) => !(c.id === conversationId && c.userId === uid)));
+    const isAdmin = currentUser?.role === 'admin';
+    setConversations((prev) =>
+      prev.filter((c) => !(c.id === conversationId && (c.userId === uid || isAdmin)))
+    );
     pushToast('Conversation supprimée', 'L’historique sélectionné a été effacé définitivement.', 'neutral');
+  };
+
+  const deleteAssistantMessage = (conversationId: string, messageId: string) => {
+    const uid = currentUser?.id || '';
+    const isAdmin = currentUser?.role === 'admin';
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== conversationId || (c.userId !== uid && !isAdmin)) return c;
+        return {
+          ...c,
+          updatedAt: new Date().toISOString(),
+          messages: c.messages.filter((m) => m.id !== messageId),
+        };
+      })
+    );
+    pushToast('Message supprimé', 'Le message sélectionné a été retiré de la discussion.', 'neutral');
+  };
+
+  const clearConversationMessages = (conversationId: string) => {
+    const uid = currentUser?.id || '';
+    const isAdmin = currentUser?.role === 'admin';
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== conversationId || (c.userId !== uid && !isAdmin)) return c;
+        return {
+          ...c,
+          title: 'Nouvelle réflexion',
+          updatedAt: new Date().toISOString(),
+          messages: [],
+        };
+      })
+    );
+    pushToast('Discussion vidée', 'Tous les messages de cette discussion ont été nettoyés.', 'neutral');
+  };
+
+  const clearAllUserConversations = (targetUserId?: string) => {
+    const uid = targetUserId || currentUser?.id || '';
+    const isAdmin = currentUser?.role === 'admin';
+    if (!uid) return;
+    if (targetUserId && targetUserId !== currentUser?.id && !isAdmin) return;
+    setConversations((prev) => prev.filter((c) => c.userId !== uid));
+    pushToast('Historique nettoyé', 'Toutes les anciennes discussions ont été vidées.', 'neutral');
   };
 
   // Actions Bien-être
@@ -1315,6 +1361,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'orange'
     );
     return created;
+  };
+
+  const deleteMoodEntry = (entryId: string) => {
+    const uid = currentUser?.id || '';
+    setMoodEntries((prev) => prev.filter((m) => !(m.id === entryId && m.userId === uid)));
+    pushToast('Entrée d’humeur supprimée', 'Le relevé d’humeur a été retiré.', 'neutral');
+  };
+
+  const deleteStressSleepEntry = (entryId: string) => {
+    const uid = currentUser?.id || '';
+    setStressSleepEntries((prev) => prev.filter((s) => !(s.id === entryId && s.userId === uid)));
+    pushToast('Relevé supprimé', 'Le relevé stress & sommeil a été retiré.', 'neutral');
+  };
+
+  const deleteQuestionnaireResponse = (respId: string) => {
+    const uid = currentUser?.id || '';
+    setQuestionnaireResponses((prev) => prev.filter((q) => !(q.id === respId && q.userId === uid)));
+    pushToast('Bilan supprimé', 'Le résultat du questionnaire a été retiré.', 'neutral');
   };
 
   // Actions Journal Personnel
@@ -1427,6 +1491,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const uid = currentUser?.id || '';
     setJournalEntries((prev) => prev.filter((j) => !(j.id === entryId && j.userId === uid)));
     pushToast('Entrée supprimée', 'L’entrée a été définitivement retirée de votre journal privé.', 'neutral');
+  };
+
+  const clearAllJournalEntries = () => {
+    const uid = currentUser?.id || '';
+    if (!uid) return;
+    setJournalEntries((prev) => prev.filter((j) => j.userId !== uid));
+    pushToast('Journal vidé', 'Toutes vos entrées de journal ont été nettoyées.', 'neutral');
+  };
+
+  const deleteStoryRecord = (storyId: string) => {
+    const uid = currentUser?.id || '';
+    const isAdmin = currentUser?.role === 'admin';
+    setStories((prev) =>
+      prev.filter((s) => !(s.id === storyId && (s.authorId === uid || isAdmin)))
+    );
+    pushToast('Histoire supprimée', 'Le récit sélectionné a été définitivement retiré.', 'neutral');
   };
 
   // Actions Histoires (Anonymat, Modération & Consentement explicite sur version)
@@ -1830,6 +1910,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       'orange'
     );
     return created;
+  };
+
+  const deleteListeningRequest = (requestId: string) => {
+    const uid = currentUser?.id || '';
+    const isAdminOrListener =
+      currentUser?.role === 'admin' || currentUser?.role === 'listener';
+    setListeningRequests((prev) =>
+      prev.filter((r) => !(r.id === requestId && (r.userId === uid || isAdminOrListener)))
+    );
+    pushToast('Demande supprimée', 'Le message de demande d’écoute a été retiré.', 'neutral');
+  };
+
+  const clearListeningRequests = (targetUserId?: string) => {
+    const uid = targetUserId || currentUser?.id || '';
+    const isAdminOrListener =
+      currentUser?.role === 'admin' || currentUser?.role === 'listener';
+    if (!targetUserId && isAdminOrListener && currentUser?.role === 'admin') {
+      // Si l'Admin clique sur nettoyer dans la console Admin sans targetUserId ou si c'est l'utilisateur courant
+      setListeningRequests((prev) => prev.filter((r) => r.userId !== uid));
+    } else if (uid) {
+      setListeningRequests((prev) => prev.filter((r) => r.userId !== uid));
+    }
+    pushToast('Demandes nettoyées', 'Les anciennes demandes d’écoute ont été vidées.', 'neutral');
+  };
+
+  const clearAuditLogs = () => {
+    if (currentUser?.role !== 'admin') return;
+    setAuditLogs([]);
+    pushToast('Journaux d’audit nettoyés', 'L’historique des journaux d’audit a été vidé.', 'neutral');
   };
 
   const adminUpdateListeningRequest = (params: {
@@ -2513,17 +2622,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     createConversation,
     appendAssistantMessage,
     deleteConversation,
+    deleteAssistantMessage,
+    clearConversationMessages,
+    clearAllUserConversations,
     addMoodEntry,
+    deleteMoodEntry,
     addStressSleepEntry,
+    deleteStressSleepEntry,
     submitQuestionnaireResponse,
+    deleteQuestionnaireResponse,
     saveJournalEntry,
     deleteJournalEntry,
+    clearAllJournalEntries,
     saveOrSubmitStory,
+    deleteStoryRecord,
     authorRespondToPublicationRequest,
     authorWithdrawStory,
     adminModerateStory,
     createListeningRequest,
+    deleteListeningRequest,
+    clearListeningRequests,
     adminUpdateListeningRequest,
+    clearAuditLogs,
     adminSaveDailyTip,
     adminDeleteDailyTip,
     adminSaveHelpResource,

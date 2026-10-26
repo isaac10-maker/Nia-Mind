@@ -316,6 +316,9 @@ export const AssistantPage: React.FC = () => {
     appendAssistantMessage,
     toggleConversationHumanHandover,
     deleteConversation,
+    deleteAssistantMessage,
+    clearConversationMessages,
+    clearAllUserConversations,
     helpResources,
   } = useApp();
 
@@ -325,15 +328,18 @@ export const AssistantPage: React.FC = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [distressAlert, setDistressAlert] = useState(false);
   const [convToDelete, setConvToDelete] = useState<string | null>(null);
+  const [didInitConv, setDidInitConv] = useState<boolean>(false);
 
   useEffect(() => {
     if (userConversations.length > 0 && !userConversations.some((c) => c.id === selectedConvId)) {
       setSelectedConvId(userConversations[0].id);
-    } else if (userConversations.length === 0) {
+      setDidInitConv(true);
+    } else if (userConversations.length === 0 && !didInitConv) {
       const created = createConversation();
       setSelectedConvId(created.id);
+      setDidInitConv(true);
     }
-  }, [userConversations, selectedConvId]);
+  }, [userConversations, selectedConvId, didInitConv]);
 
   const activeConversation =
     userConversations.find((c) => c.id === selectedConvId) || userConversations[0];
@@ -504,21 +510,34 @@ export const AssistantPage: React.FC = () => {
         {/* Colonne Historique des conversations */}
         <div className="lg:col-span-4 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark p-4 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-white">
                 Mes conversations ({userConversations.length})
               </h2>
-              <button
-                type="button"
-                onClick={() => {
-                  const created = createConversation();
-                  setSelectedConvId(created.id);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-nia-orange hover:bg-nia-orange-deep text-white text-xs font-bold transition-colors"
-              >
-                <MessageSquarePlus className="w-3.5 h-3.5" />
-                Nouvelle conversation
-              </button>
+              <div className="flex items-center gap-1.5">
+                {userConversations.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => clearAllUserConversations()}
+                    title="Vider et nettoyer toutes les discussions"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-bold transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Nettoyer</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const created = createConversation();
+                    setSelectedConvId(created.id);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-nia-orange hover:bg-nia-orange-deep text-white text-xs font-bold transition-colors"
+                >
+                  <MessageSquarePlus className="w-3.5 h-3.5" />
+                  Nouvelle conversation
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
@@ -601,37 +620,55 @@ export const AssistantPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Switch direct dans l'en-tête de la discussion */}
+            {/* Bouton Vider les messages + Switch direct dans l'en-tête de la discussion */}
             {activeConversation && (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isHandedOver}
-                onClick={() =>
-                  toggleConversationHumanHandover(activeConversation.id, !isHandedOver)
-                }
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${
-                  isHandedOver
-                    ? 'bg-emerald-500/15 border-emerald-500 text-emerald-800 dark:text-emerald-200'
-                    : 'bg-nia-orange/15 border-nia-orange/50 text-nia-bordeaux dark:text-amber-200'
-                }`}
-              >
-                <span
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    isHandedOver ? 'bg-emerald-500 animate-pulse' : 'bg-sky-500'
+              <div className="flex flex-wrap items-center gap-2">
+                {activeConversation.messages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => clearConversationMessages(activeConversation.id)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-rose-300 text-xs font-extrabold transition-colors"
+                    title="Vider tous les messages de cette discussion"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Vider les messages</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isHandedOver}
+                  onClick={() =>
+                    toggleConversationHumanHandover(activeConversation.id, !isHandedOver)
+                  }
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${
+                    isHandedOver
+                      ? 'bg-emerald-500/15 border-emerald-500 text-emerald-800 dark:text-emerald-200'
+                      : 'bg-nia-orange/15 border-nia-orange/50 text-nia-bordeaux dark:text-amber-200'
                   }`}
-                />
-                <span>
-                  {isHandedOver
-                    ? tUi(currentLanguage, 'switchToAi')
-                    : tUi(currentLanguage, 'switchToHuman')}
-                </span>
-              </button>
+                >
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      isHandedOver ? 'bg-emerald-500 animate-pulse' : 'bg-sky-500'
+                    }`}
+                  />
+                  <span>
+                    {isHandedOver
+                      ? tUi(currentLanguage, 'switchToAi')
+                      : tUi(currentLanguage, 'switchToHuman')}
+                  </span>
+                </button>
+              </div>
             )}
           </div>
 
-          {/* Fil de messages (Aucun effet glitch ici conformément au cahier des charges) */}
+          {/* Fil de messages avec bouton de suppression individuel sur chaque message */}
           <div className="flex-1 p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[420px]">
+            {(!activeConversation || activeConversation.messages.length === 0) && (
+              <div className="p-6 rounded-2xl bg-nia-bg-light dark:bg-nia-bg-dark border border-dashed border-nia-gray-light dark:border-nia-border-dark text-center text-xs text-nia-gray-mid">
+                Aucun message dans cette discussion. Écris librement ci-dessous ou clique sur une suggestion pour commencer.
+              </div>
+            )}
             {activeConversation?.messages.map((msg) => {
               const translatedContent = translateMessageForViewer(msg.content, currentLanguage);
               const isUser = msg.sender === 'user';
@@ -641,10 +678,21 @@ export const AssistantPage: React.FC = () => {
               return (
                 <div
                   key={msg.id}
-                  className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-start gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}
                 >
+                  {isUser && (
+                    <button
+                      type="button"
+                      onClick={() => deleteAssistantMessage(activeConversation.id, msg.id)}
+                      title="Supprimer ce message"
+                      aria-label="Supprimer ce message"
+                      className="mt-1 p-1.5 rounded-lg text-nia-gray-mid hover:text-rose-600 hover:bg-rose-500/10 transition-colors shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <div
-                    className={`max-w-[88%] sm:max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${
+                    className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-line ${
                       isUser
                         ? 'bg-nia-orange text-white font-medium'
                         : isDiag
@@ -655,23 +703,34 @@ export const AssistantPage: React.FC = () => {
                     }`}
                   >
                     {!isUser && (
-                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider mb-1 text-nia-bordeaux dark:text-amber-300">
-                        {isDiag ? (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5 text-nia-orange" />
-                            <span>{tUi(currentLanguage, 'psychicDiagnosticBtn')} • Bilan IA & Admin</span>
-                          </>
-                        ) : isAdmin ? (
-                          <>
-                            <Crown className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>Administrateur Nia-Mind (Écoute Humaine)</span>
-                          </>
-                        ) : (
-                          <>
-                            <NeuralChipIcon className="w-3.5 h-3.5" />
-                            <span>Nia-Mind IA</span>
-                          </>
-                        )}
+                      <div className="flex items-center justify-between gap-2 text-[11px] font-extrabold uppercase tracking-wider mb-1 text-nia-bordeaux dark:text-amber-300">
+                        <span className="flex items-center gap-1.5">
+                          {isDiag ? (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5 text-nia-orange" />
+                              <span>{tUi(currentLanguage, 'psychicDiagnosticBtn')} • Bilan IA & Admin</span>
+                            </>
+                          ) : isAdmin ? (
+                            <>
+                              <Crown className="w-3.5 h-3.5 text-emerald-500" />
+                              <span>Administrateur Nia-Mind (Écoute Humaine)</span>
+                            </>
+                          ) : (
+                            <>
+                              <NeuralChipIcon className="w-3.5 h-3.5" />
+                              <span>Nia-Mind IA</span>
+                            </>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteAssistantMessage(activeConversation.id, msg.id)}
+                          title="Supprimer ce message"
+                          aria-label="Supprimer ce message"
+                          className="p-1 rounded hover:bg-rose-500/15 text-nia-gray-mid hover:text-rose-600 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
                       </div>
                     )}
                     {translatedContent}

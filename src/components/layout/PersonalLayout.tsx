@@ -10,12 +10,9 @@ import {
   LayoutDashboard,
   Lock,
   LogOut,
-  Menu,
   Sparkles,
   User,
-  X,
 } from 'lucide-react';
-import { BrandLogo } from '../ui/BrandLogo';
 import { NeuralChipIcon } from '../ui/NeuralChipIcon';
 import { RoleSwitcherBar, SUPERADMIN_EMAIL } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
@@ -60,34 +57,14 @@ export const PersonalLayout: React.FC = () => {
   return (
     <div className="relative min-h-screen flex flex-col text-nia-gray-dark dark:text-nia-text-dark">
       <AmbientBackground />
-      <RoleSwitcherBar />
-
-      {/* Barre supérieure mobile/tablette de l'espace personnel (sans superposition) */}
-      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3 sm:px-4 h-16 bg-[#FFF8F3] dark:bg-[#14161D] border-b border-nia-orange/25 dark:border-nia-border-dark shadow-sm">
-        <div className="min-w-0 shrink-0">
-          <BrandLogo showSlogan={false} size="sm" />
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            to="/"
-            className="px-2.5 py-1.5 rounded-full text-xs font-bold border border-nia-orange/35"
-          >
-            {tUi(currentLanguage, 'navHome')}
-          </Link>
-          <button
-            type="button"
-            onClick={() => setMobileDrawerOpen((o) => !o)}
-            className="p-2 rounded-xl border border-nia-orange/35"
-            aria-label="Menu de l'espace personnel"
-          >
-            {mobileDrawerOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-      </header>
+      <RoleSwitcherBar
+        onToggleMobileMenu={() => setMobileDrawerOpen((o) => !o)}
+        mobileMenuOpen={mobileDrawerOpen}
+      />
 
       {/* Tiroir mobile de navigation personnelle */}
       {mobileDrawerOpen && (
-        <div className="lg:hidden relative z-30 nia-glass-card border-b border-nia-orange/25 px-4 py-4 space-y-1.5 animate-nia-page">
+        <div className="lg:hidden relative z-30 nia-glass-card border-b border-nia-orange/25 px-3 py-3 space-y-1.5 animate-nia-page">
           {PERSONAL_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
@@ -111,14 +88,11 @@ export const PersonalLayout: React.FC = () => {
         </div>
       )}
 
-      <div className="relative z-10 flex-1 flex max-w-7xl w-full mx-auto min-w-0">
-        {/* Barre latérale translucide sur ordinateur */}
-        <aside className="hidden lg:flex lg:w-72 shrink-0 flex-col border-r border-nia-orange/20 dark:border-nia-border-dark nia-glass-card p-5 justify-between">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <BrandLogo showSlogan={false} size="md" />
-            </div>
-
+      {/* Cadrage plein écran sans marge perdue dans les angles */}
+      <div className="relative z-10 flex-1 flex w-full min-w-0">
+        {/* Barre latérale translucide sur ordinateur (sans second logo Nia-Mind sous le bandeau) */}
+        <aside className="hidden lg:flex lg:w-64 xl:w-72 shrink-0 flex-col border-r border-nia-orange/20 dark:border-nia-border-dark nia-glass-card p-4 justify-between">
+          <div className="space-y-5">
             {/* Carte d'identité utilisateur connecté (affichage strictement limité au pseudonyme) */}
             <div className="p-3.5 rounded-2xl bg-gradient-to-br from-nia-orange/15 to-nia-bordeaux/15 border border-nia-orange/30">
               <div className="flex items-center gap-3">
@@ -126,7 +100,10 @@ export const PersonalLayout: React.FC = () => {
                   {displayedPseudo.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-extrabold text-nia-gray-dark dark:text-white truncate">
+                  <p
+                    data-no-translate="true"
+                    className="text-sm font-extrabold text-nia-gray-dark dark:text-white truncate"
+                  >
                     @{displayedPseudo}
                   </p>
                   <p className="text-xs text-nia-gray-mid dark:text-gray-300 truncate">
@@ -164,7 +141,7 @@ export const PersonalLayout: React.FC = () => {
             </nav>
           </div>
 
-          <div className="pt-6 border-t border-nia-orange/20 dark:border-nia-border-dark space-y-2">
+          <div className="pt-5 border-t border-nia-orange/20 dark:border-nia-border-dark space-y-2">
             <Link
               to="/"
               className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl text-xs font-bold text-nia-gray-mid dark:text-gray-300 hover:text-nia-orange transition-colors"
@@ -195,12 +172,13 @@ export const PersonalLayout: React.FC = () => {
           </div>
         </aside>
 
-        {/* Contenu principal de l'onglet personnel (fluide sans superposition mobile/tablette) */}
-        <main className="flex-1 min-w-0 overflow-x-hidden p-3 sm:p-6 lg:p-8 animate-nia-page">
+        {/* Contenu principal de l'onglet personnel (cadré sans marge perdue) */}
+        <main className="flex-1 min-w-0 overflow-x-hidden p-3 sm:p-5 lg:p-6 animate-nia-page">
           <Outlet />
         </main>
       </div>
 
+      {/* Bulle flottante d'instructions ("?" fermé par défaut) */}
       <FloatingInstructionPopup />
     </div>
   );
