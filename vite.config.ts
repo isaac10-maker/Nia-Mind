@@ -1,45 +1,23 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import { processAssistantPayload } from './api/assistant';
+import { attachLocalGateway } from './api/localGateway';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  if (env.VITE_SUPABASE_URL) process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL;
+  if (env.SUPABASE_URL) process.env.SUPABASE_URL = env.SUPABASE_URL;
+
+  return {
   plugins: [
     react(),
     {
       name: 'nia-mind-local-api',
       configureServer(server) {
-        server.middlewares.use((req, res, next) => {
-          const pathname = (req.url || '').split('?')[0];
-          // N'intercepter que l'endpoint. Le module source /api/assistant.ts doit rester servi par Vite.
-          if (pathname !== '/api/assistant') {
-            next();
-            return;
-          }
-          if (req.method !== 'POST') {
-            res.statusCode = 405;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'Méthode non autorisée. Utilisez POST.' }));
-            return;
-          }
-
-          let rawBody = '';
-          req.on('data', (chunk) => {
-            rawBody += chunk;
-          });
-          req.on('end', async () => {
-            try {
-              const parsed = rawBody ? JSON.parse(rawBody) : {};
-              const result = await processAssistantPayload(parsed, 'local-dev');
-              res.statusCode = result.status;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify(result.body));
-            } catch {
-              res.statusCode = 400;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ error: 'Requête JSON invalide.' }));
-            }
-          });
-        });
+        // N'intercepte que /api/assistant et /backend. Le module /api/assistant.ts reste servi par Vite.
+        attachLocalGateway(server.middlewares);
+      },
+      configurePreviewServer(server) {
+        attachLocalGateway(server.middlewares);
       },
     },
   ],
@@ -84,4 +62,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });

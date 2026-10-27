@@ -5,6 +5,8 @@
 // les formules de politesse, l'humour/hésitation, les remarques méta (« je n'ai encore rien dit »)
 // et l'accompagnement de stabilisation émotionnelle et psychologique progressive.
 
+import { consumeRateLimit, normalizeClientIp, releaseSlot, tryAcquireSlot } from './requestGate';
+
 export interface AssistantRequestPayload {
   message: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -21,9 +23,7 @@ export interface AssistantResponsePayload {
   timestamp: string;
 }
 
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 18;
-const rateLimitBucket = new Map<string, { count: number; resetAt: number }>();
+const OPENAI_CONCURRENCY = 6;
 
 const SERVER_PENTEST_PATTERNS: RegExp[] = [
   /<\s*\/?\s*(script|iframe|object|embed|svg|math|style|link|meta|base|form)\b/i,
@@ -958,19 +958,18 @@ export function generateServerReflectiveReply(
 export async function processAssistantPayload(
   payload: AssistantRequestPayload,
   clientIp = 'local'
-): Promise<{ status: number; body: AssistantResponsePayload | { error: string } }> {
-  const now = Date.now();
-  const bucket = rateLimitBucket.get(clientIp);
-  if (bucket && bucket.resetAt > now) {
-    if (bucket.count >= RATE_LIMIT_MAX_REQUESTS) {
-      return {
-        status: 429,
-        body: { error: 'Trop de requêtes rapprochées. Prends quelques secondes avant de renvoyer un message.' },
-      };
-    }
-    bucket.count += 1;
-  } else {
-    rateLimitBucket.set(clientIp, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+): Promise<{ status: number; retryAfterSec?: number; body: AssistantResponsePayload | { error: string } }> {
+  const gate = consumeRateLimit(normalizeClientIp(clientIp), 'assistant');
+  if (!gate.allowed) {
+    return {
+      status: 429,
+      retryAfterSec: gate.retryAfterSec,
+      body: {
+        error:
+          gate.error ||
+          'Trop de requêtes. Le site limite le débit pour rester disponible. Réessayez dans quelques secondes.',
+      },
+    };
   }
 
   if (!payload || typeof payload.message !== 'string' || !payload.message.trim()) {
@@ -1022,7 +1021,7 @@ export async function processAssistantPayload(
     zh: '请使用简体中文回答。',
   };
 
-  if (apiKey && !distressDetected && !offerHumanHandover) {
+  if (apiKey && !distressDetected && !offerHumanHandover && tryAcquireSlot('openai', OPENAI_CONCURRENCY)) {
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -1079,6 +1078,8 @@ export async function processAssistantPayload(
       }
     } catch {
       // Repli silencieux et sécurisé sur le moteur réflexif serveur sans exposer d'erreur interne
+    } finally {
+      releaseSlot('openai');
     }
   }
 
@@ -1109,7 +1110,15 @@ export default async function handler(req: any, res: any) {
   }
 
   const clientIp =
-    (req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip'])) || 'anonymous';
+    (req.headers && (req.headers['x-real-ip'] || req.headers['x-forwarded-for'])) || 'anonymous';
+  const declared = Number((req.headers && req.headers['content-length']) || 0);
+  if (Number.isFinite(declared) && declared > 64 * 1024) {
+    res.status(413).json({ error: 'Requête trop volumineuse.' });
+    return;
+  }
   const result = await processAssistantPayload(req.body || {}, String(clientIp));
+  if (result.retryAfterSec) res.setHeader('Retry-After', String(result.retryAfterSec));
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Nia-Proxy', 'bridge');
   res.status(result.status).json(result.body);
 }

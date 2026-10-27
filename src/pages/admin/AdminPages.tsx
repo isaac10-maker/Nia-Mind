@@ -1905,6 +1905,12 @@ export const AdminSettingsPage: React.FC = () => {
               </span>
             </li>
             <li className="flex items-center justify-between">
+              <span>Pont reverse proxy `/backend`</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                Actif — débit limité avant le backend
+              </span>
+            </li>
+            <li className="flex items-center justify-between">
               <span>Configuration de routage `vercel.json`</span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400">
                 Prête (Headers de sécurité + SPA rewrites)

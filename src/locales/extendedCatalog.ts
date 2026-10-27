@@ -2354,6 +2354,42 @@ export const EXTENDED_MULTILINGUAL_ENTRIES: FiveWayEntry[] = [
   ['Principale de l’espace personnel', 'Personal space primary', 'Principal del espacio personal', 'Hauptfarbe persönlicher Bereich', '个人空间主色'],
   ['Principale de l’assistant', 'Assistant primary', 'Principal del asistente', 'Hauptfarbe des Assistenten', '助手主色'],
   ['Principale de l’administration', 'Administration primary', 'Principal de la administración', 'Hauptfarbe der Verwaltung', '管理主色'],
+  ['Débit limité', 'Rate limited', 'Límite de ritmo', 'Tempo begrenzt', '请求过快'],
+  [
+    'Le site protège sa disponibilité. Réessayez dans quelques secondes.',
+    'The site is protecting its availability. Try again in a few seconds.',
+    'El sitio protege su disponibilidad. Inténtalo de nuevo en unos segundos.',
+    'Die Website schützt ihre Verfügbarkeit. Versuche es in ein paar Sekunden erneut.',
+    '网站正在保护可用性。请几秒后再试。',
+  ],
+  [
+    'Trop de requêtes. Le site limite le débit pour rester disponible. Réessayez dans quelques secondes.',
+    'Too many requests. The site is limiting traffic so it stays available. Try again in a few seconds.',
+    'Demasiadas solicitudes. El sitio limita el ritmo para seguir disponible. Inténtalo de nuevo en unos segundos.',
+    'Zu viele Anfragen. Die Website begrenzt das Tempo, damit sie erreichbar bleibt. Versuche es in ein paar Sekunden erneut.',
+    '请求过多。网站正在限流以保持可用。请几秒后再试。',
+  ],
+  [
+    'LIMITE DE SÉCURITÉ (3 essais / 15s) : trop de tentatives d’identification. Patientez avant de réessayer.',
+    'SECURITY LIMIT (3 tries / 15s): too many sign-in attempts. Wait before trying again.',
+    'LÍMITE DE SEGURIDAD (3 intentos / 15s): demasiados intentos de identificación. Espera antes de reintentar.',
+    'SICHERHEITSLIMIT (3 Versuche / 15s): zu viele Anmeldeversuche. Warte, bevor du es erneut versuchst.',
+    '安全限制（15 秒内 3 次）：身份验证尝试过多。请稍后再试。',
+  ],
+  [
+    'Pont reverse proxy `/backend`',
+    'Reverse proxy bridge `/backend`',
+    'Puente reverse proxy `/backend`',
+    'Reverse-Proxy-Brücke `/backend`',
+    '反向代理桥 `/backend`',
+  ],
+  [
+    'Actif — débit limité avant le backend',
+    'Active — rate limited before the backend',
+    'Activo — ritmo limitado antes del backend',
+    'Aktiv — Tempo vor dem Backend begrenzt',
+    '已启用 — 在到达后端前限流',
+  ],
 
   // ============================================================================
   // 8. PATTERNS DYNAMIQUES & MULTI-NOEUDS SUPPLÉMENTAIRES

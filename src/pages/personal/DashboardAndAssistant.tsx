@@ -538,6 +538,13 @@ export const AssistantPage: React.FC = () => {
       ]);
 
       const data = await response.json();
+      if (response.status === 429) {
+        window.dispatchEvent(
+          new CustomEvent('nia-rate-limited', {
+            detail: { retryAfterSec: Number(response.headers.get('retry-after') || '0') },
+          })
+        );
+      }
       if (!response.ok) {
         if (response.status === 400 || response.status === 429) {
           setApiError(data?.error || 'Le service IA a rencontré une erreur temporaire.');

@@ -677,6 +677,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4500);
   };
 
+  useEffect(() => {
+    let lastNotice = 0;
+    const onLimited = (event: Event) => {
+      const now = Date.now();
+      if (now - lastNotice < 4000) return;
+      lastNotice = now;
+      pushToast(
+        'Débit limité',
+        'Le site protège sa disponibilité. Réessayez dans quelques secondes.',
+        'bordeaux'
+      );
+    };
+    window.addEventListener('nia-rate-limited', onLimited);
+    return () => window.removeEventListener('nia-rate-limited', onLimited);
+  }, [currentLanguage]);
+
   const dismissToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };

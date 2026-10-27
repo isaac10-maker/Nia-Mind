@@ -1,22 +1,41 @@
 import { createClient } from '@supabase/supabase-js';
+import { notifyRateLimit } from './rateLimitNotice';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const configuredUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(
-    supabaseUrl &&
+    configuredUrl &&
       supabaseAnonKey &&
-      supabaseUrl.startsWith('https://') &&
-      !supabaseUrl.includes('votre-projet')
+      configuredUrl.startsWith('https://') &&
+      !configuredUrl.includes('votre-projet')
   );
 }
 
+function gatewayUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/backend`;
+  }
+  return 'http://127.0.0.1/backend';
+}
+
+const guardedFetch: typeof fetch = async (input, init) => {
+  const response = await fetch(input, init);
+  if (response.status === 429 || response.status === 503) {
+    notifyRateLimit(Number(response.headers.get('retry-after') || '0'));
+  }
+  return response;
+};
+
 export const supabase = isSupabaseConfigured()
-  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+  ? createClient(gatewayUrl(), supabaseAnonKey!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+      },
+      global: {
+        fetch: guardedFetch,
       },
     })
   : null;
