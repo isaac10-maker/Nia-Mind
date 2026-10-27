@@ -45,7 +45,7 @@ export const Modal: React.FC<ModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full ${maxWidthClass} max-h-[90vh] flex flex-col animate-nia-modal rounded-3xl nia-glass-card border-2 border-nia-orange/35 dark:border-nia-border-dark shadow-2xl overflow-hidden my-auto`}
+        className={`relative w-full ${maxWidthClass} max-h-[90vh] flex flex-col animate-nia-modal rounded-3xl nia-solid-surface border-2 border-[#0F9F6E]/35 shadow-2xl overflow-hidden my-auto`}
       >
         {/* Barre supérieure d'accentuation Orange & Bordeaux */}
         <div

@@ -63,10 +63,12 @@ import {
 } from '../lib/securityEngine';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
+  confirmEmailCode,
   loadAccountBundle,
   newRecordId,
   purgeSensitiveBrowserData,
   pushPrivateVault,
+  resendVerificationMessage,
   restoreAccount,
   sendPasswordReset,
   signInAccount,
@@ -111,7 +113,13 @@ interface AppContextValue {
     email: string,
     password?: string,
     honeypot?: string
-  ) => Promise<{ ok: boolean; error?: string }>;
+  ) => Promise<{ ok: boolean; error?: string; needsVerification?: boolean }>;
+  confirmEmailVerification: (params: {
+    email: string;
+    token: string;
+    profile?: Partial<UserProfile>;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  resendEmailVerification: (email: string) => Promise<{ ok: boolean; error?: string }>;
   registerAccount: (params: {
     displayName: string;
     email: string;
@@ -621,21 +629,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4500);
   };
 
-  useEffect(() => {
-    let lastNotice = 0;
-    const onLimited = (event: Event) => {
-      const now = Date.now();
-      if (now - lastNotice < 4000) return;
-      lastNotice = now;
-      pushToast(
-        'Débit limité',
-        'Le site protège sa disponibilité. Réessayez dans quelques secondes.',
-        'bordeaux'
-      );
-    };
-    window.addEventListener('nia-rate-limited', onLimited);
-    return () => window.removeEventListener('nia-rate-limited', onLimited);
-  }, [currentLanguage]);
+
 
   const dismissToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -748,6 +742,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const bundle = await signInAccount(clean, password.trim());
     if (!bundle.ok) {
+      if (bundle.needsVerification) {
+        return { ok: false, needsVerification: true, error: bundle.error };
+      }
       if (bundle.banned) {
         setActiveBanNotice({
           pseudo: clean,
@@ -861,13 +858,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return {
         ok: true,
         pending: true,
-        error: 'Compte créé. Ouvrez le lien reçu par e-mail avant de vous connecter. Le mot de passe n’est pas conservé dans le navigateur.',
+        error: `Un message de vérification a été envoyé à ${cleanEmail}. Ouvrez-le, ou saisissez le code reçu. Le mot de passe n’est pas conservé dans le navigateur.`,
       };
     }
     commitBundle(created);
     recordAudit('USER_REGISTER', 'user', created.profile.id, 'Compte créé dans Supabase Auth.');
     pushToast('Compte créé', `Bienvenue dans ton espace sincère, @${created.profile.publicPseudonym}.`, 'orange');
     return { ok: true };
+  };
+
+  const confirmEmailVerification = async (params: {
+    email: string;
+    token: string;
+    profile?: Partial<UserProfile>;
+  }) => {
+    const confirmed = await confirmEmailCode({
+      email: params.email.trim().toLowerCase(),
+      token: params.token,
+      profile: params.profile,
+    });
+    if (!confirmed.ok) return { ok: false, error: confirmed.error };
+    commitBundle(confirmed);
+    pushToast(
+      confirmed.profile.role === 'admin' ? 'Bienvenue SuperAdmin' : 'E-mail confirmé',
+      confirmed.profile.role === 'admin'
+        ? 'Le rôle est confirmé par le serveur.'
+        : `Bienvenue, @${confirmed.profile.publicPseudonym}.`,
+      confirmed.profile.role === 'admin' ? 'bordeaux' : 'orange'
+    );
+    return { ok: true };
+  };
+
+  const resendEmailVerification = async (email: string) => {
+    return resendVerificationMessage(email.trim().toLowerCase());
   };
 
   const requestGmailPushVerification = async (email: string) => {
@@ -2575,6 +2598,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     allUsers: users,
     switchDemoUser,
     loginWithEmail,
+    confirmEmailVerification,
+    resendEmailVerification,
     registerAccount,
     requestGmailPushVerification,
     requestPasswordRecoveryPush,

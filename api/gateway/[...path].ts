@@ -2,7 +2,7 @@
 // Fonction Node classique. Le Routing Middleware (proxy.ts) faisait tomber
 // toute la route en MIDDLEWARE_INVOCATION_FAILED avant même d'atteindre le code.
 
-import { proxyBackendRequest } from '../backendProxy';
+import { proxyBackendRequest } from '../backendProxy.js';
 
 interface NodeRequest {
   url?: string;
@@ -43,6 +43,17 @@ function readNodeBody(req: NodeRequest, maxBytes: number): Promise<Buffer | 'too
 }
 
 export default async function handler(req: NodeRequest, res: NodeResponse): Promise<void> {
+  try {
+    await handleGateway(req, res);
+  } catch {
+    res.statusCode = 502;
+    res.setHeader('content-type', 'application/json; charset=utf-8');
+    res.setHeader('cache-control', 'private, no-store');
+    res.end(JSON.stringify({ error: 'Le pont vers la base est indisponible pour le moment.' }));
+  }
+}
+
+async function handleGateway(req: NodeRequest, res: NodeResponse): Promise<void> {
   const method = (req.method || 'GET').toUpperCase();
   const host = headerString(req.headers.host) || 'nia-mind.vercel.app';
   const headers = new Headers();

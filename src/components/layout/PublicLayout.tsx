@@ -24,7 +24,6 @@ import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
 import { tUi } from '../../lib/i18nEngine';
 import { STORIES_SIGNATURE } from '../../lib/securityEngine';
-import { HomePage } from '../../pages/public/HomePage';
 
 export const PublicLayout: React.FC = () => {
   const { currentUser, currentLanguage, openConsentModal, openDailyTipModal } = useApp();
@@ -230,13 +229,7 @@ export const PublicLayout: React.FC = () => {
             {/* Arrière-plan du site flouté */}
             <div
               aria-hidden="true"
-              className="fixed inset-0 top-24 z-0 overflow-hidden pointer-events-none select-none filter blur-[11px] opacity-40 scale-[1.01]"
-            >
-              <HomePage />
-            </div>
-            <div
-              aria-hidden="true"
-              className="fixed inset-0 top-24 z-10 bg-gradient-to-br from-nia-bg-light/55 via-white/60 to-nia-bordeaux/35 dark:from-nia-bg-dark/70 dark:via-nia-surface-dark/75 dark:to-black/75 backdrop-blur-md pointer-events-none"
+              className="fixed inset-0 top-24 z-0 bg-[#F3FBF6] dark:bg-[#0E1512] pointer-events-none"
             />
             {/* Fenêtre Connexion / Inscription au premier plan */}
             <div className="relative z-20">

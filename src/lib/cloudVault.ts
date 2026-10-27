@@ -142,22 +142,38 @@ function profileFromRow(row: ProfileRow, role: UserRole, fallbackEmail = ''): Us
 
 function frenchAuthError(message: string): string {
   const text = message.toLowerCase();
+  if (text.includes('email not confirmed') || text.includes('not confirmed')) {
+    return 'Ce compte existe, mais l’e-mail n’est pas encore confirmé. Saisissez le code reçu, ou ouvrez le message de vérification.';
+  }
   if (text.includes('invalid login') || text.includes('invalid credentials')) {
-    return 'E-mail ou mot de passe incorrect.';
+    return 'E-mail ou mot de passe incorrect. Si le compte n’existe pas encore, inscrivez-vous : un message de vérification sera envoyé.';
   }
   if (text.includes('already registered') || text.includes('already been registered')) {
-    return 'Un compte existe déjà avec cette adresse. Utilisez « Connexion ».';
+    return 'Un compte existe déjà avec cette adresse. Utilisez « Connexion », ou saisissez le code reçu par e-mail.';
   }
   if (text.includes('password')) {
     return 'Le mot de passe doit contenir au moins 6 caractères.';
   }
-  if (text.includes('rate limit') || text.includes('too many')) {
-    return 'Trop de tentatives. Patientez quelques secondes avant de réessayer.';
+  if (text.includes('rate limit') || text.includes('too many') || text.includes('email rate limit')) {
+    return 'Trop de messages envoyés. Patientez un moment avant de redemander un code.';
   }
-  if (text.includes('failed to fetch') || text.includes('network') || text.includes('middleware')) {
-    return 'Le pont vers le compte est indisponible pour le moment. Réessayez dans un instant.';
+  if (
+    text.includes('failed to fetch') ||
+    text.includes('network') ||
+    text.includes('middleware') ||
+    text.includes('function_invocation') ||
+    text.includes('not valid json') ||
+    text.includes('server error')
+  ) {
+    return 'La base de données n’est pas joignable pour le moment. Réessayez dans un instant.';
   }
   return 'La demande de compte n’a pas abouti. Réessayez dans un instant.';
+}
+
+function authRedirect(): string {
+  return typeof window !== 'undefined'
+    ? `${window.location.origin}/connexion`
+    : 'https://nia-mind.vercel.app/connexion';
 }
 
 async function resolveServerRole(user: User): Promise<UserRole> {
@@ -178,11 +194,14 @@ async function upsertOwnProfile(user: User, role: UserRole, patch?: Partial<User
     return profileFromRow({ ...(existing as ProfileRow), is_online: true, email }, role, email);
   }
   const current = (existing || {}) as ProfileRow;
+  const metadata = (user.user_metadata || {}) as { public_pseudonym?: string; display_name?: string };
   const pseudo =
     patch?.publicPseudonym ||
     patch?.displayName ||
     current.public_pseudonym ||
     current.display_name ||
+    metadata.public_pseudonym ||
+    metadata.display_name ||
     email.split('@')[0] ||
     'Anonyme';
   const row = {
@@ -377,10 +396,16 @@ export async function loadAccountBundle(
   };
 }
 
-export async function signInAccount(email: string, password: string): Promise<AccountBundle | AccountFailure> {
+export async function signInAccount(
+  email: string,
+  password: string
+): Promise<AccountBundle | (AccountFailure & { needsVerification?: boolean })> {
   if (!supabase) return { ok: false, error: 'Le compte serveur n’est pas configuré.' };
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !data.user) return { ok: false, error: frenchAuthError(error?.message || 'invalid credentials') };
+  if (error || !data.user) {
+    const needsVerification = (error?.message || '').toLowerCase().includes('not confirmed');
+    return { ok: false, needsVerification, error: frenchAuthError(error?.message || 'invalid credentials') };
+  }
   return loadAccountBundle(data.user);
 }
 
@@ -393,22 +418,50 @@ export async function signUpAccount(params: {
   const { data, error } = await supabase.auth.signUp({
     email: params.email,
     password: params.password,
+    options: {
+      emailRedirectTo: authRedirect(),
+      data: {
+        public_pseudonym: params.profile.publicPseudonym || params.profile.displayName || '',
+        display_name: params.profile.displayName || params.profile.publicPseudonym || '',
+      },
+    },
   });
   if (error || !data.user) return { ok: false, error: frenchAuthError(error?.message || 'signup failed') };
-  if (!data.session) {
-    return {
-      ok: true,
-      pending: true,
-    };
-  }
+  if (!data.session) return { ok: true, pending: true };
   return loadAccountBundle(data.user, params.profile);
+}
+
+export async function confirmEmailCode(params: {
+  email: string;
+  token: string;
+  profile?: Partial<UserProfile>;
+}): Promise<AccountBundle | AccountFailure> {
+  if (!supabase) return { ok: false, error: 'Le compte serveur n’est pas configuré.' };
+  const token = params.token.trim();
+  if (token.length < 6) return { ok: false, error: 'Saisissez le code reçu par e-mail.' };
+  let lastError = 'Code de vérification invalide ou expiré.';
+  for (const type of ['signup', 'email', 'magiclink'] as const) {
+    const { data, error } = await supabase.auth.verifyOtp({ email: params.email, token, type });
+    if (!error && data.user) return loadAccountBundle(data.user, params.profile);
+    if (error?.message) lastError = frenchAuthError(error.message);
+  }
+  return { ok: false, error: lastError };
+}
+
+export async function resendVerificationMessage(email: string): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Le compte serveur n’est pas configuré.' };
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: authRedirect() },
+  });
+  if (error) return { ok: false, error: frenchAuthError(error.message) };
+  return { ok: true };
 }
 
 export async function sendPasswordReset(email: string): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) return { ok: false, error: 'Le compte serveur n’est pas configuré.' };
-  const redirectTo =
-    typeof window !== 'undefined' ? `${window.location.origin}/connexion` : 'https://nia-mind.vercel.app/connexion';
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: authRedirect() });
   if (error) return { ok: false, error: frenchAuthError(error.message) };
   return { ok: true };
 }

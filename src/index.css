@@ -159,10 +159,9 @@ html {
 body {
   background-color: var(--surface-bg);
   background-image:
-    radial-gradient(circle at 12% 16%, rgb(var(--nia-orange-rgb) / 0.16) 0%, transparent 42%),
-    radial-gradient(circle at 88% 22%, rgb(var(--nia-bordeaux-rgb) / 0.16) 0%, transparent 45%),
-    radial-gradient(circle at 50% 85%, rgb(var(--nia-orange-rgb) / 0.13) 0%, rgb(var(--nia-bordeaux-rgb) / 0.10) 38%, transparent 70%),
-    linear-gradient(135deg, var(--nia-bg-light) 0%, var(--nia-white) 48%, var(--nia-bg-light) 100%);
+    radial-gradient(circle at 8% 0%, rgb(var(--nia-orange-rgb) / 0.08) 0%, transparent 32%),
+    radial-gradient(circle at 100% 0%, rgb(var(--nia-bordeaux-rgb) / 0.07) 0%, transparent 28%),
+    linear-gradient(180deg, var(--nia-bg-light) 0%, var(--nia-white) 42%, var(--nia-bg-light) 100%);
   background-attachment: fixed;
   color: var(--text-primary);
   transition: background-color 0.28s ease, color 0.28s ease;
@@ -181,15 +180,40 @@ html.dark body {
 
 /* Harmonisation des surfaces : plus de blanc froid/opaque, mais un voile flottant Orange/Bordeaux */
 html:not(.dark) .bg-white {
-  background-color: rgb(var(--nia-card-rgb) / 0.82) !important;
-  background-image: linear-gradient(
-    145deg,
-    rgb(var(--nia-card-rgb) / 0.9) 0%,
-    rgb(var(--nia-orange-rgb) / 0.12) 52%,
-    rgb(var(--nia-bordeaux-rgb) / 0.12) 100%
-  );
-  backdrop-filter: blur(12px);
+  background-color: rgb(var(--nia-card-rgb) / 0.96) !important;
+  background-image: none;
   border-color: rgb(var(--nia-orange-rgb) / 0.22);
+}
+
+.nia-auth-card,
+.nia-solid-surface {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #1f2937;
+  backdrop-filter: none;
+}
+
+html.dark .nia-auth-card,
+html.dark .nia-solid-surface {
+  background: #17211c !important;
+  background-image: none !important;
+  color: #f4fbf7;
+}
+
+input,
+select,
+textarea {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #1f2937;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #101815 !important;
+  background-image: none !important;
+  color: #f4fbf7;
 }
 
 html.dark .dark\:bg-nia-surface-dark {

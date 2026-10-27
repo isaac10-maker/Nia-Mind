@@ -36,10 +36,6 @@
       "destination": "/api/gateway/:path*"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
       "source": "/((?!api/|backend/).*)",
       "destination": "/index.html"
     }

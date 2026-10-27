@@ -9,7 +9,7 @@ import {
   sanitizeSearch,
   tryAcquireSlot,
   type GateDecision,
-} from './requestGate';
+} from './requestGate.js';
 
 const FALLBACK_ORIGIN = 'https://wyiiyfjvicwwbcbswdac.supabase.co';
 const MAX_BODY_BYTES = 1024 * 1024;

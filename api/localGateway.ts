@@ -1,6 +1,6 @@
-import { processAssistantPayload } from './assistant';
-import { proxyBackendRequest } from './backendProxy';
-import { normalizeClientIp } from './requestGate';
+import { processAssistantPayload } from './assistant.js';
+import { proxyBackendRequest } from './backendProxy.js';
+import { normalizeClientIp } from './requestGate.js';
 
 interface NodeRequest {
   url?: string;

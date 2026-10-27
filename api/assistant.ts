@@ -5,7 +5,7 @@
 // les formules de politesse, l'humour/hésitation, les remarques méta (« je n'ai encore rien dit »)
 // et l'accompagnement de stabilisation émotionnelle et psychologique progressive.
 
-import { consumeRateLimit, normalizeClientIp, releaseSlot, tryAcquireSlot } from './requestGate';
+import { consumeRateLimit, normalizeClientIp, releaseSlot, tryAcquireSlot } from './requestGate.js';
 
 export interface AssistantRequestPayload {
   message: string;

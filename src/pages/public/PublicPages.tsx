@@ -608,6 +608,8 @@ export const AboutPage: React.FC = () => {
 export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => {
   const {
     loginWithEmail,
+    confirmEmailVerification,
+    resendEmailVerification,
     registerAccount,
     requestGmailPushVerification,
     requestPasswordRecoveryPush,
@@ -664,6 +666,8 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
   const [forgotEnteredCode, setForgotEnteredCode] = useState('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotStatusMsg, setForgotStatusMsg] = useState<string | null>(null);
+  const [awaitingEmailCode, setAwaitingEmailCode] = useState(false);
+  const [emailCode, setEmailCode] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -672,6 +676,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     if (mode === 'login') {
       const res = await loginWithEmail(email, password, websiteHoneypot);
       if (!res.ok) {
+        if (res.needsVerification) setAwaitingEmailCode(true);
         setErrorMsg(res.error || 'Erreur de connexion.');
         return;
       }
@@ -699,7 +704,12 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         optionalWellnessConsent: optionalWellness,
         honeypot: websiteHoneypot,
       });
-      if (!res.ok || res.pending) {
+      if (res.pending) {
+        setAwaitingEmailCode(true);
+        setErrorMsg(null);
+        return;
+      }
+      if (!res.ok) {
         setErrorMsg(res.error || 'Erreur lors de la création du compte.');
         return;
       }
@@ -737,18 +747,15 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
       return;
     }
 
-    if (!gmailPushSent) {
-      await handleSendGmailPush();
-      return;
-    }
-
-    if (gmailExpectedCode && gmailEnteredCode.trim() !== gmailExpectedCode) {
-      setErrorMsg('Code de vérification Push Gmail incorrect.');
-      return;
-    }
-
-    // Essayer d'abord de connecter si déjà inscrit (ex. Superadmin isaacamegan10@gmail.com)
+    // Le mot de passe part vers Supabase Auth. Le code arrive par e-mail, jamais à l'écran.
     const loginTry = await loginWithEmail(clean, gmailPassword.trim());
+    if (loginTry.needsVerification) {
+      setEmail(clean);
+      setAwaitingEmailCode(true);
+      setIsGmailModalOpen(false);
+      setErrorMsg(loginTry.error || 'Confirmez le message reçu par e-mail.');
+      return;
+    }
     if (loginTry.ok) {
       setIsGmailModalOpen(false);
       navigate(redirectTarget);
@@ -775,7 +782,15 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
       optionalWellnessConsent: true,
     });
 
-    if (!regTry.ok || regTry.pending) {
+    if (regTry.pending) {
+      setEmail(clean);
+      setPseudonym(chosenGmailPseudo);
+      setAwaitingEmailCode(true);
+      setIsGmailModalOpen(false);
+      setErrorMsg(null);
+      return;
+    }
+    if (!regTry.ok) {
       setErrorMsg(regTry.error || 'Impossible de finaliser l’inscription Gmail.');
       return;
     }
@@ -850,7 +865,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         </div>
       )}
 
-      <div className="rounded-3xl nia-glass-card border-2 border-nia-orange/40 dark:border-nia-border-dark p-6 sm:p-10 shadow-2xl space-y-6">
+      <div className="rounded-3xl nia-auth-card border-2 border-[#0F9F6E]/35 p-6 sm:p-10 shadow-2xl space-y-6">
         {/* Sélecteur d'onglet Connexion / Inscription */}
         <div className="grid grid-cols-2 gap-2 p-1.5 rounded-full bg-nia-bordeaux/10 dark:bg-black/30 border border-nia-orange/25">
           <Link
@@ -938,6 +953,65 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
           </span>
           <div className="flex-grow border-t border-nia-orange/25 dark:border-white/10" />
         </div>
+
+        {awaitingEmailCode && (
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setErrorMsg(null);
+              const confirmed = await confirmEmailVerification({
+                email,
+                token: emailCode,
+                profile: {
+                  displayName: pseudonym.trim() || displayName.trim() || email.split('@')[0],
+                  publicPseudonym: pseudonym.trim() || displayName.trim() || 'Anonyme',
+                  countryCode,
+                },
+              });
+              if (!confirmed.ok) {
+                setErrorMsg(confirmed.error || 'Code invalide ou expiré.');
+                return;
+              }
+              navigate(redirectTarget);
+            }}
+            className="space-y-3 rounded-2xl border-2 border-[#0F9F6E] bg-white p-4"
+          >
+            <p className="text-sm font-bold text-[#1F2937]">
+              Un message de vérification a été envoyé à {email.trim().toLowerCase()}. Ouvrez-le, ou saisissez le code reçu.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={emailCode}
+              onChange={(event) => setEmailCode(event.target.value)}
+              placeholder="Code reçu par e-mail"
+              className="w-full px-4 py-3 rounded-2xl border-2 border-[#0F9F6E]/40 text-sm font-bold tracking-widest text-[#1F2937]"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                className="px-4 py-2.5 rounded-full bg-[#0F9F6E] text-white text-xs font-extrabold"
+              >
+                Confirmer le code
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const sent = await resendEmailVerification(email);
+                  setErrorMsg(
+                    sent.ok
+                      ? 'Un nouveau message de vérification a été envoyé.'
+                      : sent.error || 'Impossible de renvoyer le message.'
+                  );
+                }}
+                className="px-4 py-2.5 rounded-full border-2 border-[#7F1D3F] text-[#7F1D3F] text-xs font-extrabold"
+              >
+                Renvoyer le message
+              </button>
+            </div>
+          </form>
+        )}
 
         {errorMsg && (
           <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/40 flex items-start justify-between gap-2 text-xs font-bold text-rose-800 dark:text-rose-200">
@@ -1090,7 +1164,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
               <ShieldCheck className="w-3.5 h-3.5 text-nia-orange shrink-0" />
               Restriction : accessible uniquement aux e-mails réels
             </span>
-            <span>Limite sécurité : max 3 essais / 15 secondes</span>
+
           </div>
 
           {mode === 'register' && (
@@ -1147,7 +1221,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
 
           <button
             type="submit"
-            className="nia-tactile-card w-full py-4 rounded-full bg-gradient-to-r from-nia-orange via-nia-orange-deep to-nia-bordeaux text-white font-black text-sm shadow-lg flex items-center justify-center gap-2"
+            className="nia-tactile-card w-full py-4 rounded-full bg-[#0F9F6E] hover:bg-[#047857] text-white font-black text-sm shadow-lg flex items-center justify-center gap-2"
           >
             <UserPlus className="w-4 h-4" />
             <span>
@@ -1165,9 +1239,9 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
       <Modal
         isOpen={isGmailModalOpen}
         onClose={() => setIsGmailModalOpen(false)}
-        badgeText="Vérification Push Compte Gmail"
-        title="S’inscrire / Continuer avec votre compte Gmail"
-        subtitle="Une vérification Push est envoyée à votre compte Gmail réel avec un mot de passe d’au moins 6 caractères."
+        badgeText="Vérification par e-mail"
+        title="Continuer avec votre adresse Gmail"
+        subtitle="Un vrai message de vérification est envoyé à cette adresse. Ouvrez-le, ou saisissez le code reçu."
         accent="orange"
         footer={
           <>
@@ -1179,18 +1253,11 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
               Annuler
             </button>
             <button
-              type="button"
-              onClick={() => void handleSendGmailPush()}
-              className="px-4 py-2 rounded-xl bg-nia-bordeaux/15 text-nia-bordeaux dark:text-amber-200 text-xs font-extrabold hover:bg-nia-bordeaux/25"
-            >
-              Envoyer Push Gmail
-            </button>
-            <button
               type="submit"
               form="gmail-auth-form"
-              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white text-xs font-extrabold shadow-sm"
+              className="px-5 py-2.5 rounded-full bg-[#0F9F6E] text-white text-xs font-extrabold shadow-sm"
             >
-              {gmailPushSent ? 'Valider Push & Continuer →' : 'Envoyer Push & Continuer →'}
+              Envoyer le code et continuer
             </button>
           </>
         }
