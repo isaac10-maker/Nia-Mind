@@ -7,7 +7,7 @@
     "api/*.ts": {
       "maxDuration": 30
     },
-    "api/gateway/[...path].ts": {
+    "api/bridge.ts": {
       "maxDuration": 30
     }
   },
@@ -32,8 +32,12 @@
   ],
   "rewrites": [
     {
+      "source": "/api/gateway/:path*",
+      "destination": "/api/bridge?path=:path*"
+    },
+    {
       "source": "/backend/:path*",
-      "destination": "/api/gateway/:path*"
+      "destination": "/api/bridge?path=:path*"
     },
     {
       "source": "/((?!api/|backend/).*)",
