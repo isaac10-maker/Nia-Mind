@@ -18,6 +18,15 @@ interface NodeResponse {
   end(body?: string | Buffer): void;
 }
 
+function normalizeBridgeUrl(raw: string): string {
+  const url = new URL(raw, 'http://127.0.0.1');
+  if (url.pathname !== '/api/bridge') return raw;
+  const path = (url.searchParams.get('path') || 'health').replace(/^\/+/, '');
+  url.searchParams.delete('path');
+  const query = url.searchParams.toString();
+  return `/api/gateway/${path}${query ? `?${query}` : ''}`;
+}
+
 function headerString(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value.join(', ');
   return value || '';
@@ -50,7 +59,8 @@ export function attachLocalGateway(middlewares: {
       pathname === '/backend' ||
       pathname.startsWith('/backend/') ||
       pathname === '/api/gateway' ||
-      pathname.startsWith('/api/gateway/');
+      pathname.startsWith('/api/gateway/') ||
+      pathname === '/api/bridge';
     if (!isAssistant && !isBridge) {
       next();
       return;
@@ -110,7 +120,7 @@ export function attachLocalGateway(middlewares: {
         res.end(JSON.stringify({ error: 'Requête trop volumineuse.' }));
         return;
       }
-      const request = new Request(`http://${host}${req.url || '/backend'}`, {
+      const request = new Request(`http://${host}${normalizeBridgeUrl(req.url || '/backend')}`, {
         method,
         headers,
         body: hasBody ? new Uint8Array(rawBody) : undefined,

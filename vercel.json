@@ -32,15 +32,7 @@
   ],
   "rewrites": [
     {
-      "source": "/api/gateway/:path*",
-      "destination": "/api/bridge?path=:path*"
-    },
-    {
-      "source": "/backend/:path*",
-      "destination": "/api/bridge?path=:path*"
-    },
-    {
-      "source": "/((?!api/|backend/).*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
