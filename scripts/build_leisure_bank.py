@@ -658,10 +658,9 @@ def add_choices(facts: list[dict]) -> list[dict]:
             by_kind.setdefault(fact["kind"], []).append(fact)
     ready = []
     for fact in facts:
-        if fact["mode"] != "quiz":
-            ready.append({**fact, "choices": None})
-            continue
-        pool = [item for item in by_kind[fact["kind"]] if item["id"] != fact["id"]]
+        pool = [item for item in by_kind.get(fact["kind"], []) if item["id"] != fact["id"]]
+        if fact["kind"] == "classic":
+            pool = [item for item in facts if item["id"] != fact["id"]]
         rng = random.Random(fact["id"])
         rng.shuffle(pool)
         chosen = []
@@ -672,15 +671,15 @@ def add_choices(facts: list[dict]) -> list[dict]:
             if any(any(labels[lang] == got[lang] for lang in LANGS) for got in chosen):
                 continue
             chosen.append(labels)
-            if len(chosen) == 3:
+            if len(chosen) == 2:
                 break
-        if len(chosen) < 3:
+        if len(chosen) < 2:
             continue
-        order = [0, 1, 2, 3]
+        order = [0, 1, 2]
         rng.shuffle(order)
         columns = [fact["answer"], *chosen]
         choices = {lang: [columns[index][lang] for index in order] for lang in LANGS}
-        if any(len(set(choices[lang])) != 4 for lang in LANGS):
+        if any(len(set(choices[lang])) != 3 for lang in LANGS):
             continue
         ready.append({**fact, "choices": choices})
     return ready
@@ -705,6 +704,7 @@ def main() -> None:
     quiz = add_choices(unique_prompts([fact for fact in facts if fact["mode"] == "quiz"], "quiz"))
     riddles = unique_prompts([fact for fact in facts if fact["mode"] == "riddle"], "riddle")
     riddles.extend(classic_riddles())
+    riddles = add_choices(riddles)
     items = quiz + riddles
     leaks = [
         fact["id"]
@@ -719,9 +719,7 @@ def main() -> None:
     answers = {"version": 1, "items": {}}
     for fact in items:
         bucket = "riddle" if fact["mode"] == "riddle" else "quiz"
-        public = {"id": fact["id"], "topic": fact["topic"], "prompt": fact["prompt"]}
-        if bucket == "quiz":
-            public["choices"] = fact["choices"]
+        public = {"id": fact["id"], "topic": fact["topic"], "prompt": fact["prompt"], "choices": fact["choices"]}
         prompts[bucket].append(public)
         answers["items"][fact["id"]] = fact["answer"]
     capitals = {fact["subject"]["fr"]: fact["answer"]["fr"] for fact in facts if fact["kind"] == "capital"}

@@ -10,12 +10,14 @@ import {
   dailyLot,
   formatCountdown,
   isLocked,
-  loadProgress,
+  loadBoard,
   lotIdFor,
   offsetFromDateHeader,
-  saveProgress,
+  saveBoard,
   unlockMoment,
   type LeisureBank,
+  type LeisureBoard,
+  type LeisureKind,
   type LeisureProgress,
   type PublicItem,
 } from '../../lib/leisureDay';
@@ -34,9 +36,23 @@ const TOPICS: Record<string, keyof UiTranslations> = {
   language: 'leisureTopicLanguage',
   riddle: 'leisureTopicRiddle',
 };
+const LETTERS = ['A', 'B', 'C'];
 
 function languageOf(value: string): string {
   return value === 'en' || value === 'es' || value === 'de' || value === 'zh' ? value : 'fr';
+}
+
+function freshProgress(lotId: string): LeisureProgress {
+  return {
+    v: 1,
+    lotId,
+    revealed: [],
+    guesses: {},
+    completedAt: null,
+    unlockAt: null,
+    score: null,
+    total: null,
+  };
 }
 
 function TimerRing({ elapsed }: { elapsed: number }) {
@@ -72,14 +88,12 @@ function TimerRing({ elapsed }: { elapsed: number }) {
 export const LeisurePage: React.FC = () => {
   const { currentLanguage } = useApp();
   const lang = languageOf(currentLanguage);
+  const [mode, setMode] = useState<LeisureKind>('quiz');
   const [phase, setPhase] = useState<Phase>('loading');
   const [bank, setBank] = useState<LeisureBank | null>(null);
   const [offset, setOffset] = useState(0);
   const [now, setNow] = useState(() => Date.now());
-  const [progress, setProgress] = useState<LeisureProgress | null>(() => {
-    const local = Date.now();
-    return activeProgress(loadProgress(local), local);
-  });
+  const [board, setBoard] = useState<LeisureBoard>(() => loadBoard(Date.now()));
   const [step, setStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [answers, setAnswers] = useState<AnswerBook | null>(null);
@@ -88,12 +102,15 @@ export const LeisurePage: React.FC = () => {
   const answersRequest = useRef<Promise<AnswerBook> | null>(null);
 
   const trustedNow = now + offset;
-  const lot = useMemo(() => (bank ? dailyLot(bank, trustedNow, lang) : []), [bank, trustedNow, lang]);
-  const currentLotId = lotIdFor(trustedNow);
+  const lot = useMemo(() => (bank ? dailyLot(bank, trustedNow, lang, mode) : []), [bank, trustedNow, lang, mode]);
+  const currentLotId = lotIdFor(trustedNow, mode);
+  const progress = activeProgress(board[mode], trustedNow, mode);
   const locked = isLocked(progress, trustedNow);
   const item = lot[step];
   const revealed = Boolean(item && progress?.revealed.includes(item.id));
   const answer = revealed ? (answers?.[item.id]?.[lang] ?? sessionAnswer) : null;
+  const quizLocked = isLocked(activeProgress(board.quiz, trustedNow, 'quiz'), trustedNow);
+  const riddleLocked = isLocked(activeProgress(board.riddle, trustedNow, 'riddle'), trustedNow);
 
   useEffect(() => {
     let alive = true;
@@ -137,17 +154,17 @@ export const LeisurePage: React.FC = () => {
 
   useEffect(() => {
     const local = Date.now();
-    setProgress(activeProgress(loadProgress(local + offset), local + offset));
+    setBoard(loadBoard(local + offset));
     setNow(local);
   }, [offset]);
 
   useEffect(() => {
     if (!lot.length) return;
-    const stored = activeProgress(loadProgress(trustedNow), trustedNow);
+    const stored = activeProgress(loadBoard(trustedNow)[mode], trustedNow, mode);
     const index = stored ? lot.findIndex((entry) => !stored.revealed.includes(entry.id)) : 0;
     setStep(index < 0 ? 0 : index);
     setSessionAnswer(null);
-  }, [currentLotId, lot.length]);
+  }, [currentLotId, lot.length, mode]);
 
   useEffect(() => {
     if (!locked) return undefined;
@@ -205,6 +222,14 @@ export const LeisurePage: React.FC = () => {
     return answersRequest.current;
   }
 
+  function writeMode(next: LeisureProgress | null, trusted: number) {
+    setBoard((previous) => {
+      const boardNext = { ...previous, [mode]: next };
+      saveBoard(boardNext, trusted);
+      return boardNext;
+    });
+  }
+
   async function openAnswer(current: PublicItem) {
     if (!canReveal(performance.now() - startedAt.current) && !progress?.revealed.includes(current.id)) return;
     const book = await loadAnswers();
@@ -214,55 +239,35 @@ export const LeisurePage: React.FC = () => {
     const local = Date.now();
     const trusted = local + offset;
     setNow(local);
-    setProgress((previous) => {
-      const base = previous && previous.lotId === currentLotId
-        ? previous
-        : {
-            v: 1 as const,
-            lotId: currentLotId,
-            revealed: [],
-            guesses: {},
-            completedAt: null,
-            unlockAt: null,
-            score: null,
-            total: null,
-          };
+    setBoard((previous) => {
+      const currentProgress = previous[mode];
+      const base = currentProgress && currentProgress.lotId === currentLotId ? currentProgress : freshProgress(currentLotId);
       const revealedIds = base.revealed.includes(current.id) ? base.revealed : [...base.revealed, current.id];
       const finished = lot.every((entry) => revealedIds.includes(entry.id));
-      const score = finished && lot.some((entry) => entry.kind === 'quiz')
-        ? countScore(lot, base.guesses, book, lang)
-        : base.score;
       const next: LeisureProgress = {
         ...base,
         revealed: revealedIds,
         completedAt: finished ? trusted : null,
         unlockAt: finished ? unlockMoment(trusted) : null,
-        score,
+        score: finished ? countScore(lot, base.guesses, book, lang) : base.score,
         total: finished ? lot.length : base.total,
       };
-      saveProgress(next);
-      return next;
+      const boardNext = { ...previous, [mode]: next };
+      saveBoard(boardNext, trusted);
+      return boardNext;
     });
   }
 
   function choose(index: number) {
-    if (!item || revealed || answer) return;
-    setProgress((previous) => {
-      const base = previous && previous.lotId === currentLotId
-        ? previous
-        : {
-            v: 1 as const,
-            lotId: currentLotId,
-            revealed: [],
-            guesses: {},
-            completedAt: null,
-            unlockAt: null,
-            score: null,
-            total: null,
-          };
+    if (!item || revealed || answer || index < 0 || index > 2) return;
+    const trusted = Date.now() + offset;
+    setBoard((previous) => {
+      const currentProgress = previous[mode];
+      const base = currentProgress && currentProgress.lotId === currentLotId ? currentProgress : freshProgress(currentLotId);
       const next = { ...base, guesses: { ...base.guesses, [item.id]: index } };
-      saveProgress(next);
-      return next;
+      const boardNext = { ...previous, [mode]: next };
+      saveBoard(boardNext, trusted);
+      return boardNext;
     });
   }
 
@@ -284,15 +289,32 @@ export const LeisurePage: React.FC = () => {
       score: progress?.score ?? null,
       total: lot.length,
     };
-    saveProgress(next);
-    setProgress(next);
+    writeMode(next, trusted);
     setNow(local);
   }
+
+  const switcher = (
+    <div className="mt-5 grid grid-cols-2 gap-3" role="tablist" aria-label={tUi(currentLanguage, 'leisureChoose')}>
+      <ModeButton
+        active={mode === 'quiz'}
+        locked={quizLocked}
+        label={tUi(currentLanguage, 'leisureQuiz')}
+        onClick={() => setMode('quiz')}
+      />
+      <ModeButton
+        active={mode === 'riddle'}
+        locked={riddleLocked}
+        label={tUi(currentLanguage, 'leisureRiddle')}
+        onClick={() => setMode('riddle')}
+      />
+    </div>
+  );
 
   if (phase === 'loading') {
     return (
       <Shell lang={currentLanguage}>
-        <p className="text-sm font-bold text-[#047857]">{tUi(currentLanguage, 'leisureLoading')}</p>
+        {switcher}
+        <p className="mt-6 text-sm font-bold text-[#047857]">{tUi(currentLanguage, 'leisureLoading')}</p>
       </Shell>
     );
   }
@@ -300,21 +322,25 @@ export const LeisurePage: React.FC = () => {
   if (phase === 'error' || !bank || lot.length === 0) {
     return (
       <Shell lang={currentLanguage}>
-        <p className="text-sm font-bold text-[#7F1D3F]">{tUi(currentLanguage, 'leisureUnavailable')}</p>
+        {switcher}
+        <p className="mt-6 text-sm font-bold text-[#7F1D3F]">{tUi(currentLanguage, 'leisureUnavailable')}</p>
       </Shell>
     );
   }
 
   if (locked && progress?.unlockAt) {
     return (
-      <Shell lang={currentLanguage} kind={progress.lotId.startsWith('riddle') ? 'riddle' : 'quiz'}>
-        <WaitCard
-          lang={currentLanguage}
-          remaining={progress.unlockAt - trustedNow}
-          score={progress.score}
-          total={progress.total}
-          farewell={sessionAnswer}
-        />
+      <Shell lang={currentLanguage}>
+        {switcher}
+        <div className="mt-6">
+          <WaitCard
+            lang={currentLanguage}
+            remaining={progress.unlockAt - trustedNow}
+            score={progress.score}
+            total={progress.total}
+            farewell={sessionAnswer}
+          />
+        </div>
       </Shell>
     );
   }
@@ -322,33 +348,54 @@ export const LeisurePage: React.FC = () => {
   if (!item) {
     return (
       <Shell lang={currentLanguage}>
-        <WaitCard lang={currentLanguage} remaining={0} score={progress?.score ?? null} total={progress?.total ?? lot.length} />
+        {switcher}
+        <p className="mt-6 text-sm font-bold text-[#7F1D3F]">{tUi(currentLanguage, 'leisureUnavailable')}</p>
       </Shell>
     );
   }
 
   const guess = progress?.guesses[item.id];
-  const correctIndex = answer && item.kind === 'quiz' ? item.choices.indexOf(answer) : -1;
+  const correctIndex = answer ? item.choices.indexOf(answer) : -1;
 
   return (
-    <Shell lang={currentLanguage} kind={item.kind}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-extrabold uppercase tracking-wider text-[#7F1D3F] dark:text-amber-200">
-          {step + 1} {tUi(currentLanguage, 'leisureOf')} {lot.length}
-        </p>
-        <span className="rounded-full bg-[#fff7ed] px-3 py-1 text-[11px] font-extrabold text-[#047857] dark:bg-black/30 dark:text-emerald-200">
-          {tUi(currentLanguage, TOPICS[item.topic] || 'leisureTopicRiddle')}
-        </span>
-      </div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#0F9F6E]/15">
-        <div className="h-full rounded-full bg-[#0F9F6E] transition-all" style={{ width: `${((step + (answer ? 1 : 0.08)) / lot.length) * 100}%` }} />
-      </div>
-      <div className="mt-5 flex items-start gap-4">
-        <TimerRing elapsed={revealed ? REFLECT_MS : elapsed} />
-        <h2 className="pt-2 text-xl font-black leading-snug text-[#1F2937] dark:text-white sm:text-2xl">{item.prompt}</h2>
-      </div>
-      {item.kind === 'quiz' ? (
-        <div className="mt-5 grid gap-2">
+    <Shell lang={currentLanguage}>
+      {switcher}
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-12">
+        <div className="lg:col-span-7">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-extrabold uppercase tracking-wider text-[#7F1D3F] dark:text-amber-200">
+              {step + 1} {tUi(currentLanguage, 'leisureOf')} {lot.length}
+            </p>
+            <span className="rounded-full bg-[#fff7ed] px-3 py-1 text-[11px] font-extrabold text-[#047857] dark:bg-black/30 dark:text-emerald-200">
+              {tUi(currentLanguage, TOPICS[item.topic] || 'leisureTopicRiddle')}
+            </span>
+          </div>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#0F9F6E]/15">
+            <div className="h-full rounded-full bg-[#0F9F6E] transition-all" style={{ width: `${((step + (answer ? 1 : 0.08)) / lot.length) * 100}%` }} />
+          </div>
+          <div className="mt-5 flex items-start gap-4">
+            <TimerRing elapsed={revealed ? REFLECT_MS : elapsed} />
+            <h2 className="pt-2 text-xl font-black leading-snug text-[#1F2937] dark:text-white sm:text-3xl">{item.prompt}</h2>
+          </div>
+          <div className="mt-5" aria-live="polite">
+            {answer ? (
+              <div className="rounded-2xl bg-[#047857] px-4 py-3 text-white">
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-white/75">{tUi(currentLanguage, 'leisureAnswer')}</p>
+                <p className="text-lg font-black">{answer}</p>
+                {guess != null ? (
+                  <p className="mt-1 text-xs font-bold text-white/85">
+                    {guess === correctIndex ? tUi(currentLanguage, 'leisureCorrect') : tUi(currentLanguage, 'leisureOther')}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-2xl border-2 border-dashed border-[#7F1D3F]/35 bg-[#fff7ed] px-4 py-3 text-sm font-bold text-[#7F1D3F] dark:bg-black/20 dark:text-amber-100">
+                {tUi(currentLanguage, 'leisureReflect')}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="grid gap-3 lg:col-span-5">
           {item.choices.map((choice, index) => {
             const selected = guess === index;
             const show = Boolean(answer);
@@ -360,7 +407,7 @@ export const LeisurePage: React.FC = () => {
                 type="button"
                 disabled={show}
                 onClick={() => choose(index)}
-                className={`rounded-2xl border-2 px-4 py-3 text-left text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F9F6E] ${
+                className={`flex min-h-16 items-center gap-3 rounded-2xl border-2 px-4 py-4 text-left text-base font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F9F6E] ${
                   correct
                     ? 'border-[#0F9F6E] bg-[#0F9F6E] text-white'
                     : missed
@@ -370,62 +417,68 @@ export const LeisurePage: React.FC = () => {
                         : 'border-[#0F9F6E]/25 bg-white text-[#1F2937] hover:border-[#0F9F6E] dark:bg-black/20 dark:text-white'
                 }`}
               >
-                {choice}
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${correct ? 'bg-white/20' : 'bg-[#0F9F6E]/10 text-[#047857] dark:text-emerald-200'}`}>
+                  {LETTERS[index]}
+                </span>
+                <span>{choice}</span>
               </button>
             );
           })}
+          <button
+            type="button"
+            disabled={!answer}
+            onClick={continueLot}
+            className="mt-1 w-full rounded-full bg-[#0F9F6E] px-4 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:bg-[#1F2937]/10 disabled:text-[#1F2937]/35 dark:disabled:bg-white/10 dark:disabled:text-white/35"
+          >
+            {step === lot.length - 1 ? tUi(currentLanguage, 'leisureFinish') : tUi(currentLanguage, 'leisureNext')}
+          </button>
         </div>
-      ) : null}
-      <div className="mt-4" aria-live="polite">
-        {answer ? (
-          <div className="rounded-2xl bg-[#047857] px-4 py-3 text-white">
-            <p className="text-[11px] font-extrabold uppercase tracking-wider text-white/75">{tUi(currentLanguage, 'leisureAnswer')}</p>
-            <p className="text-lg font-black">{answer}</p>
-            {item.kind === 'quiz' && guess != null ? (
-              <p className="mt-1 text-xs font-bold text-white/85">
-                {guess === correctIndex ? tUi(currentLanguage, 'leisureCorrect') : tUi(currentLanguage, 'leisureOther')}
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="rounded-2xl border-2 border-dashed border-[#7F1D3F]/35 bg-[#fff7ed] px-4 py-3 text-sm font-bold text-[#7F1D3F] dark:bg-black/20 dark:text-amber-100">
-            {tUi(currentLanguage, 'leisureReflect')}
-          </div>
-        )}
       </div>
-      <button
-        type="button"
-        disabled={!answer}
-        onClick={continueLot}
-        className="mt-4 w-full rounded-full bg-[#0F9F6E] px-4 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:bg-[#1F2937]/10 disabled:text-[#1F2937]/35 dark:disabled:bg-white/10 dark:disabled:text-white/35"
-      >
-        {step === lot.length - 1 ? tUi(currentLanguage, 'leisureFinish') : tUi(currentLanguage, 'leisureNext')}
-      </button>
     </Shell>
   );
 };
 
 function countScore(items: PublicItem[], guesses: Record<string, number>, book: AnswerBook, lang: string): number {
   return items.filter((entry) => {
-    if (entry.kind !== 'quiz') return false;
     const picked = guesses[entry.id];
     if (picked == null) return false;
     return entry.choices[picked] === book[entry.id]?.[lang];
   }).length;
 }
 
-function Shell({
-  lang,
-  kind,
-  children,
+function ModeButton({
+  active,
+  locked,
+  label,
+  onClick,
 }: {
-  lang: LanguageCodeInput;
-  kind?: 'quiz' | 'riddle';
-  children: React.ReactNode;
+  active: boolean;
+  locked: boolean;
+  label: string;
+  onClick: () => void;
 }) {
   return (
-    <div className="mx-auto max-w-xl px-4 py-8 sm:px-6">
-      <section className="rounded-[2rem] border-2 border-[#0F9F6E]/30 bg-white p-5 shadow-sm dark:bg-nia-surface-dark sm:p-7">
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`rounded-2xl px-4 py-4 text-sm font-extrabold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F9F6E] sm:text-base ${
+        active
+          ? 'bg-[#0F9F6E] text-white shadow-sm'
+          : 'border-2 border-[#0F9F6E]/30 bg-white text-[#047857] hover:border-[#0F9F6E] dark:bg-black/20 dark:text-emerald-200'
+      }`}
+    >
+      {label}
+      {locked ? ' · 24 h' : ''}
+    </button>
+  );
+}
+
+function Shell({ lang, children }: { lang: LanguageCodeInput; children: React.ReactNode }) {
+  return (
+    <div className="w-full px-3 py-5 sm:px-5 lg:px-8">
+      <section className="rounded-[2rem] border-2 border-[#0F9F6E]/30 bg-white p-4 shadow-sm dark:bg-nia-surface-dark sm:p-6 lg:p-8">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0F9F6E] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white">
             <Puzzle className="h-3.5 w-3.5" />
@@ -434,17 +487,15 @@ function Shell({
           <span className="rounded-full bg-[#7F1D3F] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white">
             {tUi(lang, 'leisureValid')}
           </span>
-          {kind ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#fff7ed] px-3 py-1 text-[11px] font-extrabold text-[#7F1D3F] dark:bg-black/30 dark:text-amber-100">
-              <Sparkles className="h-3.5 w-3.5" />
-              {tUi(lang, kind === 'quiz' ? 'leisureQuiz' : 'leisureRiddle')}
-            </span>
-          ) : null}
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#fff7ed] px-3 py-1 text-[11px] font-extrabold text-[#7F1D3F] dark:bg-black/30 dark:text-amber-100">
+            <Sparkles className="h-3.5 w-3.5" />
+            QCM
+          </span>
         </div>
-        <h1 className="mt-4 text-2xl font-black text-[#1F2937] dark:text-white sm:text-4xl">{tUi(lang, 'leisureTitle')}</h1>
-        <p className="mt-2 text-sm font-medium text-[#1F2937]/80 dark:text-white/75">{tUi(lang, 'leisureLead')}</p>
+        <h1 className="mt-4 max-w-4xl text-3xl font-black text-[#1F2937] dark:text-white sm:text-5xl">{tUi(lang, 'leisureTitle')}</h1>
+        <p className="mt-3 max-w-3xl text-sm font-medium text-[#1F2937]/80 dark:text-white/75 sm:text-base">{tUi(lang, 'leisureLead')}</p>
         <p className="mt-2 text-xs font-bold text-[#047857] dark:text-emerald-300">{tUi(lang, 'leisureUtc')}</p>
-        <div className="mt-5">{children}</div>
+        {children}
         <p className="mt-6 text-[11px] font-semibold text-[#1F2937]/55 dark:text-white/45">{tUi(lang, 'leisureSource')}</p>
       </section>
     </div>
@@ -465,7 +516,7 @@ function WaitCard({
   farewell?: string | null;
 }) {
   return (
-    <div className="rounded-[1.5rem] border-2 border-[#7F1D3F]/25 bg-[#fff7ed] p-5 text-center dark:bg-black/25">
+    <div className="rounded-[1.5rem] border-2 border-[#7F1D3F]/25 bg-[#fff7ed] p-5 text-center dark:bg-black/25 sm:p-8">
       <Clock3 className="mx-auto h-8 w-8 text-[#7F1D3F] dark:text-amber-200" />
       <h2 className="mt-3 text-2xl font-black text-[#1F2937] dark:text-white">{tUi(lang, 'leisureWaitTitle')}</h2>
       {farewell ? (
@@ -473,10 +524,10 @@ function WaitCard({
           {tUi(lang, 'leisureAnswer')} : {farewell}
         </p>
       ) : null}
-      <p className="mt-2 text-4xl font-black tabular-nums tracking-wider text-[#047857] dark:text-emerald-300" aria-live="polite">
+      <p className="mt-2 text-4xl font-black tabular-nums tracking-wider text-[#047857] dark:text-emerald-300 sm:text-6xl" aria-live="polite">
         {formatCountdown(remaining)}
       </p>
-      <p className="mt-3 text-sm font-medium text-[#1F2937]/80 dark:text-white/75">{tUi(lang, 'leisureWaitBody')}</p>
+      <p className="mx-auto mt-3 max-w-2xl text-sm font-medium text-[#1F2937]/80 dark:text-white/75">{tUi(lang, 'leisureWaitBody')}</p>
       {score != null && total != null ? (
         <p className="mt-3 text-sm font-extrabold text-[#7F1D3F] dark:text-amber-100">
           {score}/{total}. {tUi(lang, 'leisureScoreNote')}

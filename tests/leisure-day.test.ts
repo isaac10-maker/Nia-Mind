@@ -6,7 +6,6 @@ import {
   canReveal,
   dailyLot,
   formatCountdown,
-  lotKind,
   sanitizeProgress,
   unlockMoment,
   type LeisureBank,
@@ -23,11 +22,12 @@ describe('daily leisure bank', () => {
     expect(items.length).toBeGreaterThanOrEqual(2000);
     expect(prompts.quiz.length).toBeGreaterThan(500);
     expect(prompts.riddle.length).toBeGreaterThan(500);
-    for (const item of prompts.riddle) {
-      expect(item).not.toHaveProperty('choices');
+    for (const item of [...prompts.quiz, ...prompts.riddle]) {
       expect(item).not.toHaveProperty('answer');
       for (const lang of ['fr', 'en', 'es', 'de', 'zh'] as const) {
         const answer = answers.items[item.id][lang];
+        expect(item.choices[lang]).toHaveLength(3);
+        expect(item.choices[lang]).toContain(answer);
         const leaked = lang === 'zh' || answer.length >= 3
           ? item.prompt[lang].toLowerCase().includes(answer.toLowerCase())
           : false;
@@ -36,28 +36,31 @@ describe('daily leisure bank', () => {
     }
   });
 
-  it('gives everyone the same lot, then a different lot after 24 hours', () => {
+  it('keeps quiz and riddles available the same day, then changes both after 24 hours', () => {
     const noon = Date.UTC(2026, 9, 27, 12);
     const later = noon + 60_000;
     const nextDay = noon + LOCK_MS;
-    const first = dailyLot(prompts, noon, 'fr').map((item) => item.id);
-    expect(dailyLot(prompts, later, 'zh').map((item) => item.id)).toEqual(first);
-    expect(dailyLot(prompts, nextDay, 'fr').map((item) => item.id)).not.toEqual(first);
-    expect(lotKind(noon)).not.toBe(lotKind(nextDay));
-    expect(first.length === 5 || first.length === 4).toBe(true);
-    expect(new Set(first).size).toBe(first.length);
+    const quiz = dailyLot(prompts, noon, 'fr', 'quiz').map((item) => item.id);
+    const riddle = dailyLot(prompts, noon, 'fr', 'riddle').map((item) => item.id);
+    expect(dailyLot(prompts, later, 'zh', 'quiz').map((item) => item.id)).toEqual(quiz);
+    expect(dailyLot(prompts, later, 'en', 'riddle').map((item) => item.id)).toEqual(riddle);
+    expect(quiz).not.toEqual(riddle);
+    expect(dailyLot(prompts, nextDay, 'fr', 'quiz').map((item) => item.id)).not.toEqual(quiz);
+    expect(quiz).toHaveLength(5);
+    expect(riddle).toHaveLength(4);
+    expect(dailyLot(prompts, noon, 'fr', 'quiz').every((item) => item.choices.length === 3)).toBe(true);
+    expect(dailyLot(prompts, noon, 'fr', 'riddle').every((item) => item.choices.length === 3)).toBe(true);
   });
 
   it('does not repeat a quiz item across the next quiz days', () => {
     const start = Date.UTC(2026, 0, 1);
     const seen = new Set<string>();
-    for (let day = 0; day < 40; day += 1) {
+    for (let day = 0; day < 20; day += 1) {
       const ms = start + day * LOCK_MS;
-      if (lotKind(ms) !== 'quiz') continue;
-      for (const item of dailyLot(prompts, ms, 'en')) {
+      for (const item of dailyLot(prompts, ms, 'en', 'quiz')) {
         expect(seen.has(item.id)).toBe(false);
         seen.add(item.id);
-        if (item.kind === 'quiz') expect(item.choices).toHaveLength(4);
+        expect(item.choices).toHaveLength(3);
       }
     }
     expect(seen.size).toBeGreaterThan(40);
