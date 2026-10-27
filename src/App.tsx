@@ -15,6 +15,7 @@ import {
   PublicTipsPage,
   ResourcesPage,
 } from './pages/public/PublicPages';
+import { LeisurePage } from './pages/public/LeisurePage';
 import {
   AssistantPage,
   PersonalDashboardPage,
@@ -119,6 +120,7 @@ export const App: React.FC = () => {
             <Route path="/conseils" element={<PublicTipsPage />} />
             <Route path="/histoires" element={<PublicStoriesPage />} />
             <Route path="/a-propos" element={<AboutPage />} />
+            <Route path="/loisir" element={<LeisurePage />} />
             <Route path="/connexion" element={<AuthPage mode="login" />} />
             <Route path="/inscription" element={<AuthPage mode="register" />} />
           </Route>

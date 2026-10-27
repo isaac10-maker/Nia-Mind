@@ -20,6 +20,7 @@ import {
   UserSpaceCompactButton,
 } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
+import { OfflineBanner } from '../ui/OfflineBanner';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
 import { tUi } from '../../lib/i18nEngine';
@@ -31,11 +32,12 @@ export const PublicLayout: React.FC = () => {
   const location = useLocation();
 
   const PUBLIC_NAV_ITEMS = [
-    { label: tUi(currentLanguage, 'navHome'), to: '/' },
-    { label: tUi(currentLanguage, 'navResources'), to: '/ressources' },
-    { label: tUi(currentLanguage, 'navTips'), to: '/conseils' },
-    { label: tUi(currentLanguage, 'navStories'), to: '/histoires' },
-    { label: tUi(currentLanguage, 'navAbout'), to: '/a-propos' },
+    { label: tUi(currentLanguage, 'navHome'), to: '/', group: tUi(currentLanguage, 'navGroupDiscover') },
+    { label: tUi(currentLanguage, 'navTips'), to: '/conseils', group: tUi(currentLanguage, 'navGroupRead') },
+    { label: tUi(currentLanguage, 'navStories'), to: '/histoires', group: tUi(currentLanguage, 'navGroupRead') },
+    { label: tUi(currentLanguage, 'navResources'), to: '/ressources', group: tUi(currentLanguage, 'navGroupRead') },
+    { label: tUi(currentLanguage, 'navLeisure'), to: '/loisir', group: tUi(currentLanguage, 'navGroupPlay') },
+    { label: tUi(currentLanguage, 'navAbout'), to: '/a-propos', group: tUi(currentLanguage, 'navGroupAccount') },
   ];
 
   const isAuthRoute =
@@ -81,9 +83,13 @@ export const PublicLayout: React.FC = () => {
                 end={item.to === '/'}
                 className={({ isActive }) =>
                   `px-3 py-1.5 rounded-full text-xs xl:text-sm font-extrabold transition-all whitespace-nowrap ${
-                    isActive
-                      ? 'bg-white text-nia-bordeaux shadow-md'
-                      : 'text-white/95 hover:text-white hover:bg-white/15'
+                    item.to === '/loisir'
+                      ? isActive
+                        ? 'bg-amber-100 text-[#7F1D3F] shadow-md'
+                        : 'bg-[#0F9F6E] text-white shadow-sm'
+                      : isActive
+                        ? 'bg-white text-nia-bordeaux shadow-md'
+                        : 'text-white/95 hover:text-white hover:bg-white/15'
                   }`
                 }
               >
@@ -161,27 +167,37 @@ export const PublicLayout: React.FC = () => {
         {/* Bandeau d'annonce TV sous le header :
             "Conseils &" / "Motivation du Jour" sur 2 lignes dans le coin gauche + annonce défilant et disparaissant en dessous */}
         <TvAnnouncementTicker blurred={isAuthRoute} />
+        {!isAuthRoute && <OfflineBanner />}
 
         {/* Menu Mobile Compact et Accessible au toucher */}
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-white/20 bg-nia-bordeaux-dark/95 backdrop-blur-md text-white px-4 pt-3 pb-6 space-y-2 animate-nia-page">
-            {PUBLIC_NAV_ITEMS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                onClick={() => setMobileMenuOpen(false)}
-                className={({ isActive }) =>
-                  `block px-4 py-3 rounded-2xl text-base font-extrabold ${
-                    isActive
-                      ? 'bg-white text-nia-bordeaux'
-                      : 'text-white/90 hover:bg-white/15'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+            {PUBLIC_NAV_ITEMS.map((item, index) => {
+              const showGroup = index === 0 || item.group !== PUBLIC_NAV_ITEMS[index - 1].group;
+              return (
+                <div key={item.to}>
+                  {showGroup && (
+                    <p className="px-4 pt-2 text-[10px] font-extrabold uppercase tracking-wider text-amber-200/80">
+                      {item.group}
+                    </p>
+                  )}
+                  <NavLink
+                    to={item.to}
+                    end={item.to === '/'}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `block px-4 py-3 rounded-2xl text-base font-extrabold ${
+                        isActive
+                          ? 'bg-white text-nia-bordeaux'
+                          : 'text-white/90 hover:bg-white/15'
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                </div>
+              );
+            })}
             <Link
               to={currentUser ? '/espace/assistant' : '/inscription?from=assistant'}
               onClick={() => setMobileMenuOpen(false)}

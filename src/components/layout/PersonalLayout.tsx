@@ -16,6 +16,7 @@ import {
 import { NeuralChipIcon } from '../ui/NeuralChipIcon';
 import { RoleSwitcherBar, SUPERADMIN_EMAIL } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
+import { OfflineBanner } from '../ui/OfflineBanner';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
 import { tUi } from '../../lib/i18nEngine';
@@ -26,17 +27,38 @@ export const PersonalLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const PERSONAL_NAV_ITEMS = [
-    { label: tUi(currentLanguage, 'navDashboard'), to: '/espace/tableau-de-bord', icon: LayoutDashboard },
-    { label: tUi(currentLanguage, 'navAssistant'), to: '/espace/assistant', icon: NeuralChipIcon },
-    { label: tUi(currentLanguage, 'navListening'), to: '/espace/ecoute', icon: HeartHandshake },
-    { label: tUi(currentLanguage, 'navWellness'), to: '/espace/bien-etre', icon: Activity },
-    { label: tUi(currentLanguage, 'navJournal'), to: '/espace/journal', icon: BookMarked },
-    { label: tUi(currentLanguage, 'navTips'), to: '/espace/conseils-du-jour', icon: Sparkles },
-    { label: tUi(currentLanguage, 'navStories'), to: '/espace/histoires', icon: Feather },
-    { label: tUi(currentLanguage, 'navProfile'), to: '/espace/profil', icon: User },
-    { label: tUi(currentLanguage, 'navPrivacy'), to: '/espace/confidentialite', icon: Lock },
+  const PERSONAL_GROUPS = [
+    {
+      title: tUi(currentLanguage, 'navGroupToday'),
+      items: [
+        { label: tUi(currentLanguage, 'navDashboard'), to: '/espace/tableau-de-bord', icon: LayoutDashboard },
+        { label: tUi(currentLanguage, 'navTips'), to: '/espace/conseils-du-jour', icon: Sparkles },
+      ],
+    },
+    {
+      title: tUi(currentLanguage, 'navGroupTalk'),
+      items: [
+        { label: tUi(currentLanguage, 'navAssistant'), to: '/espace/assistant', icon: NeuralChipIcon },
+        { label: tUi(currentLanguage, 'navListening'), to: '/espace/ecoute', icon: HeartHandshake },
+      ],
+    },
+    {
+      title: tUi(currentLanguage, 'navGroupWrite'),
+      items: [
+        { label: tUi(currentLanguage, 'navJournal'), to: '/espace/journal', icon: BookMarked },
+        { label: tUi(currentLanguage, 'navWellness'), to: '/espace/bien-etre', icon: Activity },
+        { label: tUi(currentLanguage, 'navStories'), to: '/espace/histoires', icon: Feather },
+      ],
+    },
+    {
+      title: tUi(currentLanguage, 'navGroupAccount'),
+      items: [
+        { label: tUi(currentLanguage, 'navProfile'), to: '/espace/profil', icon: User },
+        { label: tUi(currentLanguage, 'navPrivacy'), to: '/espace/confidentialite', icon: Lock },
+      ],
+    },
   ];
+  const PERSONAL_NAV_ITEMS = PERSONAL_GROUPS.flatMap((group) => group.items);
 
   if (!authReady) {
     return <div className="min-h-screen bg-[#F3FBF6]" aria-busy="true" aria-label="Session en cours" />;
@@ -65,6 +87,7 @@ export const PersonalLayout: React.FC = () => {
         onToggleMobileMenu={() => setMobileDrawerOpen((o) => !o)}
         mobileMenuOpen={mobileDrawerOpen}
       />
+      <OfflineBanner />
 
       {/* Tiroir mobile de navigation personnelle */}
       {mobileDrawerOpen && (
@@ -122,26 +145,33 @@ export const PersonalLayout: React.FC = () => {
             </div>
 
             {/* Navigation des 9 onglets de l'espace personnel */}
-            <nav className="space-y-1" aria-label="Navigation de l'espace personnel">
-              {PERSONAL_NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-extrabold transition-all ${
-                        isActive
-                          ? 'bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white shadow-nia-soft'
-                          : 'text-nia-gray-dark dark:text-gray-200 hover:bg-nia-orange/15 hover:text-nia-orange-deep dark:hover:text-nia-orange'
-                      }`
-                    }
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{item.label}</span>
-                  </NavLink>
-                );
-              })}
+            <nav className="space-y-3" aria-label="Navigation de l'espace personnel">
+              {PERSONAL_GROUPS.map((group) => (
+                <div key={group.title} className="space-y-1">
+                  <p className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-[#7F1D3F] dark:text-amber-200">
+                    {group.title}
+                  </p>
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-extrabold transition-all ${
+                            isActive
+                              ? 'bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white shadow-nia-soft'
+                              : 'text-nia-gray-dark dark:text-gray-200 hover:bg-nia-orange/15 hover:text-nia-orange-deep dark:hover:text-nia-orange'
+                          }`
+                        }
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span className="truncate">{item.label}</span>
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              ))}
             </nav>
           </div>
 

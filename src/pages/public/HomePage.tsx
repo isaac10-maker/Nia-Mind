@@ -14,6 +14,7 @@ import { GlitchText } from '../../components/ui/GlitchText';
 import { MarqueeBanner } from '../../components/ui/MarqueeBanner';
 import { ScrollReveal } from '../../components/ui/ScrollReveal';
 import { useApp } from '../../context/AppContext';
+import { tUi } from '../../lib/i18nEngine';
 import { STORIES_SIGNATURE } from '../../lib/securityEngine';
 
 const SYMBIOSE_AND_ASSISTANT_LOOP_SLIDES = [
@@ -136,7 +137,7 @@ const FIVE_AMBIANCES = [
 ];
 
 export const HomePage: React.FC = () => {
-  const { currentUser, publicStories, dailyTips, openConsentModal } = useApp();
+  const { currentUser, currentLanguage, publicStories, dailyTips, openConsentModal } = useApp();
   const [activeSymbioseIdx, setActiveSymbioseIdx] = useState(0);
 
   useEffect(() => {
@@ -231,6 +232,12 @@ export const HomePage: React.FC = () => {
                 >
                   <span>Découvrir les 5 ambiances</span>
                 </a>
+                <Link
+                  to="/loisir"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 sm:py-4 rounded-full bg-[#0F9F6E] text-white font-extrabold text-sm sm:text-base shadow-md"
+                >
+                  <span>{tUi(currentLanguage, 'leisureHomeCta')}</span>
+                </Link>
               </div>
             </div>
 

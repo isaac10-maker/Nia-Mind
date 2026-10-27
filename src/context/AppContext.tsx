@@ -63,6 +63,7 @@ import {
 } from '../lib/securityEngine';
 import type { User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { listOfflineNotes, removeOfflineNote } from '../lib/offlineQueue';
 import {
   confirmEmailCode,
   loadAccountBundle,
@@ -1057,6 +1058,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // La restauration ne doit pas se relancer à chaque rendu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const flush = () => {
+      if (!navigator.onLine) return;
+      for (const note of listOfflineNotes()) {
+        if (note.kind !== 'journal_note' && note.kind !== 'leisure_note') {
+          removeOfflineNote(note.id);
+          continue;
+        }
+        saveJournalEntry({
+          title: note.title,
+          content: note.text,
+          category: note.tag,
+          isDraft: true,
+        });
+        removeOfflineNote(note.id);
+      }
+    };
+    flush();
+    window.addEventListener('online', flush);
+    return () => window.removeEventListener('online', flush);
+    // La reprise ne doit utiliser que les notes déjà filtrées.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]);
 
   useEffect(() => {
     if (vaultEpoch === 0) {

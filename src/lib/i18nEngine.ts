@@ -42,6 +42,15 @@ export interface UiTranslations {
   navTips: string;
   navStories: string;
   navAbout: string;
+  navLeisure: string;
+  navGroupToday: string;
+  navGroupTalk: string;
+  navGroupWrite: string;
+  navGroupAccount: string;
+  navGroupDiscover: string;
+  leisureHomeCta: string;
+  navGroupRead: string;
+  navGroupPlay: string;
   navAssistant: string;
   navDashboard: string;
   navListening: string;
@@ -76,6 +85,15 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navTips: 'Conseils',
     navStories: 'Histoires',
     navAbout: 'À propos',
+    navLeisure: 'Loisir',
+    navGroupToday: 'Aujourd’hui',
+    navGroupTalk: 'Parler',
+    navGroupWrite: 'Écrire',
+    navGroupAccount: 'Compte',
+    navGroupDiscover: 'Découvrir',
+    leisureHomeCta: 'Coin loisir · devinettes & quiz',
+    navGroupRead: 'Lire',
+    navGroupPlay: 'Jouer',
     navAssistant: 'Assistance & Espace',
     navDashboard: 'Tableau de bord',
     navListening: 'Demander une écoute humaine',
@@ -109,6 +127,15 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navTips: 'Daily Tips',
     navStories: 'Stories',
     navAbout: 'About',
+    navLeisure: 'Play',
+    navGroupToday: 'Today',
+    navGroupTalk: 'Talk',
+    navGroupWrite: 'Write',
+    navGroupAccount: 'Account',
+    navGroupDiscover: 'Discover',
+    leisureHomeCta: 'Play corner · riddles & quiz',
+    navGroupRead: 'Read',
+    navGroupPlay: 'Play',
     navAssistant: 'AI & Personal Space',
     navDashboard: 'Dashboard',
     navListening: 'Request Human Listening',
@@ -142,6 +169,15 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navTips: 'Consejos',
     navStories: 'Historias',
     navAbout: 'Acerca de',
+    navLeisure: 'Juego',
+    navGroupToday: 'Hoy',
+    navGroupTalk: 'Hablar',
+    navGroupWrite: 'Escribir',
+    navGroupAccount: 'Cuenta',
+    navGroupDiscover: 'Descubrir',
+    leisureHomeCta: 'Rincón de juego · acertijos y quiz',
+    navGroupRead: 'Leer',
+    navGroupPlay: 'Jugar',
     navAssistant: 'Asistencia y Espacio',
     navDashboard: 'Panel personal',
     navListening: 'Solicitar escucha humana',
@@ -175,6 +211,15 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navTips: 'Impulse',
     navStories: 'Geschichten',
     navAbout: 'Über uns',
+    navLeisure: 'Spiel',
+    navGroupToday: 'Heute',
+    navGroupTalk: 'Sprechen',
+    navGroupWrite: 'Schreiben',
+    navGroupAccount: 'Konto',
+    navGroupDiscover: 'Entdecken',
+    leisureHomeCta: 'Spielecke · Rätsel & Quiz',
+    navGroupRead: 'Lesen',
+    navGroupPlay: 'Spielen',
     navAssistant: 'KI & Mein Bereich',
     navDashboard: 'Übersicht',
     navListening: 'Menschliches Zuhören anfragen',
@@ -208,6 +253,15 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navTips: '每日建议',
     navStories: '真实故事',
     navAbout: '关于我们',
+    navLeisure: '休闲',
+    navGroupToday: '今天',
+    navGroupTalk: '倾诉',
+    navGroupWrite: '书写',
+    navGroupAccount: '账户',
+    navGroupDiscover: '发现',
+    leisureHomeCta: '休闲角 · 谜语与小测验',
+    navGroupRead: '阅读',
+    navGroupPlay: '游玩',
     navAssistant: '智能助手与空间',
     navDashboard: '个人仪表盘',
     navListening: '申请人工倾听',
