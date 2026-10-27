@@ -32,7 +32,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!api/|sw\\.js).*)",
+      "source": "/((?!api/|sw\\.js|leisure/).*)",
       "destination": "/index.html"
     }
   ]

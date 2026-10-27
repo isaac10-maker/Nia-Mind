@@ -1,4 +1,4 @@
-const CACHE = 'nia-mind-shell-v1';
+const CACHE = 'nia-mind-shell-v2';
 const PUBLIC_PATHS = ['/', '/loisir', '/conseils', '/histoires', '/ressources', '/a-propos'];
 
 self.addEventListener('install', (event) => {
@@ -36,6 +36,21 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
+
+  if (url.pathname.startsWith('/leisure/')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || new Response('', { status: 504 })))
     );
     return;
   }
