@@ -951,16 +951,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         featuredDailyTip?.summary ||
         'Prends 2 minutes aujourd’hui pour déposer ce qui te pèse sans te juger.';
 
-      if (supabase) {
-        const { data } = await supabase.functions.invoke('push-daily-motivation', {
-          body: { mode: 'daily_motivation', aiFallback: siteSettings.aiAutopilotTipsEnabled },
-        });
-        if (data?.pushNotification) {
-          notifTitle = data.pushNotification.title || notifTitle;
-          notifMessage = data.pushNotification.message || notifMessage;
-        }
-      }
-
       pushToast(notifTitle, notifMessage, 'orange');
     } catch {
       pushToast(

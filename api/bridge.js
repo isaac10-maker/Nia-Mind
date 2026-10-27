@@ -4,12 +4,61 @@
 
 const ORIGIN = 'https://wyiiyfjvicwwbcbswdac.supabase.co';
 const ALLOWED = ['auth/v1/', 'rest/v1/', 'functions/v1/', 'storage/v1/'];
+// Clé publique anon, pas un secret. Le build Vercel a figé une clé périmée :
+// le pont la remplace, sinon Auth répond 401 et la console se remplit d'erreurs.
+const PUBLIC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5aWl5Zmp2aWN3d2JjYnN3ZGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MDUzOTYsImV4cCI6MjEwODI4MTM5Nn0.eNQZagTUKFzGHMEXHkDV13B8fsNm9ImbjrLZ09eoabA';
 const buckets = new Map();
 
 function header(req, name) {
   const value = req.headers?.[name] || req.headers?.[name.toLowerCase()];
   if (Array.isArray(value)) return value.join(', ');
   return value || '';
+}
+
+export function jwtClaims(token) {
+  const part = String(token || '').split('.')[1];
+  if (!part) return null;
+  try {
+    const json = Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+    const claims = JSON.parse(json);
+    return claims && typeof claims === 'object' ? claims : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isUserAccessToken(token) {
+  const claims = jwtClaims(token);
+  return Boolean(claims && typeof claims.sub === 'string' && claims.sub && claims.role !== 'anon');
+}
+
+function applyGatewayAuth(headers, req) {
+  if (!PUBLIC_ANON_KEY) return;
+  headers.set('apikey', PUBLIC_ANON_KEY);
+  const authorization = header(req, 'authorization');
+  const token = authorization.replace(/^Bearer\s+/i, '').trim();
+  if (!isUserAccessToken(token)) {
+    headers.set('authorization', `Bearer ${PUBLIC_ANON_KEY}`);
+  }
+}
+
+function motivationPayload() {
+  const tips = [
+    {
+      title: 'Nouveau Conseil & Motivation Nia-Mind',
+      message: 'Tu n’as pas besoin de porter toutes les attentes du monde en même temps. Choisis une seule priorité sincère aujourd’hui.',
+    },
+    {
+      title: 'Motivation du jour',
+      message: 'Reconnaître sa fatigue n’est pas un aveu de faiblesse. Nomme ce que tu ressens, sans te juger.',
+    },
+    {
+      title: 'Conseil du jour',
+      message: 'Ton esprit a besoin d’un sas avant le repos. Trois minutes de calme changent déjà la soirée.',
+    },
+  ];
+  const tip = tips[new Date().getUTCDate() % tips.length];
+  return { ok: true, mode: 'daily_motivation', source: 'bridge', pushNotification: tip };
 }
 
 function clientIp(req) {
@@ -90,6 +139,14 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({ ok: true, bridge: 'gateway' }));
       return;
     }
+    if (target.path === 'functions/v1/push-daily-motivation') {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/json; charset=utf-8');
+      res.setHeader('cache-control', 'private, no-store');
+      res.setHeader('x-nia-proxy', 'bridge');
+      res.end(JSON.stringify(motivationPayload()));
+      return;
+    }
     const allowed = ALLOWED.some((prefix) => target.path === prefix.slice(0, -1) || target.path.startsWith(prefix));
     if (!allowed || !['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'].includes(method)) {
       res.statusCode = allowed ? 405 : 400;
@@ -120,10 +177,11 @@ export default async function handler(req, res) {
     }
 
     const headers = new Headers();
-    for (const name of ['authorization', 'apikey', 'content-type', 'accept', 'accept-profile', 'content-profile', 'prefer', 'range', 'x-client-info', 'x-upsert']) {
+    for (const name of ['authorization', 'apikey', 'content-type', 'accept', 'accept-profile', 'content-profile', 'prefer', 'range', 'x-client-info', 'x-upsert', 'x-supabase-api-version']) {
       const value = header(req, name);
       if (value && !/[\r\n\0]/.test(value)) headers.set(name, value);
     }
+    applyGatewayAuth(headers, req);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15_000);
     const upstream = await fetch(`${ORIGIN}/${target.path}${target.search ? `?${target.search}` : ''}`, {
