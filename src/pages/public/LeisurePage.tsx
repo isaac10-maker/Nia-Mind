@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Clock3, Puzzle, Sparkles } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { tUi, type LanguageCodeInput, type UiTranslations } from '../../lib/i18nEngine';
+import { playCorrectChime, playCountdownTick, playWrongTone, unlockLeisureAudio } from '../../lib/leisureSounds';
 import {
   REFLECT_MS,
   activeProgress,
@@ -35,7 +36,13 @@ const TOPICS: Record<string, keyof UiTranslations> = {
   mountain: 'leisureTopicMountain',
   language: 'leisureTopicLanguage',
   riddle: 'leisureTopicRiddle',
+  manga: 'leisureTopicManga',
+  fiction: 'leisureTopicFiction',
+  events: 'leisureTopicEvents',
+  nature: 'leisureTopicNature',
 };
+const LEISURE_PROMPTS = '/leisure/prompts.json?v=3';
+const LEISURE_ANSWERS = '/leisure/answers.json?v=3';
 const LETTERS = ['A', 'B', 'C'];
 
 function languageOf(value: string): string {
@@ -96,10 +103,14 @@ export const LeisurePage: React.FC = () => {
   const [board, setBoard] = useState<LeisureBoard>(() => loadBoard(Date.now()));
   const [step, setStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [held, setHeld] = useState<number | null>(null);
   const [answers, setAnswers] = useState<AnswerBook | null>(null);
   const [sessionAnswer, setSessionAnswer] = useState<string | null>(null);
   const startedAt = useRef(0);
   const answersRequest = useRef<Promise<AnswerBook> | null>(null);
+  const opening = useRef(false);
+  const pickedNow = useRef<number | null>(null);
+  const tickSecond = useRef<number | null>(null);
 
   const trustedNow = now + offset;
   const lot = useMemo(() => (bank ? dailyLot(bank, trustedNow, lang, mode) : []), [bank, trustedNow, lang, mode]);
@@ -134,7 +145,7 @@ export const LeisurePage: React.FC = () => {
 
   useEffect(() => {
     let alive = true;
-    fetch('/leisure/prompts.json', { cache: 'force-cache' })
+    fetch(LEISURE_PROMPTS, { cache: 'no-cache' })
       .then((response) => {
         if (!response.ok) throw new Error('prompts');
         return response.json() as Promise<LeisureBank>;
@@ -175,7 +186,11 @@ export const LeisurePage: React.FC = () => {
   useEffect(() => {
     startedAt.current = performance.now();
     setElapsed(0);
+    setHeld(null);
     setSessionAnswer(null);
+    opening.current = false;
+    pickedNow.current = null;
+    tickSecond.current = null;
   }, [item?.id]);
 
   useEffect(() => {
@@ -194,7 +209,7 @@ export const LeisurePage: React.FC = () => {
   }, [item?.id, locked, revealed, lang]);
 
   useEffect(() => {
-    if (!item || locked || revealed) return undefined;
+    if (!item || locked || revealed || held != null) return undefined;
     const timer = window.setInterval(() => {
       const next = performance.now() - startedAt.current;
       setElapsed(next);
@@ -204,11 +219,23 @@ export const LeisurePage: React.FC = () => {
     }, 200);
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item?.id, locked, revealed]);
+  }, [item?.id, locked, revealed, held]);
+
+  useEffect(() => {
+    if (!item || locked || revealed || held != null) {
+      tickSecond.current = null;
+      return;
+    }
+    const seconds = Math.ceil(Math.max(0, REFLECT_MS - elapsed) / 1000);
+    if (tickSecond.current !== seconds && seconds > 0 && tickSecond.current != null) {
+      playCountdownTick();
+    }
+    tickSecond.current = seconds;
+  }, [elapsed, item, locked, revealed, held]);
 
   function loadAnswers(): Promise<AnswerBook> {
     if (!answersRequest.current) {
-      answersRequest.current = fetch('/leisure/answers.json', { cache: 'force-cache' })
+      answersRequest.current = fetch(LEISURE_ANSWERS, { cache: 'no-cache' })
         .then((response) => {
           if (!response.ok) throw new Error('answers');
           return response.json() as Promise<{ items: AnswerBook }>;
@@ -230,45 +257,54 @@ export const LeisurePage: React.FC = () => {
     });
   }
 
-  async function openAnswer(current: PublicItem) {
-    if (!canReveal(performance.now() - startedAt.current) && !progress?.revealed.includes(current.id)) return;
-    const book = await loadAnswers();
-    const text = book[current.id]?.[lang] ?? null;
-    setAnswers(book);
-    setSessionAnswer(text);
-    const local = Date.now();
-    const trusted = local + offset;
-    setNow(local);
-    setBoard((previous) => {
-      const currentProgress = previous[mode];
-      const base = currentProgress && currentProgress.lotId === currentLotId ? currentProgress : freshProgress(currentLotId);
-      const revealedIds = base.revealed.includes(current.id) ? base.revealed : [...base.revealed, current.id];
-      const finished = lot.every((entry) => revealedIds.includes(entry.id));
-      const next: LeisureProgress = {
-        ...base,
-        revealed: revealedIds,
-        completedAt: finished ? trusted : null,
-        unlockAt: finished ? unlockMoment(trusted) : null,
-        score: finished ? countScore(lot, base.guesses, book, lang) : base.score,
-        total: finished ? lot.length : base.total,
-      };
-      const boardNext = { ...previous, [mode]: next };
-      saveBoard(boardNext, trusted);
-      return boardNext;
-    });
+  async function openAnswer(current: PublicItem, picked?: number) {
+    if (opening.current) return;
+    const chosen = picked != null || pickedNow.current != null || progress?.guesses[current.id] != null;
+    if (!canReveal(performance.now() - startedAt.current) && !progress?.revealed.includes(current.id) && !chosen) return;
+    opening.current = true;
+    try {
+      const book = await loadAnswers();
+      const text = book[current.id]?.[lang] ?? null;
+      const guessIndex = pickedNow.current ?? picked ?? progress?.guesses[current.id];
+      if ((picked != null || pickedNow.current != null) && text && guessIndex != null) {
+        if (current.choices[guessIndex] === text) playCorrectChime();
+        else playWrongTone();
+      }
+      setAnswers(book);
+      setSessionAnswer(text);
+      const local = Date.now();
+      const trusted = local + offset;
+      setNow(local);
+      setBoard((previous) => {
+        const currentProgress = previous[mode];
+        const base = currentProgress && currentProgress.lotId === currentLotId ? currentProgress : freshProgress(currentLotId);
+        const guesses = guessIndex == null ? base.guesses : { ...base.guesses, [current.id]: guessIndex };
+        const revealedIds = base.revealed.includes(current.id) ? base.revealed : [...base.revealed, current.id];
+        const finished = lot.every((entry) => revealedIds.includes(entry.id));
+        const next: LeisureProgress = {
+          ...base,
+          guesses,
+          revealed: revealedIds,
+          completedAt: finished ? trusted : null,
+          unlockAt: finished ? unlockMoment(trusted) : null,
+          score: finished ? countScore(lot, guesses, book, lang) : base.score,
+          total: finished ? lot.length : base.total,
+        };
+        const boardNext = { ...previous, [mode]: next };
+        saveBoard(boardNext, trusted);
+        return boardNext;
+      });
+    } finally {
+      opening.current = false;
+    }
   }
 
   function choose(index: number) {
-    if (!item || revealed || answer || index < 0 || index > 2) return;
-    const trusted = Date.now() + offset;
-    setBoard((previous) => {
-      const currentProgress = previous[mode];
-      const base = currentProgress && currentProgress.lotId === currentLotId ? currentProgress : freshProgress(currentLotId);
-      const next = { ...base, guesses: { ...base.guesses, [item.id]: index } };
-      const boardNext = { ...previous, [mode]: next };
-      saveBoard(boardNext, trusted);
-      return boardNext;
-    });
+    if (!item || revealed || answer || held != null || pickedNow.current != null || index < 0 || index > 2) return;
+    unlockLeisureAudio();
+    pickedNow.current = index;
+    setHeld(performance.now() - startedAt.current);
+    if (!opening.current) void openAnswer(item, index).catch(() => setPhase('error'));
   }
 
   function continueLot() {
@@ -299,13 +335,19 @@ export const LeisurePage: React.FC = () => {
         active={mode === 'quiz'}
         locked={quizLocked}
         label={tUi(currentLanguage, 'leisureQuiz')}
-        onClick={() => setMode('quiz')}
+        onClick={() => {
+          unlockLeisureAudio();
+          setMode('quiz');
+        }}
       />
       <ModeButton
         active={mode === 'riddle'}
         locked={riddleLocked}
         label={tUi(currentLanguage, 'leisureRiddle')}
-        onClick={() => setMode('riddle')}
+        onClick={() => {
+          unlockLeisureAudio();
+          setMode('riddle');
+        }}
       />
     </div>
   );
@@ -374,7 +416,7 @@ export const LeisurePage: React.FC = () => {
             <div className="h-full rounded-full bg-[#0F9F6E] transition-all" style={{ width: `${((step + (answer ? 1 : 0.08)) / lot.length) * 100}%` }} />
           </div>
           <div className="mt-5 flex items-start gap-4">
-            <TimerRing elapsed={revealed ? REFLECT_MS : elapsed} />
+            <TimerRing elapsed={revealed ? REFLECT_MS : held ?? elapsed} />
             <h2 className="pt-2 text-xl font-black leading-snug text-[#1F2937] dark:text-white sm:text-3xl">{item.prompt}</h2>
           </div>
           <div className="mt-5" aria-live="polite">
@@ -397,7 +439,9 @@ export const LeisurePage: React.FC = () => {
         </div>
         <div className="grid gap-3 lg:col-span-5">
           {item.choices.map((choice, index) => {
-            const selected = guess === index;
+            const waiting = held != null && !answer;
+            const pendingIndex = waiting ? pickedNow.current : null;
+            const selected = guess === index || pendingIndex === index;
             const show = Boolean(answer);
             const correct = show && index === correctIndex;
             const missed = show && selected && !correct;
@@ -405,7 +449,7 @@ export const LeisurePage: React.FC = () => {
               <button
                 key={`${item.id}-${index}`}
                 type="button"
-                disabled={show}
+                disabled={show || waiting}
                 onClick={() => choose(index)}
                 className={`flex min-h-16 items-center gap-3 rounded-2xl border-2 px-4 py-4 text-left text-base font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F9F6E] ${
                   correct
@@ -477,7 +521,7 @@ function ModeButton({
 
 function Shell({ lang, children }: { lang: LanguageCodeInput; children: React.ReactNode }) {
   return (
-    <div className="w-full px-3 py-5 sm:px-5 lg:px-8">
+    <div className="w-full px-3 py-5 sm:px-5 lg:px-8" onPointerDown={unlockLeisureAudio}>
       <section className="rounded-[2rem] border-2 border-[#0F9F6E]/30 bg-white p-4 shadow-sm dark:bg-nia-surface-dark sm:p-6 lg:p-8">
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0F9F6E] px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white">

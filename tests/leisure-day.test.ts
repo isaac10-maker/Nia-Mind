@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LOCK_MS,
   REFLECT_MS,
+  canOpenAnswer,
   canReveal,
   dailyLot,
   formatCountdown,
@@ -47,9 +48,12 @@ describe('daily leisure bank', () => {
     expect(quiz).not.toEqual(riddle);
     expect(dailyLot(prompts, nextDay, 'fr', 'quiz').map((item) => item.id)).not.toEqual(quiz);
     expect(quiz).toHaveLength(5);
-    expect(riddle).toHaveLength(4);
-    expect(dailyLot(prompts, noon, 'fr', 'quiz').every((item) => item.choices.length === 3)).toBe(true);
-    expect(dailyLot(prompts, noon, 'fr', 'riddle').every((item) => item.choices.length === 3)).toBe(true);
+    expect(riddle).toHaveLength(5);
+    const quizTopics = new Set(dailyLot(prompts, noon, 'fr', 'quiz').map((item) => item.topic));
+    expect([...quizTopics].some((topic) => topic === 'manga' || topic === 'fiction')).toBe(true);
+    expect([...quizTopics].some((topic) => topic === 'science' || topic === 'nature')).toBe(true);
+    expect(quizTopics.has('events')).toBe(true);
+    expect(dailyLot(prompts, noon, 'fr', 'riddle').every((item) => item.topic === 'riddle' && item.choices.length === 3)).toBe(true);
   });
 
   it('does not repeat a quiz item across the next quiz days', () => {
@@ -68,10 +72,13 @@ describe('daily leisure bank', () => {
 });
 
 describe('leisure gates', () => {
-  it('hides the answer until 15 seconds have passed', () => {
+  it('hides the answer until a choice or 15 seconds', () => {
     expect(canReveal(REFLECT_MS - 1)).toBe(false);
     expect(canReveal(REFLECT_MS)).toBe(true);
     expect(canReveal(Number.NaN)).toBe(false);
+    expect(canOpenAnswer(0, true, false)).toBe(true);
+    expect(canOpenAnswer(0, false, false)).toBe(false);
+    expect(canOpenAnswer(0, false, true)).toBe(true);
   });
 
   it('starts a 24 hour countdown only for a real completion', () => {

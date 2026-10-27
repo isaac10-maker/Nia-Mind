@@ -1,6 +1,6 @@
 /**
  * Lot de loisir partagé, valable 24 h.
- * La réponse ne sort jamais de cette couche avant les 15 secondes de réflexion.
+ * La réponse reste cachée jusqu'au choix, ou jusqu'à la fin des 15 secondes.
  * Aucun journal, aucun compte, aucune autre clé du site.
  */
 
@@ -88,6 +88,10 @@ export function canReveal(elapsedMs: number): boolean {
   return Number.isFinite(elapsedMs) && elapsedMs >= REFLECT_MS;
 }
 
+export function canOpenAnswer(elapsedMs: number, chosen: boolean, alreadyRevealed: boolean): boolean {
+  return alreadyRevealed || chosen || canReveal(elapsedMs);
+}
+
 export function unlockMoment(completedAt: number): number {
   return completedAt + LOCK_MS;
 }
@@ -129,21 +133,49 @@ function toPublic(
   return { id: item.id, kind, topic: item.topic, prompt: item.prompt[lang], choices };
 }
 
-export function dailyLot(bank: LeisureBank, ms: number, language: string, kind: LeisureKind): PublicItem[] {
-  const lang = asLanguage(language);
-  const occurrence = dayIndex(ms);
-  if (kind === 'quiz') {
-    return sliceCycle(bank.quiz, occurrence, QUIZ_SIZE).flatMap((item) => {
-      const row = toPublic(item, 'quiz', lang);
+const QUIZ_GROUPS: string[][] = [
+  ['manga', 'fiction'],
+  ['science', 'nature'],
+  ['events'],
+  ['geo', 'city', 'language', 'mountain'],
+  ['art', 'books', 'cinema'],
+];
+
+function publish(item: BankQuiz | BankRiddle, kind: LeisureKind, lang: LeisureLanguage): PublicItem | null {
+  return toPublic(item, kind, lang);
+}
+
+function mixedQuiz(pool: BankQuiz[], occurrence: number, lang: LeisureLanguage): PublicItem[] {
+  const picked: BankQuiz[] = [];
+  QUIZ_GROUPS.forEach((topics, index) => {
+    const matches = pool.filter((item) => topics.includes(item.topic));
+    if (!matches.length) return;
+    const item = matches[(occurrence + index) % matches.length];
+    if (!picked.some((row) => row.id === item.id)) picked.push(item);
+  });
+  if (picked.length < 4) {
+    return sliceCycle(pool, occurrence, QUIZ_SIZE).flatMap((item) => {
+      const row = publish(item, 'quiz', lang);
       return row ? [row] : [];
     });
   }
-  const facts = bank.riddle.filter((item) => !item.id.startsWith('classic-'));
-  const classics = bank.riddle.filter((item) => item.id.startsWith('classic-'));
-  const classic = classics[occurrence % Math.max(classics.length, 1)];
-  const picked = sliceCycle(facts, occurrence, RIDDLE_FACT_SIZE);
-  return (classic ? [classic, ...picked] : picked).flatMap((item) => {
-    const row = toPublic(item, 'riddle', lang);
+  return picked.flatMap((item) => {
+    const row = publish(item, 'quiz', lang);
+    return row ? [row] : [];
+  });
+}
+
+export function dailyLot(bank: LeisureBank, ms: number, language: string, kind: LeisureKind): PublicItem[] {
+  const lang = asLanguage(language);
+  const occurrence = dayIndex(ms);
+  if (kind === 'quiz') return mixedQuiz(bank.quiz, occurrence, lang);
+  const riddles = bank.riddle.filter(
+    (item) => item.topic === 'riddle' || item.id.startsWith('classic-') || item.id.startsWith('riddle-'),
+  );
+  const size = Math.min(5, riddles.length);
+  if (size < 1) return [];
+  return sliceCycle(riddles, occurrence, size).flatMap((item) => {
+    const row = publish(item, 'riddle', lang);
     return row ? [row] : [];
   });
 }
