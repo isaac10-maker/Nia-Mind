@@ -4,7 +4,6 @@ import { clientIpFromHeaders, consumeRateLimit } from './api/requestGate';
 
 export const config = {
   runtime: 'nodejs',
-  matcher: ['/backend/:path*', '/api/:path*'],
 };
 
 function tooLarge(): Response {
