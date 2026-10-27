@@ -27,32 +27,36 @@ const TICKER_TWO_LINE_LABELS: Record<SupportedLanguage, { line1: string; line2: 
  */
 export const HeaderLangAndThemeControls: React.FC = () => {
   const { theme, toggleTheme, currentLanguage, setCurrentLanguage } = useApp();
+  const languages = Object.keys(LANGUAGE_META) as SupportedLanguage[];
 
   return (
-    <div className="inline-flex items-center gap-1.5 pt-0.5">
-      {/* Bouton de traduction : uniquement les sigles (FR, EN, ES, DE, ZH) au visuel */}
+    <div className="nia-header-tools inline-flex items-center gap-1 pt-0.5 max-w-full">
+      {/* Sigles seuls : pas de menu natif, sinon Windows peint un cadre blanc par-dessus. */}
       <div
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 text-white transition-colors"
+        className="inline-flex items-center gap-0.5 rounded-full bg-black/30 border border-white/25 px-1 py-0.5 max-w-full"
+        role="group"
+        aria-label="Sélecteur de langue"
         title="Sélecteur de langue"
       >
-        <Globe className="w-3 h-3 text-sky-200 shrink-0" />
-        <select
-          aria-label="Sélecteur de langue"
-          data-no-translate="true"
-          value={currentLanguage}
-          onChange={(e) => setCurrentLanguage(e.target.value as SupportedLanguage)}
-          className="bg-transparent text-[10px] sm:text-[11px] font-extrabold text-white focus:outline-none cursor-pointer pr-0.5 uppercase tracking-wider"
-        >
-          {(Object.keys(LANGUAGE_META) as SupportedLanguage[]).map((langKey) => (
-            <option
+        <Globe className="w-3 h-3 text-sky-200 shrink-0 ml-0.5" aria-hidden="true" />
+        {languages.map((langKey) => {
+          const active = currentLanguage === langKey;
+          return (
+            <button
               key={langKey}
-              value={langKey}
-              className="bg-slate-900 text-white font-bold"
+              type="button"
+              data-no-translate="true"
+              aria-pressed={active}
+              aria-label={LANGUAGE_META[langKey].label}
+              onClick={() => setCurrentLanguage(langKey)}
+              className={`nia-lang-code px-1 py-0.5 rounded-full text-[10px] font-extrabold leading-none tracking-wide ${
+                active ? 'nia-lang-code-active' : ''
+              }`}
             >
               {LANGUAGE_META[langKey].short}
-            </option>
-          ))}
-        </select>
+            </button>
+          );
+        })}
       </div>
 
       {/* Bouton de bascule Sombre / Clair : uniquement l'icône Lune ou Soleil */}
@@ -257,9 +261,9 @@ export const RoleSwitcherBar: React.FC<{
           isAuthPage ? 'blur-md opacity-35 pointer-events-none select-none' : ''
         }`}
       >
-        <div className="w-full px-2.5 sm:px-4 py-1.5 flex items-center justify-between gap-2">
+        <div className="w-full px-2 sm:px-4 py-1.5 flex flex-wrap items-start sm:items-center justify-between gap-x-2 gap-y-1">
           {/* Gauche : Logo Nia-Mind ramené en haut + Slogan + Sigle Langue & Icône Lune/Soleil en dessous */}
-          <div className="flex flex-col items-start min-w-0">
+          <div className="relative z-20 flex flex-col items-start shrink-0 max-w-full">
             <BrandLogo showSlogan={true} size="sm" />
             <HeaderLangAndThemeControls />
           </div>

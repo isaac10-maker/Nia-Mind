@@ -54,9 +54,9 @@ export const PublicLayout: React.FC = () => {
 
       {/* En-tête Orange unifié en haut (cadrage plein écran sans marge perdue dans les angles) + Bandeau d'annonce TV en dessous */}
       <header className="nia-header-bar sticky top-0 z-50 w-full text-white shadow-lg border-b border-white/15">
-        <div className="w-full px-2.5 sm:px-4 py-1.5 flex items-center justify-between gap-2">
+        <div className="w-full px-2 sm:px-4 py-1.5 flex flex-wrap items-start sm:items-center justify-between gap-x-2 gap-y-1">
           {/* Gauche : Logo Nia-Mind + Slogan en dessous + Sigles Langue (FR, EN, ES, DE, ZH) & Icône Lune/Soleil seule */}
-          <div className="relative z-50 flex flex-col items-start shrink-0">
+          <div className="relative z-50 flex flex-col items-start shrink-0 max-w-full">
             <BrandLogo showSlogan={true} size="sm" />
             <div
               className={`transition-all duration-300 ${

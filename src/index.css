@@ -216,6 +216,24 @@ html.dark textarea {
   color: #f4fbf7;
 }
 
+/* Le menu natif du header ne doit pas hériter du fond blanc des formulaires. */
+.nia-header-bar select,
+.nia-header-bar input,
+.nia-header-bar textarea,
+.nia-lang-code {
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: none;
+}
+
+.nia-lang-code-active {
+  background-color: #fff7ed !important;
+  color: #7f1d3f !important;
+}
+
 html.dark .dark\:bg-nia-surface-dark {
   background-color: rgb(var(--nia-surface-dark-rgb) / 0.82) !important;
   background-image: linear-gradient(
