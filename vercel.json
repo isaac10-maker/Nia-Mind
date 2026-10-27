@@ -7,7 +7,7 @@
     "api/*.ts": {
       "maxDuration": 30
     },
-    "api/bridge.ts": {
+    "api/bridge.js": {
       "maxDuration": 30
     }
   },
