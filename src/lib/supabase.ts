@@ -15,6 +15,16 @@ export function isSupabaseConfigured(): boolean {
   );
 }
 
+/** Vrai si cette ouverture vient du lien de confirmation, pas d’un code saisi. */
+export function openedFromEmailConfirm(): boolean {
+  if (typeof window === 'undefined') return false;
+  const raw = `${window.location.hash}&${window.location.search}`;
+  if (/type=recovery/i.test(raw)) return false;
+  return /access_token=|type=signup|type=email|type=magiclink|(?:[?&#])code=/i.test(raw);
+}
+
+export const emailConfirmLanding = openedFromEmailConfirm();
+
 function gatewayUrl(): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return `${window.location.origin}/api/gateway`;
@@ -62,6 +72,8 @@ export const supabase = isSupabaseConfigured()
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'implicit',
       },
       global: {
         fetch: guardedFetch,

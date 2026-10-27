@@ -61,6 +61,7 @@ import {
   validateStoryPublicationEligibility,
   verifyProtectedLogin,
 } from '../lib/securityEngine';
+import type { User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   confirmEmailCode,
@@ -107,6 +108,7 @@ interface AppContextValue {
 
   // Authentification & Session
   currentUser: UserProfile | null;
+  authReady: boolean;
   allUsers: UserProfile[];
   switchDemoUser: (userId: string | null) => void;
   loginWithEmail: (
@@ -411,6 +413,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Aucun compte, mot de passe ou journal n'est relu depuis le navigateur.
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [conversations, setConversations] = useState<AssistantConversation[]>([]);
   const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
   const [stressSleepEntries, setStressSleepEntries] = useState<StressSleepEntry[]>([]);
@@ -858,7 +861,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return {
         ok: true,
         pending: true,
-        error: `Un message de vérification a été envoyé à ${cleanEmail}. Ouvrez-le, ou saisissez le code reçu. Le mot de passe n’est pas conservé dans le navigateur.`,
+        error: `Un message de confirmation a été envoyé à ${cleanEmail}. Ouvrez-le : le lien ouvre l’accueil automatiquement. Il n’y a pas de code à saisir.`,
       };
     }
     commitBundle(created);
@@ -969,27 +972,83 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     const client = supabase;
-    if (!client) return;
+    if (!client) {
+      setAuthReady(true);
+      return;
+    }
     let alive = true;
-    const adopt = async (userId: string) => {
-      const { data } = await client.auth.getUser();
-      if (!alive || !data.user || data.user.id !== userId) return;
-      const bundle = await loadAccountBundle(data.user);
-      if (!alive || !bundle.ok) return;
-      commitBundle(bundle);
+    let ready = false;
+    let pending = 1;
+    const markReady = () => {
+      if (!alive || ready) return;
+      ready = true;
+      setAuthReady(true);
     };
-    void client.auth.getSession().then(({ data }) => {
-      if (data.session?.user) void adopt(data.session.user.id);
-    });
-    const { data: subscription } = client.auth.onAuthStateChange((event, session) => {
+    const finishOne = () => {
+      pending -= 1;
+      if (pending <= 0) markReady();
+    };
+    const adopt = async (user: User) => {
+      const bundle = await loadAccountBundle(user);
       if (!alive) return;
-      if (event === 'SIGNED_OUT') {
-        clearPrivateMemory();
+      if (bundle.ok) {
+        commitBundle(bundle);
         return;
       }
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-        void adopt(session.user.id);
+      const email = (user.email || '').toLowerCase();
+      const meta = (user.user_metadata || {}) as { public_pseudonym?: string; display_name?: string };
+      const pseudo = meta.public_pseudonym || meta.display_name || email.split('@')[0] || 'Membre';
+      skipCloudPush.current = true;
+      setUsers((prev) => {
+        const kept = prev.filter((item) => item.id !== user.id);
+        return [
+          {
+            id: user.id,
+            email,
+            displayName: pseudo,
+            publicPseudonym: pseudo,
+            bio: '',
+            countryCode: 'INT',
+            role: 'user',
+            themePreference: 'light',
+            reducedMotion: false,
+            notificationsEnabled: true,
+            dailyTipModalEnabled: true,
+            acceptedTermsVersion: 'v2.5 — Octobre 2026',
+            acceptedTermsAt: new Date().toISOString(),
+            optionalAnalyticsConsent: false,
+            optionalWellnessInsightsConsent: true,
+            createdAt: user.created_at || new Date().toISOString(),
+            isOnline: true,
+          },
+          ...kept,
+        ];
+      });
+      setCurrentUserId(user.id);
+    };
+    void client.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (data.session?.user) await adopt(data.session.user);
+      })
+      .finally(finishOne);
+    const { data: subscription } = client.auth.onAuthStateChange((event, session) => {
+      if (!alive) return;
+      if (event === 'INITIAL_SESSION') pending += 1;
+      if (event === 'SIGNED_OUT') {
+        if (ready) clearPrivateMemory();
+        return;
       }
+      if (
+        (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') &&
+        session?.user
+      ) {
+        void adopt(session.user).finally(() => {
+          if (event === 'INITIAL_SESSION') finishOne();
+        });
+        return;
+      }
+      if (event === 'INITIAL_SESSION') finishOne();
     });
     return () => {
       alive = false;
@@ -2585,6 +2644,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     currentLanguage,
     setCurrentLanguage,
     currentUser,
+    authReady,
     allUsers: users,
     switchDemoUser,
     loginWithEmail,

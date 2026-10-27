@@ -34,13 +34,17 @@ const ADMIN_NAV_ITEMS = [
 ];
 
 export const AdminLayout: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser, authReady } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isSuperAdmin =
     Boolean(currentUser) &&
     currentUser?.role === 'admin' &&
     currentUser?.email.toLowerCase() === SUPERADMIN_EMAIL;
+
+  if (!authReady) {
+    return <div className="min-h-screen bg-[#F3FBF6]" aria-busy="true" aria-label="Session en cours" />;
+  }
 
   // La console Admin n'est visible et accessible QUE par le Superadmin (isaacamegan10@gmail.com)
   if (!isSuperAdmin) {

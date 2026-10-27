@@ -608,7 +608,6 @@ export const AboutPage: React.FC = () => {
 export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => {
   const {
     loginWithEmail,
-    confirmEmailVerification,
     resendEmailVerification,
     registerAccount,
     requestGmailPushVerification,
@@ -666,8 +665,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
   const [forgotEnteredCode, setForgotEnteredCode] = useState('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotStatusMsg, setForgotStatusMsg] = useState<string | null>(null);
-  const [awaitingEmailCode, setAwaitingEmailCode] = useState(false);
-  const [emailCode, setEmailCode] = useState('');
+  const [awaitingEmailLink, setAwaitingEmailLink] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -676,7 +674,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     if (mode === 'login') {
       const res = await loginWithEmail(email, password, websiteHoneypot);
       if (!res.ok) {
-        if (res.needsVerification) setAwaitingEmailCode(true);
+        if (res.needsVerification) setAwaitingEmailLink(true);
         setErrorMsg(res.error || 'Erreur de connexion.');
         return;
       }
@@ -705,7 +703,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         honeypot: websiteHoneypot,
       });
       if (res.pending) {
-        setAwaitingEmailCode(true);
+        setAwaitingEmailLink(true);
         setErrorMsg(null);
         return;
       }
@@ -747,13 +745,12 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
       return;
     }
 
-    // Le mot de passe part vers Supabase Auth. Le code arrive par e-mail, jamais à l'écran.
     const loginTry = await loginWithEmail(clean, gmailPassword.trim());
     if (loginTry.needsVerification) {
       setEmail(clean);
-      setAwaitingEmailCode(true);
+      setAwaitingEmailLink(true);
       setIsGmailModalOpen(false);
-      setErrorMsg(loginTry.error || 'Confirmez le message reçu par e-mail.');
+      setErrorMsg('Ouvrez le message reçu : le lien ouvre l’accueil. Il n’y a pas de code à saisir.');
       return;
     }
     if (loginTry.ok) {
@@ -785,7 +782,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     if (regTry.pending) {
       setEmail(clean);
       setPseudonym(chosenGmailPseudo);
-      setAwaitingEmailCode(true);
+      setAwaitingEmailLink(true);
       setIsGmailModalOpen(false);
       setErrorMsg(null);
       return;
@@ -954,63 +951,26 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
           <div className="flex-grow border-t border-nia-orange/25 dark:border-white/10" />
         </div>
 
-        {awaitingEmailCode && (
-          <form
-            onSubmit={async (event) => {
-              event.preventDefault();
-              setErrorMsg(null);
-              const confirmed = await confirmEmailVerification({
-                email,
-                token: emailCode,
-                profile: {
-                  displayName: pseudonym.trim() || displayName.trim() || email.split('@')[0],
-                  publicPseudonym: pseudonym.trim() || displayName.trim() || 'Anonyme',
-                  countryCode,
-                },
-              });
-              if (!confirmed.ok) {
-                setErrorMsg(confirmed.error || 'Code invalide ou expiré.');
-                return;
-              }
-              navigate(redirectTarget);
-            }}
-            className="space-y-3 rounded-2xl border-2 border-[#0F9F6E] bg-white p-4"
-          >
+        {awaitingEmailLink && (
+          <div className="space-y-3 rounded-2xl border-2 border-[#0F9F6E] bg-white p-4">
             <p className="text-sm font-bold text-[#1F2937]">
-              Un message de vérification a été envoyé à {email.trim().toLowerCase()}. Ouvrez-le, ou saisissez le code reçu.
+              Un message de confirmation a été envoyé à {email.trim().toLowerCase()}. Ouvrez-le : le lien ouvre l’accueil automatiquement. Il n’y a pas de code à saisir.
             </p>
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={emailCode}
-              onChange={(event) => setEmailCode(event.target.value)}
-              placeholder="Code reçu par e-mail"
-              className="w-full px-4 py-3 rounded-2xl border-2 border-[#0F9F6E]/40 text-sm font-bold tracking-widest text-[#1F2937]"
-            />
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                className="px-4 py-2.5 rounded-full bg-[#0F9F6E] text-white text-xs font-extrabold"
-              >
-                Confirmer le code
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const sent = await resendEmailVerification(email);
-                  setErrorMsg(
-                    sent.ok
-                      ? 'Un nouveau message de vérification a été envoyé.'
-                      : sent.error || 'Impossible de renvoyer le message.'
-                  );
-                }}
-                className="px-4 py-2.5 rounded-full border-2 border-[#7F1D3F] text-[#7F1D3F] text-xs font-extrabold"
-              >
-                Renvoyer le message
-              </button>
-            </div>
-          </form>
+            <button
+              type="button"
+              onClick={async () => {
+                const sent = await resendEmailVerification(email);
+                setErrorMsg(
+                  sent.ok
+                    ? 'Un nouveau message de confirmation a été envoyé.'
+                    : sent.error || 'Impossible de renvoyer le message.'
+                );
+              }}
+              className="px-4 py-2.5 rounded-full border-2 border-[#7F1D3F] text-[#7F1D3F] text-xs font-extrabold"
+            >
+              Renvoyer le message
+            </button>
+          </div>
         )}
 
         {errorMsg && (
@@ -1241,7 +1201,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         onClose={() => setIsGmailModalOpen(false)}
         badgeText="Vérification par e-mail"
         title="Continuer avec votre adresse Gmail"
-        subtitle="Un vrai message de vérification est envoyé à cette adresse. Ouvrez-le, ou saisissez le code reçu."
+        subtitle="Un message de confirmation est envoyé à cette adresse. Le lien ouvre l’accueil. Il n’y a pas de code à saisir."
         accent="orange"
         footer={
           <>

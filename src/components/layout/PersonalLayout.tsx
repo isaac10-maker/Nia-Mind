@@ -21,7 +21,7 @@ import { useApp } from '../../context/AppContext';
 import { tUi } from '../../lib/i18nEngine';
 
 export const PersonalLayout: React.FC = () => {
-  const { currentUser, currentLanguage, logout } = useApp();
+  const { currentUser, authReady, currentLanguage, logout } = useApp();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -37,6 +37,10 @@ export const PersonalLayout: React.FC = () => {
     { label: tUi(currentLanguage, 'navProfile'), to: '/espace/profil', icon: User },
     { label: tUi(currentLanguage, 'navPrivacy'), to: '/espace/confidentialite', icon: Lock },
   ];
+
+  if (!authReady) {
+    return <div className="min-h-screen bg-[#F3FBF6]" aria-busy="true" aria-label="Session en cours" />;
+  }
 
   // En mode visiteur, toute tentative d'entrer dans un onglet personnel ou d'utiliser l'assistance redirige vers l'inscription/connexion
   if (!currentUser) {

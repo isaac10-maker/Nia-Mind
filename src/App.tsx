@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
+import { emailConfirmLanding } from './lib/supabase';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { PersonalLayout } from './components/layout/PersonalLayout';
 import { AdminLayout } from './components/layout/AdminLayout';
@@ -86,11 +87,27 @@ const CopyAndSelectionGuard: React.FC = () => {
   return null;
 };
 
+const EmailConfirmHomeGate: React.FC = () => {
+  const { authReady, currentUser } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!emailConfirmLanding || !authReady || !currentUser) return;
+    if (location.pathname !== '/') {
+      navigate('/', { replace: true });
+    }
+  }, [authReady, currentUser, location.pathname, navigate]);
+
+  return null;
+};
+
 export const App: React.FC = () => {
   return (
     <AppProvider>
       <CopyAndSelectionGuard />
       <BrowserRouter>
+        <EmailConfirmHomeGate />
         <ScrollToTopOnRoute />
         <PlatformAutoTranslator />
         <GlobalModals />

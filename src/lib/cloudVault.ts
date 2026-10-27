@@ -143,13 +143,13 @@ function profileFromRow(row: ProfileRow, role: UserRole, fallbackEmail = ''): Us
 function frenchAuthError(message: string): string {
   const text = message.toLowerCase();
   if (text.includes('email not confirmed') || text.includes('not confirmed')) {
-    return 'Ce compte existe, mais l’e-mail n’est pas encore confirmé. Saisissez le code reçu, ou ouvrez le message de vérification.';
+    return 'Ce compte existe, mais l’e-mail n’est pas encore confirmé. Ouvrez le message : le lien ouvre l’accueil. Il n’y a pas de code à saisir.';
   }
   if (text.includes('invalid login') || text.includes('invalid credentials')) {
     return 'E-mail ou mot de passe incorrect. Si le compte n’existe pas encore, inscrivez-vous : un message de vérification sera envoyé.';
   }
   if (text.includes('already registered') || text.includes('already been registered')) {
-    return 'Un compte existe déjà avec cette adresse. Utilisez « Connexion », ou saisissez le code reçu par e-mail.';
+    return 'Un compte existe déjà avec cette adresse. Ouvrez le message de confirmation, ou utilisez « Connexion ».';
   }
   if (text.includes('password')) {
     return 'Le mot de passe doit contenir au moins 6 caractères.';
@@ -170,7 +170,11 @@ function frenchAuthError(message: string): string {
   return 'La demande de compte n’a pas abouti. Réessayez dans un instant.';
 }
 
-function authRedirect(): string {
+function homeRedirect(): string {
+  return typeof window !== 'undefined' ? window.location.origin : 'https://nia-mind.vercel.app';
+}
+
+function recoveryRedirect(): string {
   return typeof window !== 'undefined'
     ? `${window.location.origin}/connexion`
     : 'https://nia-mind.vercel.app/connexion';
@@ -419,7 +423,7 @@ export async function signUpAccount(params: {
     email: params.email,
     password: params.password,
     options: {
-      emailRedirectTo: authRedirect(),
+      emailRedirectTo: homeRedirect(),
       data: {
         public_pseudonym: params.profile.publicPseudonym || params.profile.displayName || '',
         display_name: params.profile.displayName || params.profile.publicPseudonym || '',
@@ -453,7 +457,7 @@ export async function resendVerificationMessage(email: string): Promise<{ ok: bo
   const { error } = await supabase.auth.resend({
     type: 'signup',
     email,
-    options: { emailRedirectTo: authRedirect() },
+    options: { emailRedirectTo: homeRedirect() },
   });
   if (error) return { ok: false, error: frenchAuthError(error.message) };
   return { ok: true };
@@ -461,7 +465,7 @@ export async function resendVerificationMessage(email: string): Promise<{ ok: bo
 
 export async function sendPasswordReset(email: string): Promise<{ ok: boolean; error?: string }> {
   if (!supabase) return { ok: false, error: 'Le compte serveur n’est pas configuré.' };
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: authRedirect() });
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: recoveryRedirect() });
   if (error) return { ok: false, error: frenchAuthError(error.message) };
   return { ok: true };
 }
