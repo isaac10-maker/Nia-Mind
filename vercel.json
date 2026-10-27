@@ -6,6 +6,9 @@
   "functions": {
     "api/*.ts": {
       "maxDuration": 30
+    },
+    "api/gateway/[...path].ts": {
+      "maxDuration": 30
     }
   },
   "headers": [
@@ -27,11 +30,11 @@
       ]
     }
   ],
-  "proxy": {
-    "entrypoint": "proxy.ts",
-    "matcher": ["/backend/:path*", "/api/:path*"]
-  },
   "rewrites": [
+    {
+      "source": "/backend/:path*",
+      "destination": "/api/gateway/:path*"
+    },
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"

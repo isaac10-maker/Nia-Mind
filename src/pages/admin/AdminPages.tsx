@@ -1905,7 +1905,7 @@ export const AdminSettingsPage: React.FC = () => {
               </span>
             </li>
             <li className="flex items-center justify-between">
-              <span>Pont reverse proxy `/backend`</span>
+              <span>Pont same-origin `/api/gateway`</span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400">
                 Actif — débit limité avant le backend
               </span>

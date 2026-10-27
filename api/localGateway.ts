@@ -45,13 +45,19 @@ export function attachLocalGateway(middlewares: {
 }): void {
   middlewares.use((req, res, next) => {
     const pathname = (req.url || '').split('?')[0];
-    if (pathname !== '/api/assistant' && pathname !== '/backend' && !pathname.startsWith('/backend/')) {
+    const isAssistant = pathname === '/api/assistant';
+    const isBridge =
+      pathname === '/backend' ||
+      pathname.startsWith('/backend/') ||
+      pathname === '/api/gateway' ||
+      pathname.startsWith('/api/gateway/');
+    if (!isAssistant && !isBridge) {
       next();
       return;
     }
 
     void (async () => {
-      if (pathname === '/api/assistant') {
+      if (isAssistant) {
         if ((req.method || 'GET') !== 'POST') {
           res.statusCode = 405;
           res.setHeader('Content-Type', 'application/json; charset=utf-8');

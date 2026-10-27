@@ -116,11 +116,41 @@ function scopeForPath(pathname: string): 'functions' | 'backend' {
   return pathname.startsWith('/functions/v1/') ? 'functions' : 'backend';
 }
 
+export function stripBridgePrefix(pathname: string): string {
+  for (const prefix of ['/api/gateway', '/backend']) {
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+      return pathname.slice(prefix.length) || '/';
+    }
+  }
+  return pathname.startsWith('/') ? pathname : `/${pathname}`;
+}
+
 export async function proxyBackendRequest(request: Request, deps: ProxyDeps = {}): Promise<Response> {
   const url = new URL(request.url);
-  const prefix = '/backend';
-  const rawPath = url.pathname.startsWith(prefix) ? url.pathname.slice(prefix.length) || '/' : url.pathname;
+  const rawPath = stripBridgePrefix(url.pathname);
   const method = request.method.toUpperCase();
+
+  if (method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'cache-control': 'private, no-store',
+        allow: 'GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS',
+        'x-nia-proxy': 'bridge',
+      },
+    });
+  }
+
+  if (rawPath === '/health') {
+    return new Response(JSON.stringify({ ok: true, bridge: 'gateway' }), {
+      status: 200,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'private, no-store',
+        'x-nia-proxy': 'bridge',
+      },
+    });
+  }
 
   if (request.headers.get('upgrade')?.toLowerCase() === 'websocket') {
     return jsonResponse(426, 'Le temps réel direct est désactivé. Les requêtes passent par le pont HTTP.');

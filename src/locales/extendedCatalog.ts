@@ -2377,11 +2377,11 @@ export const EXTENDED_MULTILINGUAL_ENTRIES: FiveWayEntry[] = [
     '安全限制（15 秒内 3 次）：身份验证尝试过多。请稍后再试。',
   ],
   [
-    'Pont reverse proxy `/backend`',
-    'Reverse proxy bridge `/backend`',
-    'Puente reverse proxy `/backend`',
-    'Reverse-Proxy-Brücke `/backend`',
-    '反向代理桥 `/backend`',
+    'Pont same-origin `/api/gateway`',
+    'Same-origin bridge `/api/gateway`',
+    'Puente de mismo origen `/api/gateway`',
+    'Same-Origin-Brücke `/api/gateway`',
+    '同源桥 `/api/gateway`',
   ],
   [
     'Actif — débit limité avant le backend',

@@ -15,9 +15,9 @@ export function isSupabaseConfigured(): boolean {
 
 function gatewayUrl(): string {
   if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/backend`;
+    return `${window.location.origin}/api/gateway`;
   }
-  return 'http://127.0.0.1/backend';
+  return 'http://127.0.0.1/api/gateway';
 }
 
 const guardedFetch: typeof fetch = async (input, init) => {

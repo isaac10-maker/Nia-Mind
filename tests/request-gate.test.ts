@@ -52,6 +52,26 @@ describe('Pont reverse proxy et limitation de débit', () => {
     expect(calls).toEqual([`${ORIGIN}/rest/v1/daily_tips?select=id`]);
   });
 
+  it('accepte le préfixe de la fonction /api/gateway et répond sur /health', async () => {
+    const calls: string[] = [];
+    const forwarded = await proxyBackendRequest(
+      new Request('http://nia-mind.local/api/gateway/rest/v1/daily_tips?select=id'),
+      {
+        env: { VITE_SUPABASE_URL: ORIGIN },
+        fetchImpl: async (input) => {
+          calls.push(String(input));
+          return jsonResponse([{ id: 'tip-1' }]);
+        },
+      }
+    );
+    expect(forwarded.status).toBe(200);
+    expect(calls).toEqual([`${ORIGIN}/rest/v1/daily_tips?select=id`]);
+
+    const health = await proxyBackendRequest(new Request('http://nia-mind.local/api/gateway/health'));
+    expect(health.status).toBe(200);
+    expect(await health.json()).toEqual({ ok: true, bridge: 'gateway' });
+  });
+
   it('bloque la 4e tentative d’identification en 15 secondes sans appeler le backend', async () => {
     let calls = 0;
     const send = () =>

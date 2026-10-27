@@ -611,7 +611,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     registerAccount,
     requestGmailPushVerification,
     requestPasswordRecoveryPush,
-    resetForgottenPassword,
+
     triggerSignupMotivationPush,
     featuredDailyTip,
     openConsentModal,
@@ -665,12 +665,12 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotStatusMsg, setForgotStatusMsg] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
     if (mode === 'login') {
-      const res = loginWithEmail(email, password, websiteHoneypot);
+      const res = await loginWithEmail(email, password, websiteHoneypot);
       if (!res.ok) {
         setErrorMsg(res.error || 'Erreur de connexion.');
         return;
@@ -688,7 +688,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         return;
       }
       const chosenPseudo = pseudonym.trim() || displayName.trim() || 'PlumeSincere';
-      const res = registerAccount({
+      const res = await registerAccount({
         displayName: displayName.trim() || chosenPseudo,
         email,
         password,
@@ -699,7 +699,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         optionalWellnessConsent: optionalWellness,
         honeypot: websiteHoneypot,
       });
-      if (!res.ok) {
+      if (!res.ok || res.pending) {
         setErrorMsg(res.error || 'Erreur lors de la création du compte.');
         return;
       }
@@ -748,7 +748,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     }
 
     // Essayer d'abord de connecter si déjà inscrit (ex. Superadmin isaacamegan10@gmail.com)
-    const loginTry = loginWithEmail(clean, gmailPassword.trim());
+    const loginTry = await loginWithEmail(clean, gmailPassword.trim());
     if (loginTry.ok) {
       setIsGmailModalOpen(false);
       navigate(redirectTarget);
@@ -764,7 +764,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         .slice(0, 18) ||
       'PlumeGmail';
 
-    const regTry = registerAccount({
+    const regTry = await registerAccount({
       displayName: chosenGmailPseudo,
       email: clean,
       password: gmailPassword.trim(),
@@ -775,7 +775,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
       optionalWellnessConsent: true,
     });
 
-    if (!regTry.ok) {
+    if (!regTry.ok || regTry.pending) {
       setErrorMsg(regTry.error || 'Impossible de finaliser l’inscription Gmail.');
       return;
     }
@@ -784,37 +784,18 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     navigate(redirectTarget);
   };
 
-  const handleRequestPasswordRecovery = (e: React.FormEvent) => {
+  const handleRequestPasswordRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotStatusMsg(null);
-    const res = requestPasswordRecoveryPush(forgotEmail);
+    const res = await requestPasswordRecoveryPush(forgotEmail);
     if (!res.ok) {
       setForgotStatusMsg(res.error || 'Impossible d’envoyer la récupération.');
       return;
     }
-    setForgotSentCode(res.recoveryCode || '');
-    setForgotEnteredCode(res.recoveryCode || '');
-    setForgotStatusMsg(
-      `Code Push de récupération envoyé à ${forgotEmail.trim().toLowerCase()} : ${res.recoveryCode}`
-    );
-  };
-
-  const handleConfirmPasswordReset = (e: React.FormEvent) => {
-    e.preventDefault();
-    const res = resetForgottenPassword({
-      email: forgotEmail,
-      recoveryCode: forgotEnteredCode,
-      newPassword: forgotNewPassword,
-    });
-    if (!res.ok) {
-      setForgotStatusMsg(res.error || 'Erreur de réinitialisation.');
-      return;
-    }
-    setEmail(forgotEmail.trim().toLowerCase());
-    setPassword(forgotNewPassword.trim());
-    setIsForgotModalOpen(false);
     setForgotSentCode(null);
-    setForgotStatusMsg(null);
+    setForgotStatusMsg(
+      'Si un compte existe pour cette adresse, un lien de réinitialisation vient d’être envoyé. Le nouveau mot de passe se choisit dans ce lien, jamais sur cette page.'
+    );
   };
 
   return (
@@ -1261,22 +1242,10 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
           </div>
 
           {gmailPushSent && (
-            <div className="p-3.5 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 space-y-2">
+            <div className="p-3.5 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40">
               <p className="text-xs font-extrabold text-emerald-800 dark:text-emerald-200">
-                ✓ Notification Push envoyée sur votre compte Gmail ({gmailAddress}).
+                Le mot de passe est vérifié par le serveur. Aucun code n’est affiché dans le navigateur.
               </p>
-              <div>
-                <label className="block text-[11px] font-extrabold uppercase tracking-wider mb-1">
-                  Code de confirmation Push Gmail reçu
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={gmailEnteredCode}
-                  onChange={(e) => setGmailEnteredCode(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-nia-bg-dark border border-emerald-500/50 text-sm font-black tracking-widest"
-                />
-              </div>
             </div>
           )}
 
@@ -1309,7 +1278,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         onClose={() => setIsForgotModalOpen(false)}
         badgeText="Récupération Sécurisée"
         title="Mot de passe oublié ?"
-        subtitle="Recevez une notification Push de récupération sur votre adresse e-mail réelle inscrite."
+        subtitle="Un lien de réinitialisation est envoyé par e-mail. Le mot de passe n’est jamais enregistré dans le navigateur."
         accent="bordeaux"
         footer={
           <button
@@ -1346,49 +1315,11 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
               type="submit"
               className="w-full py-2.5 rounded-full bg-nia-bordeaux text-white text-xs font-extrabold shadow-sm"
             >
-              Envoyer le code Push de récupération
+              Envoyer le lien de réinitialisation
             </button>
           </form>
 
-          {forgotSentCode && (
-            <form
-              onSubmit={handleConfirmPasswordReset}
-              className="pt-3 border-t border-nia-orange/25 space-y-3"
-            >
-              <div>
-                <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-                  Code Push de récupération (6 chiffres)
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={forgotEnteredCode}
-                  onChange={(e) => setForgotEnteredCode(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-black tracking-widest"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-                  Nouveau mot de passe (min. 6 caractères)
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={forgotNewPassword}
-                  onChange={(e) => setForgotNewPassword(e.target.value)}
-                  placeholder="Minimum 6 caractères"
-                  className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-semibold"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full py-3 rounded-full bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white text-xs font-extrabold shadow-md"
-              >
-                Enregistrer mon nouveau mot de passe →
-              </button>
-            </form>
-          )}
+
         </div>
       </Modal>
     </div>

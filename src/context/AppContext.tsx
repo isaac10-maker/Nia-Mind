@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AssistantConversation,
   AssistantMessage,
@@ -63,6 +63,19 @@ import {
 } from '../lib/securityEngine';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
+  loadAccountBundle,
+  newRecordId,
+  purgeSensitiveBrowserData,
+  pushPrivateVault,
+  restoreAccount,
+  sendPasswordReset,
+  signInAccount,
+  signOutAccount,
+  signUpAccount,
+  suspendAccount,
+  type AccountBundle,
+} from '../lib/cloudVault';
+import {
   formatPsychicDiagnosticMessage,
   generatePsychicDiagnosticBriefing,
   getHtmlLangAttribute,
@@ -98,7 +111,7 @@ interface AppContextValue {
     email: string,
     password?: string,
     honeypot?: string
-  ) => { ok: boolean; error?: string };
+  ) => Promise<{ ok: boolean; error?: string }>;
   registerAccount: (params: {
     displayName: string;
     email: string;
@@ -110,22 +123,21 @@ interface AppContextValue {
     optionalWellnessConsent: boolean;
     interests?: string[];
     honeypot?: string;
-  }) => { ok: boolean; error?: string };
+  }) => Promise<{ ok: boolean; error?: string; pending?: boolean }>;
   requestGmailPushVerification: (email: string) => Promise<{
     ok: boolean;
     verificationCode?: string;
     error?: string;
   }>;
-  requestPasswordRecoveryPush: (email: string) => {
+  requestPasswordRecoveryPush: (email: string) => Promise<{
     ok: boolean;
-    recoveryCode?: string;
     error?: string;
-  };
+  }>;
   resetForgottenPassword: (params: {
     email: string;
     recoveryCode: string;
     newPassword: string;
-  }) => { ok: boolean; error?: string };
+  }) => Promise<{ ok: boolean; error?: string }>;
   triggerSignupMotivationPush: () => Promise<void>;
   logout: () => void;
   updateCurrentUserProfile: (patch: Partial<UserProfile>) => { ok: boolean; error?: string };
@@ -303,7 +315,6 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 const STORAGE_KEY = 'nia-mind-state-v2-clean';
-const ACTIVE_USER_KEY = 'nia-mind-active-user-v2';
 const THEME_KEY = 'nia-mind-theme';
 const DAILY_TIP_DISMISSED_KEY = 'nia-mind-daily-tip-dismissed-date';
 
@@ -357,6 +368,10 @@ const INITIAL_SITE_NOTIFICATIONS: SiteNotification[] = [
   },
 ];
 
+if (typeof window !== 'undefined') {
+  purgeSensitiveBrowserData();
+}
+
 function loadStoredStateField<T>(field: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -385,52 +400,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
 
-  // Aucun faux compte ni fausse conversation : seul le Superadmin officiel est pré-enregistré, et le visiteur arrive déconnecté (null)
-  const [users, setUsers] = useState<UserProfile[]>(() => {
-    const storedUsers = loadStoredStateField<UserProfile[]>('users', []);
-    if (Array.isArray(storedUsers) && storedUsers.length > 0) {
-      const hasSuperAdmin = storedUsers.some(
-        (u: UserProfile) => u.email.toLowerCase() === SUPERADMIN_PROFILE.email
-      );
-      return hasSuperAdmin
-        ? storedUsers.map((u: UserProfile) =>
-            u.email.toLowerCase() === SUPERADMIN_PROFILE.email
-              ? { ...u, role: 'admin' }
-              : u
-          )
-        : [SUPERADMIN_PROFILE, ...storedUsers];
-    }
-    return [SUPERADMIN_PROFILE];
-  });
-  const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(ACTIVE_USER_KEY) || null;
-    } catch {
-      return null;
-    }
-  });
-  const [conversations, setConversations] = useState<AssistantConversation[]>(() =>
-    loadStoredStateField<AssistantConversation[]>('conversations', [])
-  );
-  const [moodEntries, setMoodEntries] = useState<MoodEntry[]>(() =>
-    loadStoredStateField<MoodEntry[]>('moodEntries', [])
-  );
-  const [stressSleepEntries, setStressSleepEntries] = useState<StressSleepEntry[]>(() =>
-    loadStoredStateField<StressSleepEntry[]>('stressSleepEntries', [])
-  );
-  const [questionnaireResponses, setQuestionnaireResponses] = useState<QuestionnaireResponse[]>(() =>
-    loadStoredStateField<QuestionnaireResponse[]>('questionnaireResponses', [])
-  );
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(() =>
-    loadStoredStateField<JournalEntry[]>('journalEntries', [])
-  );
-  const [stories, setStories] = useState<StoryRecord[]>(() => {
-    const stored = loadStoredStateField<StoryRecord[]>('stories', CLEAN_PUBLIC_STORIES);
-    return Array.isArray(stored) && stored.length > 0 ? stored : CLEAN_PUBLIC_STORIES;
-  });
-  const [listeningRequests, setListeningRequests] = useState<ListeningRequest[]>(() =>
-    loadStoredStateField<ListeningRequest[]>('listeningRequests', [])
-  );
+  // Aucun compte, mot de passe ou journal n'est relu depuis le navigateur.
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<AssistantConversation[]>([]);
+  const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
+  const [stressSleepEntries, setStressSleepEntries] = useState<StressSleepEntry[]>([]);
+  const [questionnaireResponses, setQuestionnaireResponses] = useState<QuestionnaireResponse[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [stories, setStories] = useState<StoryRecord[]>(CLEAN_PUBLIC_STORIES);
+  const [listeningRequests, setListeningRequests] = useState<ListeningRequest[]>([]);
+  const [vaultEpoch, setVaultEpoch] = useState(0);
+  const skipCloudPush = useRef(true);
   const [dailyTips, setDailyTips] = useState<DailyTip[]>(INITIAL_DAILY_TIPS);
   const [helpResources, setHelpResources] = useState<VerifiedHelpResource[]>(INITIAL_HELP_RESOURCES);
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequestRecord[]>([]);
@@ -449,10 +430,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
     return Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_SITE_NOTIFICATIONS;
   });
-  const [userPasswords, setUserPasswords] = useState<Record<string, string>>(() =>
-    loadStoredStateField<Record<string, string>>('userPasswords', {})
-  );
-  const [recoveryCodes, setRecoveryCodes] = useState<Record<string, string>>({});
   const [visitorLanguage, setVisitorLanguage] = useState<SupportedLanguage>(() => {
     try {
       const savedActive =
@@ -556,53 +533,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Persistance automatique dans localStorage à chaque mise à jour
+  // Seules les préférences d'affichage restent dans le navigateur.
   useEffect(() => {
     try {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
-          users,
-          conversations,
-          questionnaireResponses,
-          stories,
-          journalEntries,
-          moodEntries,
-          stressSleepEntries,
-          listeningRequests,
           siteSettings,
           siteNotifications,
-          userPasswords,
         })
       );
     } catch {
       // ignore
     }
-  }, [
-    users,
-    conversations,
-    questionnaireResponses,
-    stories,
-    journalEntries,
-    moodEntries,
-    stressSleepEntries,
-    listeningRequests,
-    siteSettings,
-    siteNotifications,
-    userPasswords,
-  ]);
-
-  useEffect(() => {
-    try {
-      if (currentUserId) {
-        localStorage.setItem(ACTIVE_USER_KEY, currentUserId);
-      } else {
-        localStorage.removeItem(ACTIVE_USER_KEY);
-      }
-    } catch {
-      // ignore
-    }
-  }, [currentUserId]);
+  }, [siteSettings, siteNotifications]);
 
   const currentUser = useMemo(
     () => users.find((u) => u.id === currentUserId) || null,
@@ -726,28 +670,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
-  const switchDemoUser = (userId: string | null) => {
-    setCurrentUserId(userId);
-    if (userId) {
-      const target = users.find((u) => u.id === userId);
-      if (target) {
-        pushToast(
-          `Session active : ${target.displayName}`,
-          target.role === 'admin'
-            ? 'Accès Administrateur activé. Les journaux privés des utilisateurs restent protégés.'
-            : 'Isolation RLS active : seules vos données personnelles sont accessibles.',
-          target.role === 'admin' ? 'bordeaux' : 'orange'
-        );
-      }
-    } else {
-      pushToast('Déconnexion', 'Vous naviguez maintenant en mode visiteur public.', 'neutral');
-    }
+  const clearPrivateMemory = () => {
+    setCurrentUserId(null);
+    setUsers([]);
+    setConversations([]);
+    setJournalEntries([]);
+    setMoodEntries([]);
+    setStressSleepEntries([]);
+    setQuestionnaireResponses([]);
+    setListeningRequests([]);
+    setStories(CLEAN_PUBLIC_STORIES);
+    setVaultEpoch(0);
+    skipCloudPush.current = true;
   };
 
-  const loginWithEmail = (email: string, password?: string, honeypot?: string) => {
+  const commitBundle = (bundle: AccountBundle) => {
+    skipCloudPush.current = true;
+    setUsers(bundle.users);
+    setCurrentUserId(bundle.profile.id);
+    setConversations(bundle.conversations);
+    setJournalEntries(bundle.journals);
+    setMoodEntries(bundle.moods);
+    setStressSleepEntries(bundle.stressSleeps);
+    setQuestionnaireResponses(bundle.questionnaires);
+    setListeningRequests(bundle.listening);
+    setStories((prev) => {
+      const seeds = prev.filter((story) => story.authorId !== bundle.profile.id);
+      const cloudIds = new Set(bundle.stories.map((story) => story.id));
+      return [...bundle.stories, ...seeds.filter((story) => !cloudIds.has(story.id))];
+    });
+    setVaultEpoch((value) => value + 1);
+  };
+
+  const switchDemoUser = (userId: string | null) => {
+    if (userId) return;
+    clearPrivateMemory();
+    pushToast('Déconnexion', 'Vous naviguez maintenant en mode visiteur public.', 'neutral');
+  };
+
+  const loginWithEmail = async (email: string, password?: string, honeypot?: string) => {
     const clean = email.trim().toLowerCase();
 
-    // 1. Limite stricte : 3 tentatives d'entrée d'identification par 15 secondes
     const burstCheck = checkAuthSubmissionRateLimit(
       'auth-submission',
       siteSettings.strictRateLimitMax || 3,
@@ -765,67 +728,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const loginCheck = verifyProtectedLogin({
       email: clean,
-      registeredEmails: users.map((u) => u.email),
+      registeredEmails: [clean],
       honeypotValue: honeypot,
     });
-
     if (!loginCheck.allowed) {
       recordAudit(
         loginCheck.honeypotTriggered
           ? 'SECURITY_HONEYPOT_TRIGGERED'
-          : loginCheck.lockedOut
-          ? 'SECURITY_BRUTEFORCE_LOCKOUT'
-          : 'SECURITY_UNKNOWN_EMAIL_LOGIN_REJECTED',
+          : 'SECURITY_LOGIN_REJECTED',
         'auth',
         clean || 'unknown',
         loginCheck.error || 'Tentative de connexion rejetée.'
       );
       return { ok: false, error: loginCheck.error };
     }
-
     if (!password || password.trim().length < 6) {
       return { ok: false, error: 'Mot de passe requis (minimum 6 caractères).' };
     }
 
-    const savedPass = userPasswords[clean];
-    if (savedPass && savedPass !== password.trim()) {
-      recordAudit('AUTH_WRONG_PASSWORD', 'auth', clean, 'Mot de passe incorrect.');
-      return {
-        ok: false,
-        error: 'Mot de passe incorrect. Utilisez « Mot de passe oublié ? » si nécessaire.',
-      };
-    }
-
-    const existing = users.find((u) => u.email.toLowerCase() === clean);
-    if (existing) {
-      if (existing.isBanned) {
-        const banReason = existing.banReason || 'Non-respect des règles de bienveillance Nia-Mind.';
+    const bundle = await signInAccount(clean, password.trim());
+    if (!bundle.ok) {
+      if (bundle.banned) {
         setActiveBanNotice({
-          pseudo: existing.publicPseudonym || existing.displayName,
-          reason: banReason,
-          bannedAt: existing.bannedAt || new Date().toISOString(),
+          pseudo: clean,
+          reason: bundle.error,
+          bannedAt: new Date().toISOString(),
         });
-        recordAudit('SECURITY_BANNED_USER_LOGIN_BLOCKED', 'auth', existing.id, `Tentative de connexion d'un compte banni (${banReason}).`);
-        return {
-          ok: false,
-          error: `COMPTE SUSPENDU / BANNI PAR L’ADMINISTRATEUR — Motif : ${banReason}`,
-        };
       }
-      setUsers((prev) =>
-        prev.map((u) => (u.id === existing.id ? { ...u, isOnline: true } : u))
-      );
-      setCurrentUserId(existing.id);
-      recordAudit('AUTH_LOGIN_SUCCESS', 'auth', existing.id, 'Connexion vérifiée d’un membre inscrit.');
-      pushToast('Bienvenue sur Nia-Mind', `Ravi de te retrouver, @${existing.publicPseudonym || existing.displayName}.`, 'orange');
-      return { ok: true };
+      recordAudit('AUTH_LOGIN_REJECTED', 'auth', clean, bundle.error);
+      return { ok: false, error: bundle.error };
     }
-    return {
-      ok: false,
-      error: 'Connexion refusée : seuls les e-mails réels inscrits peuvent se connecter.',
-    };
+    commitBundle(bundle);
+    recordAudit('AUTH_LOGIN_SUCCESS', 'auth', bundle.profile.id, 'Session ouverte par Supabase Auth.');
+    pushToast(
+      bundle.profile.role === 'admin' ? 'Bienvenue SuperAdmin' : 'Bienvenue sur Nia-Mind',
+      bundle.profile.role === 'admin'
+        ? 'Le rôle est confirmé par le serveur, pas par le navigateur.'
+        : `Ravi de te retrouver, @${bundle.profile.publicPseudonym}.`,
+      bundle.profile.role === 'admin' ? 'bordeaux' : 'orange'
+    );
+    return { ok: true };
   };
 
-  const registerAccount = (params: {
+  const registerAccount = async (params: {
     displayName: string;
     email: string;
     password?: string;
@@ -842,7 +787,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ok: false, error: 'SÉCURITÉ ANTI-BOT : Requête automatisée bloquée.' };
     }
 
-    // Limite stricte : 3 tentatives d'entrée d'identification par 15 secondes
     const burstCheck = checkAuthSubmissionRateLimit(
       'auth-submission',
       siteSettings.strictRateLimitMax || 3,
@@ -864,12 +808,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         error: 'Vous devez accepter la politique de confidentialité, les conditions d’utilisation et les cookies.',
       };
     }
-
-    if (params.password !== undefined && params.password.trim().length < 6) {
-      return {
-        ok: false,
-        error: 'Le mot de passe doit comporter au moins 6 caractères.',
-      };
+    if (!params.password || params.password.trim().length < 6) {
+      return { ok: false, error: 'Le mot de passe doit comporter au moins 6 caractères.' };
     }
 
     const payloadCheck = validateNoteAndWellnessInput({
@@ -887,75 +827,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ok: false, error: realEmailCheck.error };
     }
 
-    // Si c'est l'e-mail du Superadmin (isaacamegan10@gmail.com), connexion directe au profil Superadmin
-    if (cleanEmail === SUPERADMIN_PROFILE.email) {
-      if (params.password && params.password.trim().length >= 6) {
-        setUserPasswords((prev) => ({ ...prev, [cleanEmail]: params.password!.trim() }));
-      }
-      setCurrentUserId(SUPERADMIN_PROFILE.id);
-      recordAudit('SUPERADMIN_AUTH', 'user', SUPERADMIN_PROFILE.id, 'Connexion Superadmin vérifiée.');
-      pushToast('Bienvenue Superadmin', 'Accès intégral activé sur Nia-Mind.', 'bordeaux');
-      return { ok: true };
-    }
-
-    const spamCheck = checkActionAntiSpam({
-      actionKey: 'register',
-      actorId: 'public-ip',
-      maxCount: 5,
-      windowMs: 15 * 60 * 1000,
-      contentForDuplicateCheck: params.email,
-    });
-    if (!spamCheck.allowed) {
-      return { ok: false, error: spamCheck.error };
-    }
-
-    if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
-      return {
-        ok: false,
-        error: 'Un compte existe déjà avec cette adresse e-mail. Cliquez sur « Connexion » pour vous connecter.',
-      };
-    }
+    const chosenPseudo =
+      sanitizeUserText(params.publicPseudonym || params.displayName, 60) || 'PlumeSincere';
+    const privateFullName = sanitizeUserText(params.displayName, 80) || chosenPseudo;
     const interestsSummary =
       Array.isArray(params.interests) && params.interests.length > 0
         ? `Centres d’intérêt : ${params.interests.map((i) => sanitizeUserText(i, 60)).join(', ')}`
         : '';
 
-    const chosenPseudo =
-      sanitizeUserText(params.publicPseudonym || params.displayName, 60) || 'PlumeSincere';
-    const privateFullName = sanitizeUserText(params.displayName, 80) || chosenPseudo;
-
-    const newUser: UserProfile = {
-      id: `user-${Date.now()}`,
+    const created = await signUpAccount({
       email: cleanEmail,
-      // Seul le pseudo choisi par l'utilisateur est affiché publiquement ou dans l'interface
-      displayName: chosenPseudo,
-      publicPseudonym: chosenPseudo,
-      fullName: privateFullName,
-      preferredLanguage: visitorLanguage,
-      isOnline: true,
-      isBanned: false,
-      banReason: null,
-      bannedAt: null,
-      bio: interestsSummary,
-      countryCode: params.countryCode,
-      role: 'user',
-      themePreference: theme,
-      reducedMotion,
-      notificationsEnabled: true,
-      dailyTipModalEnabled: true,
-      acceptedTermsVersion: 'Octobre 2026',
-      acceptedTermsAt: new Date().toISOString(),
-      optionalAnalyticsConsent: Boolean(params.cookiesAccepted ?? true),
-      optionalWellnessInsightsConsent: params.optionalWellnessConsent,
-      createdAt: new Date().toISOString(),
-    };
-    if (params.password && params.password.trim().length >= 6) {
-      setUserPasswords((prev) => ({ ...prev, [cleanEmail]: params.password!.trim() }));
+      password: params.password.trim(),
+      profile: {
+        displayName: chosenPseudo,
+        publicPseudonym: chosenPseudo,
+        fullName: privateFullName,
+        bio: interestsSummary,
+        countryCode: params.countryCode,
+        preferredLanguage: visitorLanguage,
+        themePreference: theme,
+        reducedMotion,
+        optionalAnalyticsConsent: Boolean(params.cookiesAccepted ?? true),
+        optionalWellnessInsightsConsent: params.optionalWellnessConsent,
+        acceptedTermsVersion: 'Octobre 2026',
+        acceptedTermsAt: new Date().toISOString(),
+      },
+    });
+    if (!created.ok) {
+      recordAudit('USER_REGISTER_REJECTED', 'auth', cleanEmail, created.error);
+      return { ok: false, error: created.error };
     }
-    setUsers((prev) => [...prev, newUser]);
-    setCurrentUserId(newUser.id);
-    recordAudit('USER_REGISTER', 'user', newUser.id, 'Création d’un nouveau compte membre sous pseudonyme.');
-    pushToast('Compte créé', `Bienvenue dans ton espace sincère, @${newUser.publicPseudonym}.`, 'orange');
+    if ('pending' in created) {
+      return {
+        ok: true,
+        pending: true,
+        error: 'Compte créé. Ouvrez le lien reçu par e-mail avant de vous connecter. Le mot de passe n’est pas conservé dans le navigateur.',
+      };
+    }
+    commitBundle(created);
+    recordAudit('USER_REGISTER', 'user', created.profile.id, 'Compte créé dans Supabase Auth.');
+    pushToast('Compte créé', `Bienvenue dans ton espace sincère, @${created.profile.publicPseudonym}.`, 'orange');
     return { ok: true };
   };
 
@@ -972,72 +883,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    try {
-      if (supabase) {
-        await supabase.functions.invoke('push-daily-motivation', {
-          body: { mode: 'gmail_push_verification', email: clean },
-        });
-      }
-    } catch {
-      // Edge function fallback local
-    }
-
     pushToast(
-      'Notification Push Gmail envoyée',
-      `Vérification Push transmise à ${clean} (Code Push : ${code}). Validez la notification et votre mot de passe (6+ caractères).`,
+      'Adresse Gmail acceptée',
+      'Aucun code n’est affiché ici. Le mot de passe est transmis uniquement au serveur d’authentification.',
       'orange'
     );
-    recordAudit('GMAIL_PUSH_VERIFICATION_SENT', 'auth', clean, 'Notification Push Gmail envoyée.');
-    return { ok: true, verificationCode: code };
+    recordAudit('GMAIL_SIGNUP_READY', 'auth', clean, 'Inscription Gmail déléguée à Supabase Auth.');
+    return { ok: true };
   };
 
-  const requestPasswordRecoveryPush = (email: string) => {
+  const requestPasswordRecoveryPush = async (email: string) => {
     const clean = email.trim().toLowerCase();
     const emailCheck = validateRealEmailAddress(clean);
     if (!emailCheck.valid) {
       return { ok: false, error: emailCheck.error };
     }
-    const exists = users.some((u) => u.email.toLowerCase() === clean);
-    if (!exists) {
-      return {
-        ok: false,
-        error: 'Aucun compte inscrit trouvé avec cette adresse e-mail réelle.',
-      };
-    }
-    const recoveryCode = String(Math.floor(100000 + Math.random() * 900000));
-    setRecoveryCodes((prev) => ({ ...prev, [clean]: recoveryCode }));
+    const sent = await sendPasswordReset(clean);
+    if (!sent.ok) return sent;
     pushToast(
-      'Récupération de mot de passe • Push envoyé',
-      `Un code Push de récupération (${recoveryCode}) a été envoyé à ${clean}.`,
+      'Lien de récupération envoyé',
+      'Si un compte existe, le lien de réinitialisation arrive par e-mail. Aucun mot de passe n’est stocké ici.',
       'bordeaux'
     );
-    recordAudit('PASSWORD_RECOVERY_REQUESTED', 'auth', clean, 'Demande de récupération de mot de passe.');
-    return { ok: true, recoveryCode };
+    recordAudit('PASSWORD_RECOVERY_REQUESTED', 'auth', clean, 'Lien de récupération demandé au serveur.');
+    return { ok: true };
   };
 
-  const resetForgottenPassword = (params: {
+  const resetForgottenPassword = async (params: {
     email: string;
     recoveryCode: string;
     newPassword: string;
   }) => {
-    const clean = params.email.trim().toLowerCase();
-    const expected = recoveryCodes[clean];
-    if (!expected || expected !== params.recoveryCode.trim()) {
-      return { ok: false, error: 'Code de vérification Push invalide ou expiré.' };
-    }
-    if (!params.newPassword || params.newPassword.trim().length < 6) {
-      return { ok: false, error: 'Le nouveau mot de passe doit contenir au moins 6 caractères.' };
-    }
-    setUserPasswords((prev) => ({ ...prev, [clean]: params.newPassword.trim() }));
-    setRecoveryCodes((prev) => {
-      const next = { ...prev };
-      delete next[clean];
-      return next;
-    });
-    recordAudit('PASSWORD_RESET_SUCCESS', 'auth', clean, 'Mot de passe réinitialisé avec succès.');
-    pushToast('Mot de passe mis à jour', 'Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.', 'orange');
-    return { ok: true };
+    void params;
+    return {
+      ok: false,
+      error: 'Le nouveau mot de passe se choisit uniquement via le lien reçu par e-mail, jamais dans le navigateur.',
+    };
   };
 
   const triggerSignupMotivationPush = async () => {
@@ -1069,8 +950,75 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = () => {
+    void signOutAccount();
     switchDemoUser(null);
   };
+
+  useEffect(() => {
+    const client = supabase;
+    if (!client) return;
+    let alive = true;
+    const adopt = async (userId: string) => {
+      const { data } = await client.auth.getUser();
+      if (!alive || !data.user || data.user.id !== userId) return;
+      const bundle = await loadAccountBundle(data.user);
+      if (!alive || !bundle.ok) return;
+      commitBundle(bundle);
+    };
+    void client.auth.getSession().then(({ data }) => {
+      if (data.session?.user) void adopt(data.session.user.id);
+    });
+    const { data: subscription } = client.auth.onAuthStateChange((event, session) => {
+      if (!alive) return;
+      if (event === 'SIGNED_OUT') {
+        clearPrivateMemory();
+        return;
+      }
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+        void adopt(session.user.id);
+      }
+    });
+    return () => {
+      alive = false;
+      subscription.subscription.unsubscribe();
+    };
+    // La restauration ne doit pas se relancer à chaque rendu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (vaultEpoch === 0) {
+      skipCloudPush.current = true;
+      return;
+    }
+    if (skipCloudPush.current) {
+      skipCloudPush.current = false;
+      return;
+    }
+    if (!currentUserId) return;
+    const timer = window.setTimeout(() => {
+      void pushPrivateVault(currentUserId, {
+        conversations,
+        journals: journalEntries,
+        moods: moodEntries,
+        stressSleeps: stressSleepEntries,
+        questionnaires: questionnaireResponses,
+        listening: listeningRequests,
+        stories,
+      });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [
+    vaultEpoch,
+    currentUserId,
+    conversations,
+    journalEntries,
+    moodEntries,
+    stressSleepEntries,
+    questionnaireResponses,
+    listeningRequests,
+    stories,
+  ]);
 
   const updateCurrentUserProfile = (patch: Partial<UserProfile>) => {
     if (!currentUser) return { ok: false, error: 'Session expirée ou non connectée.' };
@@ -1180,9 +1128,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createConversation = (initialTitle = 'Nouvelle réflexion') => {
     const uid = currentUser?.id || 'user-a';
     const upseudo = currentUser?.publicPseudonym || currentUser?.displayName || 'Anonyme';
-    const convId = `conv-${Date.now()}`;
+    const convId = newRecordId();
     const greetingMsg: AssistantMessage = {
-      id: `msg-${Date.now()}-init`,
+      id: newRecordId(),
       conversationId: convId,
       userId: uid,
       sender: 'assistant',
@@ -1216,7 +1164,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const uid = currentUser?.id || 'user-a';
     const clean = sanitizeUserText(content);
     const msg: AssistantMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: newRecordId(),
       conversationId,
       userId: uid,
       sender,
@@ -1328,7 +1276,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     const newEntry: MoodEntry = {
-      id: `mood-${Date.now()}`,
+      id: newRecordId(),
       userId: uid,
       moodScore: entry.moodScore,
       moodLabel: sanitizeUserText(entry.moodLabel, 100),
@@ -1366,7 +1314,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     const newEntry: StressSleepEntry = {
-      id: `ss-${Date.now()}`,
+      id: newRecordId(),
       userId: uid,
       stressLevel: entry.stressLevel,
       sleepHours: entry.sleepHours,
@@ -1386,7 +1334,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...payload,
       questionnaireTitle: translatePlatformText(payload.questionnaireTitle, currentLanguage),
       interpretationBand: translatePlatformText(payload.interpretationBand, currentLanguage),
-      id: `qr-${Date.now()}`,
+      id: newRecordId(),
       userId: uid,
       createdAt: new Date().toISOString(),
     };
@@ -1504,7 +1452,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const created: JournalEntry = {
-      id: `j-${Date.now()}`,
+      id: newRecordId(),
       userId: uid,
       title: sanitizeUserText(entry.title),
       content: sanitizeUserText(entry.content),
@@ -1630,7 +1578,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const created: StoryRecord = {
-      id: `story-${Date.now()}`,
+      id: newRecordId(),
       authorId: uid,
       category: sanitizeUserText(params.category) || 'Témoignage sincère',
       title: sanitizeUserText(params.title),
@@ -1925,7 +1873,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
     const created: ListeningRequest = {
-      id: `lr-${Date.now()}`,
+      id: newRecordId(),
       userId: uid,
       userDisplayName: uname,
       topic: sanitizeUserText(params.topic),
@@ -2366,6 +2314,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : u
       )
     );
+    void suspendAccount(targetUserId, cleanReason, false);
     setActiveBanNotice({
       pseudo: target.publicPseudonym || target.displayName,
       reason: cleanReason,
@@ -2399,6 +2348,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : u
       )
     );
+    void restoreAccount(targetUserId);
     recordAudit('ADMIN_USER_UNBANNED', 'user', targetUserId, 'Levée du bannissement.');
     pushToast('Compte débloqué', 'L’utilisateur peut à nouveau se connecter.', 'orange');
     return { ok: true };
@@ -2439,6 +2389,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ok: false, error: 'Le compte SuperAdmin ne peut pas être supprimé.' };
     }
     setUsers((prev) => prev.filter((u) => u.id !== targetUserId));
+    void suspendAccount(targetUserId, 'Compte retiré par le SuperAdmin.', true);
     setConversations((prev) => prev.filter((c) => c.userId !== targetUserId));
     setJournalEntries((prev) => prev.filter((j) => j.userId !== targetUserId));
     setMoodEntries((prev) => prev.filter((m) => m.userId !== targetUserId));
@@ -2470,7 +2421,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((c) => {
         if (c.id !== conversationId) return c;
         const handoverMsg: AssistantMessage = {
-          id: `msg-handover-${Date.now()}`,
+          id: newRecordId(),
           conversationId,
           userId: c.userId,
           sender: 'assistant',
@@ -2519,7 +2470,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((c) => {
         if (c.id !== conversationId) return c;
         const adminMsg: AssistantMessage = {
-          id: `msg-admin-${Date.now()}`,
+          id: newRecordId(),
           conversationId,
           userId: c.userId,
           sender: 'admin',
@@ -2574,7 +2525,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((c) => {
         if (c.id !== conversationId) return c;
         const diagMsg: AssistantMessage = {
-          id: `msg-diag-${Date.now()}`,
+          id: newRecordId(),
           conversationId,
           userId: c.userId,
           sender: 'admin',
