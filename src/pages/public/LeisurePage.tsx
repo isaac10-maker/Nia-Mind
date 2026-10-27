@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Puzzle, Sparkles } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { tUi } from '../../lib/i18nEngine';
 import { leisurePack } from '../../lib/leisureContent';
 import { queueOfflineNote } from '../../lib/offlineQueue';
 import type { SupportedLanguage } from '../../lib/i18nEngine';
@@ -114,7 +115,7 @@ export const LeisurePage: React.FC = () => {
                 {pack.keep}
               </button>
               <Link to="/conseils" className="px-4 py-2 rounded-full bg-white border border-[#0F9F6E]/40 text-xs font-extrabold text-[#047857]">
-                Conseils
+                {tUi(currentLanguage, 'navTips')}
               </Link>
             </div>
             {notice && <p className="text-xs font-bold text-[#047857]">{notice}</p>}

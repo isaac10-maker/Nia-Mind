@@ -49,6 +49,8 @@ export interface UiTranslations {
   navGroupAccount: string;
   navGroupDiscover: string;
   leisureHomeCta: string;
+  offlineBanner: string;
+  offlineQueued: string;
   navGroupRead: string;
   navGroupPlay: string;
   navAssistant: string;
@@ -92,6 +94,8 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navGroupAccount: 'Compte',
     navGroupDiscover: 'Découvrir',
     leisureHomeCta: 'Coin loisir · devinettes & quiz',
+    offlineBanner: 'Hors ligne : accueil, conseils, histoires, ressources et loisir restent ouverts. Les notes filtrées partiront à la reconnexion.',
+    offlineQueued: 'note(s) filtrée(s) en attente partent vers le journal.',
     navGroupRead: 'Lire',
     navGroupPlay: 'Jouer',
     navAssistant: 'Assistance & Espace',
@@ -134,6 +138,8 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navGroupAccount: 'Account',
     navGroupDiscover: 'Discover',
     leisureHomeCta: 'Play corner · riddles & quiz',
+    offlineBanner: 'Offline: home, tips, stories, resources, and play stay open. Filtered notes leave when you reconnect.',
+    offlineQueued: 'filtered note(s) waiting will go to the journal.',
     navGroupRead: 'Read',
     navGroupPlay: 'Play',
     navAssistant: 'AI & Personal Space',
@@ -176,6 +182,8 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navGroupAccount: 'Cuenta',
     navGroupDiscover: 'Descubrir',
     leisureHomeCta: 'Rincón de juego · acertijos y quiz',
+    offlineBanner: 'Sin conexión: inicio, consejos, historias, recursos y juego siguen abiertos. Las notas filtradas salen al reconectar.',
+    offlineQueued: 'nota(s) filtrada(s) en espera irán al diario.',
     navGroupRead: 'Leer',
     navGroupPlay: 'Jugar',
     navAssistant: 'Asistencia y Espacio',
@@ -218,6 +226,8 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navGroupAccount: 'Konto',
     navGroupDiscover: 'Entdecken',
     leisureHomeCta: 'Spielecke · Rätsel & Quiz',
+    offlineBanner: 'Offline: Start, Impulse, Geschichten, Hilfen und Spiel bleiben offen. Gefilterte Notizen gehen beim Wiederverbinden raus.',
+    offlineQueued: 'gefilterte Notiz(en) warten auf das Tagebuch.',
     navGroupRead: 'Lesen',
     navGroupPlay: 'Spielen',
     navAssistant: 'KI & Mein Bereich',
@@ -260,6 +270,8 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navGroupAccount: '账户',
     navGroupDiscover: '发现',
     leisureHomeCta: '休闲角 · 谜语与小测验',
+    offlineBanner: '离线时，首页、建议、故事、资源和休闲角仍可打开。过滤后的笔记会在重新联网后发送。',
+    offlineQueued: '条已过滤的笔记将进入日记。',
     navGroupRead: '阅读',
     navGroupPlay: '游玩',
     navAssistant: '智能助手与空间',
