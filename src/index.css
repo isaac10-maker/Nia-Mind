@@ -157,11 +157,11 @@ html {
 }
 
 body {
-  background-color: var(--surface-bg);
+  background-color: #f7fbff;
   background-image:
-    radial-gradient(circle at 8% 0%, rgb(var(--nia-orange-rgb) / 0.08) 0%, transparent 32%),
-    radial-gradient(circle at 100% 0%, rgb(var(--nia-bordeaux-rgb) / 0.07) 0%, transparent 28%),
-    linear-gradient(180deg, var(--nia-bg-light) 0%, var(--nia-white) 42%, var(--nia-bg-light) 100%);
+    radial-gradient(ellipse 70% 55% at 0% 0%, rgb(var(--nia-orange-rgb) / 0.16) 0%, transparent 58%),
+    radial-gradient(ellipse 60% 48% at 100% 100%, rgb(var(--nia-bordeaux-rgb) / 0.12) 0%, transparent 56%),
+    linear-gradient(160deg, #f7fbff 0%, #eef6f2 100%);
   background-attachment: fixed;
   color: var(--text-primary);
   transition: background-color 0.28s ease, color 0.28s ease;
@@ -169,12 +169,10 @@ body {
 }
 
 html.dark body {
-  background-color: var(--nia-bg-dark);
+  background-color: #070b16;
   background-image:
-    radial-gradient(circle at 14% 18%, rgb(var(--nia-orange-rgb) / 0.18) 0%, transparent 42%),
-    radial-gradient(circle at 86% 24%, rgb(var(--nia-bordeaux-rgb) / 0.28) 0%, transparent 46%),
-    radial-gradient(circle at 48% 88%, rgb(var(--nia-orange-rgb) / 0.12) 0%, rgb(var(--nia-bordeaux-dark-rgb) / 0.24) 42%, transparent 72%),
-    linear-gradient(135deg, var(--nia-bg-dark) 0%, var(--nia-surface-dark) 52%, var(--nia-bg-dark) 100%);
+    radial-gradient(ellipse 55% 45% at 100% 80%, rgb(var(--nia-bordeaux-rgb) / 0.22) 0%, transparent 60%),
+    linear-gradient(160deg, #070b16 0%, #101828 100%);
   background-attachment: fixed;
 }
 
@@ -267,9 +265,37 @@ html.dark .nia-glass-card {
 
 .nia-ambient-grid {
   background-image:
-    linear-gradient(to right, rgb(var(--nia-orange-rgb) / 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(var(--nia-bordeaux-rgb) / 0.06) 1px, transparent 1px);
+    linear-gradient(to right, rgb(var(--nia-orange-rgb) / 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--nia-bordeaux-rgb) / 0.07) 1px, transparent 1px);
   background-size: 48px 48px;
+}
+
+.nia-space-stars {
+  background-image:
+    radial-gradient(1.5px 1.5px at 8% 18%, rgb(15 159 110 / 0.85) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 18% 72%, rgb(127 29 63 / 0.75) 50%, transparent 52%),
+    radial-gradient(1px 1px at 28% 32%, rgb(2 132 199 / 0.7) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 42% 14%, rgb(127 29 63 / 0.65) 50%, transparent 52%),
+    radial-gradient(1px 1px at 56% 64%, rgb(15 159 110 / 0.7) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 68% 28%, rgb(249 115 22 / 0.7) 50%, transparent 52%),
+    radial-gradient(1px 1px at 78% 78%, rgb(2 132 199 / 0.65) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 88% 42%, rgb(127 29 63 / 0.7) 50%, transparent 52%),
+    radial-gradient(1px 1px at 94% 16%, rgb(15 159 110 / 0.75) 50%, transparent 52%);
+  opacity: 0.85;
+}
+
+html.dark .nia-space-stars {
+  background-image:
+    radial-gradient(1.5px 1.5px at 8% 18%, rgb(255 255 255 / 0.9) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 18% 72%, rgb(251 191 36 / 0.85) 50%, transparent 52%),
+    radial-gradient(1px 1px at 28% 32%, rgb(186 230 253 / 0.8) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 42% 14%, rgb(255 255 255 / 0.75) 50%, transparent 52%),
+    radial-gradient(1px 1px at 56% 64%, rgb(253 186 116 / 0.8) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 68% 28%, rgb(255 255 255 / 0.85) 50%, transparent 52%),
+    radial-gradient(1px 1px at 78% 78%, rgb(251 191 36 / 0.75) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 88% 42%, rgb(255 255 255 / 0.8) 50%, transparent 52%),
+    radial-gradient(1px 1px at 94% 16%, rgb(186 230 253 / 0.85) 50%, transparent 52%);
+  opacity: 1;
 }
 
 .nia-stroke-watermark {

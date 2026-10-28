@@ -103,19 +103,24 @@ export const AmbientBackground: React.FC = () => {
       className="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none"
       aria-hidden="true"
     >
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-50 mix-blend-multiply dark:opacity-[0.82] dark:mix-blend-normal"
+        style={{ backgroundImage: "url('/images/hero-reflection.png')" }}
+      />
+
       {/* Symbiose de halos flottants Orange & Bordeaux (non opaques, translucides) */}
       <div
-        className={`absolute -top-24 -left-24 w-[28rem] h-[28rem] rounded-full bg-gradient-to-br from-nia-orange/25 via-nia-orange/10 to-transparent blur-3xl ${
+        className={`absolute -top-24 -left-24 w-[32rem] h-[32rem] rounded-full bg-gradient-to-br from-nia-orange/45 via-nia-orange/20 to-transparent blur-3xl ${
           reducedMotion ? '' : 'animate-nia-blob-drift'
         }`}
       />
       <div
-        className={`absolute top-[22%] -right-28 w-[32rem] h-[32rem] rounded-full bg-gradient-to-bl from-nia-bordeaux/25 via-nia-bordeaux/12 to-transparent blur-3xl ${
+        className={`absolute top-[22%] -right-28 w-[34rem] h-[34rem] rounded-full bg-gradient-to-bl from-nia-bordeaux/40 via-nia-bordeaux/18 to-transparent blur-3xl ${
           reducedMotion ? '' : 'animate-nia-blob-drift-reverse'
         }`}
       />
       <div
-        className={`absolute -bottom-28 left-[20%] w-[30rem] h-[26rem] rounded-full bg-gradient-to-tr from-nia-orange/20 via-nia-bordeaux/15 to-transparent blur-3xl ${
+        className={`absolute -bottom-28 left-[20%] w-[32rem] h-[28rem] rounded-full bg-gradient-to-tr from-nia-orange/30 via-nia-bordeaux/25 to-transparent blur-3xl ${
           reducedMotion ? '' : 'animate-nia-blob-drift'
         }`}
       />
@@ -133,7 +138,8 @@ export const AmbientBackground: React.FC = () => {
       />
 
       {/* Trame glitch subtile en arrière-plan */}
-      <div className="absolute inset-0 nia-ambient-grid opacity-35 dark:opacity-25" />
+      <div className="absolute inset-0 nia-ambient-grid opacity-25 dark:opacity-15" />
+      <div className="nia-space-stars absolute inset-0" />
 
       {/* Tags flottants floutés et légèrement glitchés avec mots-liens de la niche Nia-Mind */}
       {FLOATING_PHRASES.map((item, idx) => {
@@ -153,7 +159,7 @@ export const AmbientBackground: React.FC = () => {
               animationDelay: item.delay,
               animationDuration: item.duration,
             }}
-            className={`hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border backdrop-blur-md font-bold tracking-wide opacity-55 dark:opacity-50 ${
+            className={`hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border backdrop-blur-md font-bold tracking-wide opacity-75 dark:opacity-70 ${
               item.blurClass
             } ${item.sizeClass} ${badgeStyles} ${
               reducedMotion ? '' : 'animate-nia-float-tag'
