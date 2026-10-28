@@ -43,6 +43,7 @@ export interface UiTranslations {
   navStories: string;
   navAbout: string;
   navLeisure: string;
+  navCommunities: string;
   navGroupToday: string;
   navGroupTalk: string;
   navGroupWrite: string;
@@ -122,6 +123,7 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navStories: 'Histoires',
     navAbout: 'À propos',
     navLeisure: 'Loisir',
+    navCommunities: 'Communautés',
     navGroupToday: 'Aujourd’hui',
     navGroupTalk: 'Parler',
     navGroupWrite: 'Écrire',
@@ -200,6 +202,7 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navStories: 'Stories',
     navAbout: 'About',
     navLeisure: 'Play',
+    navCommunities: 'Communities',
     navGroupToday: 'Today',
     navGroupTalk: 'Talk',
     navGroupWrite: 'Write',
@@ -278,6 +281,7 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navStories: 'Historias',
     navAbout: 'Acerca de',
     navLeisure: 'Juego',
+    navCommunities: 'Comunidades',
     navGroupToday: 'Hoy',
     navGroupTalk: 'Hablar',
     navGroupWrite: 'Escribir',
@@ -356,6 +360,7 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navStories: 'Geschichten',
     navAbout: 'Über uns',
     navLeisure: 'Spiel',
+    navCommunities: 'Gemeinschaften',
     navGroupToday: 'Heute',
     navGroupTalk: 'Sprechen',
     navGroupWrite: 'Schreiben',
@@ -434,6 +439,7 @@ export const UI_TRANSLATIONS: Record<SupportedLanguage, UiTranslations> = {
     navStories: '真实故事',
     navAbout: '关于我们',
     navLeisure: '休闲',
+    navCommunities: '社区',
     navGroupToday: '今天',
     navGroupTalk: '倾诉',
     navGroupWrite: '书写',

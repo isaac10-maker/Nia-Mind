@@ -74,6 +74,8 @@ const ALLOWED_INTERNAL_REDIRECTS = new Set<string>([
   '/espace/histoires',
   '/espace/profil',
   '/espace/confidentialite',
+  '/gerer',
+  '/communautes',
 ]);
 
 /**

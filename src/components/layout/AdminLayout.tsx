@@ -12,6 +12,7 @@ import {
   LifeBuoy,
   Palette,
   Settings,
+  Share2,
   Sparkles,
   Users,
 } from 'lucide-react';
@@ -19,9 +20,11 @@ import { RoleSwitcherBar, SUPERADMIN_EMAIL } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
 import { PlatformMaintenanceBanner } from '../ui/PlatformMaintenanceBanner';
 import { useApp } from '../../context/AppContext';
+import { tCommunity } from '../../lib/communityI18n';
 
 const ADMIN_NAV_ITEMS = [
   { label: 'Vue d’ensemble', to: '/admin/vue-ensemble', icon: Activity },
+  { label: 'Communautés', to: '/admin/communautes', icon: Share2, community: true },
   { label: 'Utilisateurs', to: '/admin/utilisateurs', icon: Users },
   { label: 'Demandes d’écoute', to: '/admin/ecoute', icon: HeartHandshake },
   { label: 'Histoires reçues', to: '/admin/histoires-recues', icon: FileClock },
@@ -35,7 +38,7 @@ const ADMIN_NAV_ITEMS = [
 ];
 
 export const AdminLayout: React.FC = () => {
-  const { currentUser, authReady } = useApp();
+  const { currentUser, authReady, currentLanguage } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isSuperAdmin =
@@ -78,7 +81,7 @@ export const AdminLayout: React.FC = () => {
                 }
               >
                 <Icon className="w-4 h-4" />
-                <span>{item.label}</span>
+                <span>{'community' in item ? tCommunity(currentLanguage, 'nav') : item.label}</span>
               </NavLink>
             );
           })}
@@ -118,7 +121,7 @@ export const AdminLayout: React.FC = () => {
                     }
                   >
                     <Icon className="w-4 h-4 shrink-0" />
-                    <span>{item.label}</span>
+                    <span>{'community' in item ? tCommunity(currentLanguage, 'nav') : item.label}</span>
                   </NavLink>
                 );
               })}

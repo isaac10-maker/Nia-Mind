@@ -25,6 +25,7 @@ import { PlatformMaintenanceBanner } from '../ui/PlatformMaintenanceBanner';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
 import { tUi } from '../../lib/i18nEngine';
+import { tCommunity } from '../../lib/communityI18n';
 import { STORIES_SIGNATURE } from '../../lib/securityEngine';
 
 export const PublicLayout: React.FC = () => {
@@ -37,6 +38,7 @@ export const PublicLayout: React.FC = () => {
     { label: tUi(currentLanguage, 'navTips'), to: '/conseils', group: tUi(currentLanguage, 'navGroupRead') },
     { label: tUi(currentLanguage, 'navStories'), to: '/histoires', group: tUi(currentLanguage, 'navGroupRead') },
     { label: tUi(currentLanguage, 'navResources'), to: '/ressources', group: tUi(currentLanguage, 'navGroupRead') },
+    { label: tUi(currentLanguage, 'navCommunities'), to: '/communautes', group: tUi(currentLanguage, 'navGroupDiscover') },
     { label: tUi(currentLanguage, 'navLeisure'), to: '/loisir', group: tUi(currentLanguage, 'navGroupPlay') },
     { label: tUi(currentLanguage, 'navAbout'), to: '/a-propos', group: tUi(currentLanguage, 'navGroupAccount') },
   ];
@@ -303,6 +305,11 @@ export const PublicLayout: React.FC = () => {
                 <li>
                   <Link to="/histoires" className="hover:text-nia-orange transition-colors">
                     Histoires — {STORIES_SIGNATURE}
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/communautes" className="hover:text-nia-orange transition-colors">
+                    {tCommunity(currentLanguage, 'nav')}
                   </Link>
                 </li>
                 <li>

@@ -9,6 +9,7 @@ export const PUBLIC_TRAFFIC_PATHS = [
   '/ressources',
   '/loisir',
   '/a-propos',
+  '/communautes',
   '/connexion',
   '/inscription',
 ] as const;

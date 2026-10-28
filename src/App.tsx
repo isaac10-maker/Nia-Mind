@@ -17,6 +17,8 @@ import {
   ResourcesPage,
 } from './pages/public/PublicPages';
 import { LeisurePage } from './pages/public/LeisurePage';
+import { CommunitiesPage } from './pages/public/CommunitiesPage';
+import { ManageCommunitiesPage } from './pages/public/ManageCommunitiesPage';
 import {
   AssistantPage,
   PersonalDashboardPage,
@@ -41,6 +43,7 @@ import {
   AdminUsersPage,
 } from './pages/admin/AdminPages';
 import { AdminColorsPage } from './pages/admin/AdminColorsPage';
+import { AdminCommunitiesPage } from './pages/admin/AdminCommunitiesPage';
 
 const ScrollToTopOnRoute: React.FC = () => {
   const { pathname } = useLocation();
@@ -131,6 +134,8 @@ export const App: React.FC = () => {
             <Route path="/histoires" element={<PublicStoriesPage />} />
             <Route path="/a-propos" element={<AboutPage />} />
             <Route path="/loisir" element={<LeisurePage />} />
+            <Route path="/communautes" element={<CommunitiesPage />} />
+            <Route path="/gerer" element={<ManageCommunitiesPage />} />
             <Route path="/connexion" element={<AuthPage mode="login" />} />
             <Route path="/inscription" element={<AuthPage mode="register" />} />
           </Route>
@@ -161,6 +166,7 @@ export const App: React.FC = () => {
             <Route path="questionnaires" element={<AdminQuestionnairesPage />} />
             <Route path="ressources" element={<AdminResourcesPage />} />
             <Route path="couleurs" element={<AdminColorsPage />} />
+            <Route path="communautes" element={<AdminCommunitiesPage />} />
             <Route path="parametres" element={<AdminSettingsPage />} />
             <Route path="audit" element={<AdminAuditLogsPage />} />
           </Route>
