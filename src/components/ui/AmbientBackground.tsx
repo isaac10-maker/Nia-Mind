@@ -104,7 +104,9 @@ export const AmbientBackground: React.FC = () => {
       aria-hidden="true"
     >
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-50 mix-blend-multiply dark:opacity-[0.82] dark:mix-blend-normal"
+        className={`absolute -inset-[8%] bg-cover bg-center bg-no-repeat opacity-50 mix-blend-multiply dark:opacity-[0.82] dark:mix-blend-normal ${
+          reducedMotion ? '' : 'animate-nia-space-breathe'
+        }`}
         style={{ backgroundImage: "url('/images/hero-reflection.png')" }}
       />
 

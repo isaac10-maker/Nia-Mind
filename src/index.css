@@ -467,6 +467,21 @@ html.dark .nia-stroke-watermark {
   animation: nia-blob-drift-kf 17s ease-in-out infinite reverse;
 }
 
+@keyframes nia-space-breathe-kf {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+.animate-nia-space-breathe {
+  animation: nia-space-breathe-kf 36s ease-in-out infinite;
+  transform-origin: center center;
+  will-change: transform;
+}
+
 @keyframes nia-morph-kf {
   0%, 100% {
     border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
