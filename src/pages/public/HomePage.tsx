@@ -241,16 +241,11 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Colonne Visuelle Dynamique : Charte « Parole libre & sincère » + Bouton (?) + Défilement en boucle Assistance & Réflexion + 5 Points */}
+            {/* Charte « Parole libre & sincère » implantée dans la page, sans cadre ni logo */}
             <div className="lg:col-span-5 w-full">
-              <div className="relative rounded-3xl nia-glass-card border-2 border-nia-orange/35 dark:border-nia-border-dark p-4 sm:p-6 shadow-2xl overflow-hidden space-y-4">
+              <div className="relative space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <img
-                      src="/images/nia-mind-logo.png"
-                      alt="Logo Nia-Mind"
-                      className="w-8 h-8 rounded-xl object-cover ring-2 ring-nia-orange/50 shrink-0"
-                    />
                     <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-nia-bordeaux dark:text-amber-300 truncate">
                       Écouter • Comprendre • Avancer
                     </span>

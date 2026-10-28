@@ -82,8 +82,8 @@ export const AdminColorsPage: React.FC = () => {
             Couleurs du site
           </h1>
           <p className="text-sm text-nia-gray-mid dark:text-gray-300 mt-1 max-w-2xl">
-            Le vert mène, le bordeaux accompagne. Chaque onglet ne change que la zone qu’il nomme :
-            marque, en-tête, arrière-plans, textes, espaces et états.
+            Le vert mène, le bordeaux accompagne. L’onglet « Titre à côté du logo » change seulement
+            le mot Nia-Mind, sans toucher au reste du site.
           </p>
         </div>
         <span
@@ -121,6 +121,11 @@ export const AdminColorsPage: React.FC = () => {
           className="p-4 flex flex-wrap items-center gap-3"
           style={{ backgroundColor: draft.bgLight, color: draft.textPrimary }}
         >
+          <span className="px-2.5 py-1 rounded-xl bg-white text-sm font-black shadow-sm">
+            <span style={{ color: draft.brandWordNia || DEFAULT_PALETTE.brandWordNia }}>Nia</span>
+            <span style={{ color: draft.brandWordDash || DEFAULT_PALETTE.brandWordDash }}>-</span>
+            <span style={{ color: draft.brandWordMind || DEFAULT_PALETTE.brandWordMind }}>Mind</span>
+          </span>
           <span
             className="px-3 py-1.5 rounded-xl text-white text-xs font-extrabold"
             style={{ backgroundColor: draft.primary }}

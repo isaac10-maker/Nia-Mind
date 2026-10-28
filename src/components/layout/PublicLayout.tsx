@@ -259,7 +259,7 @@ export const PublicLayout: React.FC = () => {
         )}
       </main>
 
-      {/* Sur la page d'accueil (/), le bouton (?) et le défilement en boucle sont intégrés dans la carte "Parole libre & sincère" */}
+      {/* Sur la page d'accueil (/), le bouton (?) et le défilement sont déjà dans la charte implantée */}
       {location.pathname !== '/' && <FloatingInstructionPopup />}
 
       {/* Pied de page complet Nia-Mind (flouté en arrière-plan si /connexion ou /inscription est ouvert) */}

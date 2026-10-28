@@ -28,6 +28,9 @@ export const DEFAULT_PALETTE: SitePalette = {
   personalPrimary: '#0F9F6E',
   assistantPrimary: '#0F9F6E',
   adminPrimary: '#0F9F6E',
+  brandWordNia: '#0284C7',
+  brandWordDash: '#7F1D3F',
+  brandWordMind: '#0F9F6E',
 };
 
 export const DEFAULT_THEME_PRESET = 'Symbiose Nia-Mind (Vert & Bordeaux)';
@@ -48,6 +51,17 @@ export interface PaletteSection {
 }
 
 export const PALETTE_SECTIONS: PaletteSection[] = [
+  {
+    id: 'titre-logo',
+    label: 'Titre à côté du logo',
+    detail:
+      'Couleurs du mot « Nia-Mind » posé à côté du logo. Elles sont séparées du vert et du bordeaux du reste du site.',
+    fields: [
+      { key: 'brandWordNia', label: '« Nia »', hint: 'Première partie du titre, juste à côté du logo.' },
+      { key: 'brandWordDash', label: 'Trait « - »', hint: 'Le tiret entre Nia et Mind.' },
+      { key: 'brandWordMind', label: '« Mind »', hint: 'Deuxième partie du titre, à côté du logo.' },
+    ],
+  },
   {
     id: 'marque',
     label: 'Marque',
@@ -312,6 +326,9 @@ const VARIABLE_MAP: Record<keyof SitePalette, [hexVar: string, rgbVar: string]> 
   personalPrimary: ['--nia-personal-primary', '--nia-personal-primary-rgb'],
   assistantPrimary: ['--nia-assistant-primary', '--nia-assistant-primary-rgb'],
   adminPrimary: ['--nia-admin-primary', '--nia-admin-primary-rgb'],
+  brandWordNia: ['--nia-brand-word-nia', '--nia-brand-word-nia-rgb'],
+  brandWordDash: ['--nia-brand-word-dash', '--nia-brand-word-dash-rgb'],
+  brandWordMind: ['--nia-brand-word-mind', '--nia-brand-word-mind-rgb'],
 };
 
 export function applySitePalette(palette: SitePalette): void {

@@ -40,17 +40,15 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       <div className="flex flex-col leading-tight">
         <div className="inline-flex items-center px-2.5 py-0.5 rounded-xl bg-white/95 dark:bg-slate-900/95 shadow-sm w-fit">
           <div className={`font-black tracking-tight ${titleSize} flex items-center`}>
-            <GlitchText
-              text="Nia"
-              className="text-sky-600 dark:text-sky-400"
-              occasionalIntervalMs={16000}
-            />
-            <span className="text-nia-bordeaux dark:text-amber-300 mx-0.5">-</span>
-            <GlitchText
-              text="Mind"
-              className="text-nia-orange"
-              occasionalIntervalMs={16000}
-            />
+            <span style={{ color: 'var(--nia-brand-word-nia, #0284C7)' }}>
+              <GlitchText text="Nia" className="text-inherit" occasionalIntervalMs={16000} />
+            </span>
+            <span className="mx-0.5" style={{ color: 'var(--nia-brand-word-dash, #7F1D3F)' }}>
+              -
+            </span>
+            <span style={{ color: 'var(--nia-brand-word-mind, #0F9F6E)' }}>
+              <GlitchText text="Mind" className="text-inherit" occasionalIntervalMs={16000} />
+            </span>
           </div>
         </div>
         {showSlogan && (

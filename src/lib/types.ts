@@ -293,6 +293,9 @@ export interface SitePalette {
   personalPrimary: string;
   assistantPrimary: string;
   adminPrimary: string;
+  brandWordNia: string;
+  brandWordDash: string;
+  brandWordMind: string;
 }
 
 export interface SiteSettings {
