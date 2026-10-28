@@ -24,6 +24,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { platformNotice } from '../../lib/platformControls';
 import { Modal } from '../../components/ui/Modal';
 import { InlineSlidingGuideBanner } from '../../components/ui/SlidingInstructionBubbles';
 import {
@@ -83,7 +84,7 @@ export const PersonalStoriesPage: React.FC = () => {
 
   const handleSaveOrSubmit = (submitToModeration: boolean) => {
     if (!content.trim()) return;
-    saveOrSubmitStory({
+    const saved = saveOrSubmitStory({
       id: editingId,
       category,
       title,
@@ -91,6 +92,7 @@ export const PersonalStoriesPage: React.FC = () => {
       originalContent: content,
       submitToModeration,
     });
+    if (!saved) return;
     setEditingId(undefined);
     setTitle('');
     setContent('');
@@ -530,6 +532,8 @@ export const ListeningRequestPage: React.FC = () => {
     createListeningRequest,
     deleteListeningRequest,
     clearListeningRequests,
+    siteSettings,
+    currentLanguage,
   } = useApp();
 
   const [topic, setTopic] = useState('');
@@ -548,6 +552,7 @@ export const ListeningRequestPage: React.FC = () => {
       preferredSlot,
       message,
     });
+    if (created.id === 'closed') return;
     setJustSubmittedId(created.id);
     setTopic('');
     setMessage('');
@@ -605,6 +610,11 @@ export const ListeningRequestPage: React.FC = () => {
           <h2 className="text-base font-bold text-nia-gray-dark dark:text-white">
             Nouvelle demande privée d’écoute
           </h2>
+          {siteSettings.listeningOpen === false && (
+            <p className="text-xs font-bold text-[#7F1D3F] dark:text-amber-200">
+              {platformNotice(currentLanguage, 'listeningClosed')}
+            </p>
+          )}
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider mb-1">
@@ -665,7 +675,8 @@ export const ListeningRequestPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-nia-orange hover:bg-nia-orange-deep text-white font-bold text-sm inline-flex items-center justify-center gap-2"
+            disabled={siteSettings.listeningOpen === false}
+            className="w-full py-3 rounded-xl bg-nia-orange hover:bg-nia-orange-deep disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-sm inline-flex items-center justify-center gap-2"
           >
             <Send className="w-4 h-4" />
             Envoyer ma demande d’écoute

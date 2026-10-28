@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
+  BarChart3,
   Archive,
   Ban,
   CheckCircle2,
@@ -45,6 +46,7 @@ import {
   validateStoryPublicationEligibility,
 } from '../../lib/securityEngine';
 import { withBrandColors } from '../../lib/sitePalette';
+import { loadTraffic, PUBLIC_TRAFFIC_PATHS, type TrafficRow } from '../../lib/platformControls';
 
 // ============================================================================
 // 1. VUE D'ENSEMBLE ADMIN (/admin/vue-ensemble) + COMMANDEMENT SUPERADMIN UNIQUE
@@ -1812,128 +1814,273 @@ export const AdminResourcesPage: React.FC = () => {
 // ============================================================================
 // 9. PARAMÈTRES SYSTÈME & DÉPLOIEMENT (/admin/parametres)
 // ============================================================================
+const TRAFFIC_LABELS: Record<string, string> = {
+  '/': 'Accueil',
+  '/conseils': 'Conseils',
+  '/histoires': 'Histoires',
+  '/ressources': 'Ressources',
+  '/loisir': 'Loisir',
+  '/a-propos': 'À propos',
+  '/connexion': 'Connexion',
+  '/inscription': 'Inscription',
+};
+
+const PUBLICATION_QUEUE: StoryStatus[] = [
+  'Envoyée',
+  'En modération',
+  'Modification demandée',
+  'Autorisation demandée',
+  'Autorisée',
+];
+
 export const AdminSettingsPage: React.FC = () => {
   const {
-    supabaseConnected,
-    allPrivacyRequests,
+    allUsers,
+    allManageableStories,
+    publicStories,
+    allListeningRequests,
+    dailyTips,
+    helpResources,
+    questionnairesCatalog,
+    auditLogs,
     siteSettings,
     updateSiteSettings,
   } = useApp();
+  const [traffic, setTraffic] = useState<TrafficRow[]>([]);
+  const [trafficReady, setTrafficReady] = useState(false);
+  const [trafficPath, setTrafficPath] = useState<string>('all');
+
+  const refreshTraffic = () => {
+    setTrafficReady(false);
+    void loadTraffic(14).then((rows) => {
+      setTraffic(rows);
+      setTrafficReady(true);
+    });
+  };
+
+  useEffect(() => {
+    refreshTraffic();
+  }, []);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const visibleTraffic = traffic.filter((row) => trafficPath === 'all' || row.path === trafficPath);
+  const viewsToday = visibleTraffic
+    .filter((row) => row.day === today)
+    .reduce((sum, row) => sum + row.views, 0);
+  const viewsWeek = visibleTraffic
+    .filter((row) => row.day >= weekAgo)
+    .reduce((sum, row) => sum + row.views, 0);
+  const viewsByPath = PUBLIC_TRAFFIC_PATHS.map((path) => ({
+    path,
+    label: TRAFFIC_LABELS[path],
+    views: traffic.filter((row) => row.path === path && row.day >= weekAgo).reduce((sum, row) => sum + row.views, 0),
+  }));
+  const maxPathViews = Math.max(1, ...viewsByPath.map((row) => row.views));
+
+  const onlineUsers = allUsers.filter((user) => user.isOnline).length;
+  const bannedUsers = allUsers.filter((user) => user.isBanned).length;
+  const newUsersWeek = allUsers.filter((user) => (user.createdAt || '').slice(0, 10) >= weekAgo).length;
+  const publicationQueue = allManageableStories.filter((story) => PUBLICATION_QUEUE.includes(story.status));
+  const openListening = allListeningRequests.filter((request) => request.status !== 'Clôturée').length;
+  const auditToday = auditLogs.filter((log) => (log.createdAt || '').slice(0, 10) === today).length;
+
+  const storyCounts = useMemo(() => {
+    const counts = new Map<StoryStatus, number>();
+    for (const status of PUBLICATION_QUEUE) counts.set(status, 0);
+    for (const story of allManageableStories) {
+      counts.set(story.status, (counts.get(story.status) || 0) + 1);
+    }
+    return counts;
+  }, [allManageableStories]);
+
+  const gears = [
+    { to: '/admin/utilisateurs', label: 'Utilisateurs', value: allUsers.length, detail: `${onlineUsers} en ligne · ${bannedUsers} suspendus` },
+    { to: '/admin/histoires-recues', label: 'Demandes de publication', value: publicationQueue.length, detail: 'File réelle de modération' },
+    { to: '/admin/histoires-publiees', label: 'Histoires publiées', value: publicStories.length, detail: 'Avec accord explicite' },
+    { to: '/admin/ecoute', label: 'Demandes d’écoute', value: openListening, detail: `${allListeningRequests.length} au total` },
+    { to: '/admin/conseils', label: 'Conseils', value: dailyTips.length, detail: 'Contenus du jour' },
+    { to: '/admin/ressources', label: 'Ressources d’aide', value: helpResources.length, detail: 'Fiches vérifiées' },
+    { to: '/admin/questionnaires', label: 'Questionnaires', value: questionnairesCatalog.length, detail: 'Catalogue public' },
+    { to: '/admin/audit', label: 'Journal d’activité', value: auditLogs.length, detail: `${auditToday} aujourd’hui` },
+  ];
+
+  const switches: Array<{
+    key: 'registrationOpen' | 'storySubmissionsOpen' | 'listeningOpen' | 'publicStoriesVisible' | 'announcementVisible' | 'maintenanceMode' | 'copyProtectionEnabled' | 'aiAutopilotTipsEnabled';
+    label: string;
+    detail: string;
+  }> = [
+    { key: 'registrationOpen', label: 'Inscriptions ouvertes', detail: 'Ferme le formulaire. La connexion reste possible.' },
+    { key: 'storySubmissionsOpen', label: 'Envoi d’histoires à publier', detail: 'Les brouillons privés restent autorisés.' },
+    { key: 'listeningOpen', label: 'Nouvelles demandes d’écoute', detail: 'Les demandes déjà envoyées restent suivies.' },
+    { key: 'publicStoriesVisible', label: 'Histoires publiques visibles', detail: 'Masque la liste, sans inventer de récit.' },
+    { key: 'announcementVisible', label: 'Bandeau Conseils & Motivation', detail: 'Affiche ou retire le bandeau sur tout le site.' },
+    { key: 'maintenanceMode', label: 'Bandeau de maintenance', detail: 'Avertit les visiteurs sans fermer l’administration.' },
+    { key: 'copyProtectionEnabled', label: 'Protection contre la copie', detail: 'Bloque la sélection hors champs de saisie.' },
+    { key: 'aiAutopilotTipsEnabled', label: 'Relais IA du conseil du jour', detail: 'Publie un conseil si l’admin n’en pose pas.' },
+  ];
 
   return (
     <div className="space-y-6">
       <div>
         <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-nia-orange">
           <Settings className="w-4 h-4" />
-          Paramètres SuperAdmin, Couleurs, Sécurité & Règles de Gestion
+          Engrenages réels de la plateforme
         </span>
         <h1 className="text-2xl font-extrabold text-nia-gray-dark dark:text-white mt-1">
-          Gouvernance globale & Audit de sécurité Nia-Mind
+          Paramètres liés à tout Nia-Mind
         </h1>
+        <p className="text-xs text-nia-gray-mid dark:text-gray-400 mt-1 max-w-3xl">
+          Chaque interrupteur agit sur le site pour les visiteurs. Les chiffres viennent des comptes, des histoires et des visites enregistrées. Aucun secret n’est affiché ici.
+        </p>
       </div>
 
-      {/* Contrôles SuperAdmin : Couleurs & Règles de sécurité */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        {gears.map((gear) => (
+          <Link
+            key={gear.to}
+            to={gear.to}
+            className="p-4 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark hover:border-nia-orange space-y-1"
+          >
+            <span className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-nia-gray-mid">
+              {gear.label}
+              <Settings className="w-3.5 h-3.5 text-nia-orange" />
+            </span>
+            <p className="text-2xl font-extrabold text-nia-gray-dark dark:text-white">{gear.value}</p>
+            <p className="text-[11px] text-nia-orange font-bold">{gear.detail}</p>
+          </Link>
+        ))}
+      </div>
+
       <div className="p-6 rounded-2xl bg-white dark:bg-nia-surface-dark border-2 border-nia-orange/35 space-y-4">
-        <h2 className="text-base font-extrabold text-nia-gray-dark dark:text-white">
-          Personnalisation des couleurs & règles de protection (SuperAdmin uniquement)
-        </h2>
-        <Link
-          to="/admin/couleurs"
-          className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark border border-nia-orange/25 text-xs font-bold"
-        >
-          <span>
-            Ouvrir l’atelier des couleurs — principale, arrière-plans, textes et couleurs de chaque section.
-          </span>
-          <span className="shrink-0 px-2 py-1 rounded-lg text-white" style={{ backgroundColor: siteSettings.primaryColor }}>
-            {siteSettings.primaryColor}
-          </span>
-        </Link>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-2">
-          <label className="p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark flex items-center justify-between cursor-pointer">
-            <span className="font-bold">
-              Protection contre les clics de copie / sélection de texte
-            </span>
-            <input
-              type="checkbox"
-              checked={siteSettings.copyProtectionEnabled}
-              onChange={(e) =>
-                updateSiteSettings({ copyProtectionEnabled: e.target.checked })
-              }
-              className="rounded text-nia-orange"
-            />
-          </label>
-          <label className="p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark flex items-center justify-between cursor-pointer">
-            <span className="font-bold">
-              Relais IA automatique pour le Conseil & Motivation du jour
-            </span>
-            <input
-              type="checkbox"
-              checked={siteSettings.aiAutopilotTipsEnabled}
-              onChange={(e) =>
-                updateSiteSettings({ aiAutopilotTipsEnabled: e.target.checked })
-              }
-              className="rounded text-nia-orange"
-            />
-          </label>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-extrabold text-nia-gray-dark dark:text-white flex items-center gap-2">
+              <Settings className="w-4 h-4 text-nia-orange" />
+              Interrupteurs de la plateforme
+            </h2>
+            <p className="text-xs text-nia-gray-mid">Enregistrés pour tous les visiteurs, pas seulement dans ce navigateur.</p>
+          </div>
+          <Link
+            to="/admin/couleurs"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white"
+            style={{ backgroundColor: siteSettings.primaryColor }}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Atelier des couleurs {siteSettings.primaryColor}
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {switches.map((item) => (
+            <label
+              key={item.key}
+              className="p-3.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark flex items-center justify-between gap-3 cursor-pointer"
+            >
+              <span>
+                <span className="block text-xs font-bold">{item.label}</span>
+                <span className="block text-[11px] text-nia-gray-mid mt-0.5">{item.detail}</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={Boolean(siteSettings[item.key])}
+                onChange={(e) => updateSiteSettings({ [item.key]: e.target.checked })}
+                className="rounded text-nia-orange"
+              />
+            </label>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-6 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark space-y-3">
-          <h2 className="text-base font-bold flex items-center gap-2">
-            <Lock className="w-4 h-4 text-nia-orange" />
-            Variables d’environnement & Secrets
-          </h2>
-          <ul className="text-xs space-y-2 text-nia-gray-mid dark:text-gray-300">
-            <li className="flex items-center justify-between">
-              <span>Connexion Supabase (`VITE_SUPABASE_URL`)</span>
-              <span className="font-bold text-nia-orange">
-                {supabaseConnected ? 'Connecté au Cloud' : 'Mode RLS Local Autonome actif'}
-              </span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span>Fonction Serverless `/api/assistant`</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                Opérationnelle (Clés IA isolées côté serveur)
-              </span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span>Migration SQL + Triggers RLS</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                Prête dans `supabase/migrations/`
-              </span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span>Pont same-origin `/api/gateway`</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                Actif — débit limité avant le backend
-              </span>
-            </li>
-            <li className="flex items-center justify-between">
-              <span>Configuration de routage `vercel.json`</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                Prête (Headers de sécurité + SPA rewrites)
-              </span>
-            </li>
-          </ul>
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        <div className="xl:col-span-3 p-6 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-nia-orange" />
+                Trafic du site
+              </h2>
+              <p className="text-[11px] text-nia-gray-mid mt-1">
+                Une visite par navigateur, par page publique et par jour. Aucun nom, aucun message, aucune adresse n’est conservé.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={refreshTraffic}
+              className="px-3 py-1.5 rounded-full text-[11px] font-bold border border-nia-orange/40 text-nia-orange"
+            >
+              Actualiser
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setTrafficPath('all')}
+              className={`px-3 py-1 rounded-full text-[11px] font-bold ${trafficPath === 'all' ? 'bg-nia-orange text-white' : 'bg-nia-bg-light dark:bg-nia-bg-dark'}`}
+            >
+              Toutes les pages
+            </button>
+            {PUBLIC_TRAFFIC_PATHS.map((path) => (
+              <button
+                key={path}
+                type="button"
+                onClick={() => setTrafficPath(path)}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold ${trafficPath === path ? 'bg-nia-orange text-white' : 'bg-nia-bg-light dark:bg-nia-bg-dark'}`}
+              >
+                {TRAFFIC_LABELS[path]}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark">
+              <p className="text-[11px] text-nia-gray-mid">Aujourd’hui</p>
+              <p className="text-2xl font-extrabold">{trafficReady ? viewsToday : '…'}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark">
+              <p className="text-[11px] text-nia-gray-mid">7 derniers jours</p>
+              <p className="text-2xl font-extrabold">{trafficReady ? viewsWeek : '…'}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {viewsByPath.map((row) => (
+              <div key={row.path} className="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-2 text-xs">
+                <span className="font-bold">{row.label}</span>
+                <span className="h-2 rounded-full bg-nia-bg-light dark:bg-nia-bg-dark overflow-hidden">
+                  <span
+                    className="block h-full bg-[#0F9F6E]"
+                    style={{ width: `${Math.round((row.views / maxPathViews) * 100)}%` }}
+                  />
+                </span>
+                <span className="text-right font-bold">{row.views}</span>
+              </div>
+            ))}
+          </div>
+          {trafficReady && traffic.length === 0 && (
+            <p className="text-xs text-nia-gray-mid">
+              Le compteur est prêt. Les visites apparaîtront ici dès que des pages publiques seront ouvertes.
+            </p>
+          )}
         </div>
 
-        <div className="p-6 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark space-y-3">
-          <h2 className="text-base font-bold flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-nia-bordeaux dark:text-amber-300" />
-            Demandes RGPD enregistrées ({allPrivacyRequests.length})
-          </h2>
+        <div className="xl:col-span-2 p-6 rounded-2xl bg-white dark:bg-nia-surface-dark border border-nia-gray-light dark:border-nia-border-dark space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base font-bold flex items-center gap-2">
+              <FileClock className="w-4 h-4 text-nia-bordeaux" />
+              Demandes de publication
+            </h2>
+            <Link to="/admin/histoires-recues" className="text-[11px] font-bold text-nia-orange inline-flex items-center gap-1">
+              <Settings className="w-3.5 h-3.5" />
+              Ouvrir
+            </Link>
+          </div>
+          <p className="text-3xl font-extrabold text-nia-gray-dark dark:text-white">{publicationQueue.length}</p>
+          <p className="text-[11px] text-nia-gray-mid">
+            {newUsersWeek} nouveau{newUsersWeek > 1 ? 'x' : ''} compte{newUsersWeek > 1 ? 's' : ''} sur 7 jours · {publicStories.length} histoire{publicStories.length > 1 ? 's' : ''} déjà publique{publicStories.length > 1 ? 's' : ''}.
+          </p>
           <div className="space-y-2 text-xs">
-            {allPrivacyRequests.map((pr) => (
-              <div
-                key={pr.id}
-                className="p-3 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark flex items-center justify-between"
-              >
-                <span>
-                  Utilisateur <code>{pr.userId}</code> — {pr.requestType}
-                </span>
-                <span className="font-bold text-nia-orange">{pr.status}</span>
+            {PUBLICATION_QUEUE.map((status) => (
+              <div key={status} className="flex items-center justify-between p-2.5 rounded-xl bg-nia-bg-light dark:bg-nia-bg-dark">
+                <span>{status}</span>
+                <span className="font-extrabold text-nia-orange">{storyCounts.get(status) || 0}</span>
               </div>
             ))}
           </div>

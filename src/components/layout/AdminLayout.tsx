@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { RoleSwitcherBar, SUPERADMIN_EMAIL } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
+import { PlatformMaintenanceBanner } from '../ui/PlatformMaintenanceBanner';
 import { useApp } from '../../context/AppContext';
 
 const ADMIN_NAV_ITEMS = [
@@ -84,6 +85,7 @@ export const AdminLayout: React.FC = () => {
         </div>
       )}
 
+      <PlatformMaintenanceBanner />
       {/* Cadrage plein écran sans marge perdue dans les angles */}
       <div className="relative z-10 flex-1 flex w-full min-w-0">
         <aside className="hidden lg:flex lg:w-64 xl:w-72 shrink-0 flex-col border-r border-nia-orange/25 dark:border-nia-border-dark nia-glass-card p-4 justify-between">

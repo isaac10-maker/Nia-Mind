@@ -121,7 +121,10 @@ export const TvAnnouncementTicker: React.FC<{ blurred?: boolean }> = ({
     openDailyTipModal,
     siteNotifications,
     featuredDailyTip,
+    siteSettings,
   } = useApp();
+
+  if (siteSettings.announcementVisible === false) return null;
 
   const activeNotification = siteNotifications.find((n) => n.isActive);
 

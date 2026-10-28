@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { emailConfirmLanding } from './lib/supabase';
+import { recordPageView } from './lib/platformControls';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { PersonalLayout } from './components/layout/PersonalLayout';
 import { AdminLayout } from './components/layout/AdminLayout';
@@ -45,6 +46,14 @@ const ScrollToTopOnRoute: React.FC = () => {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [pathname]);
+  return null;
+};
+
+const PublicTrafficBeacon: React.FC = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    void recordPageView(pathname);
   }, [pathname]);
   return null;
 };
@@ -110,6 +119,7 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <EmailConfirmHomeGate />
         <ScrollToTopOnRoute />
+        <PublicTrafficBeacon />
         <PlatformAutoTranslator />
         <GlobalModals />
         <Routes>

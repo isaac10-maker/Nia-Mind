@@ -17,6 +17,7 @@ import { NeuralChipIcon } from '../ui/NeuralChipIcon';
 import { RoleSwitcherBar, SUPERADMIN_EMAIL } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
 import { OfflineBanner } from '../ui/OfflineBanner';
+import { PlatformMaintenanceBanner } from '../ui/PlatformMaintenanceBanner';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
 import { tUi } from '../../lib/i18nEngine';
@@ -115,6 +116,7 @@ export const PersonalLayout: React.FC = () => {
         </div>
       )}
 
+      <PlatformMaintenanceBanner />
       {/* Cadrage plein écran sans marge perdue dans les angles */}
       <div className="relative z-10 flex-1 flex w-full min-w-0">
         {/* Barre latérale translucide sur ordinateur (sans second logo Nia-Mind sous le bandeau) */}

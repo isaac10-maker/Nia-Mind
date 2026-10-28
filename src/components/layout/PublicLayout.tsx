@@ -21,6 +21,7 @@ import {
 } from './RoleSwitcherBar';
 import { AmbientBackground } from '../ui/AmbientBackground';
 import { OfflineBanner } from '../ui/OfflineBanner';
+import { PlatformMaintenanceBanner } from '../ui/PlatformMaintenanceBanner';
 import { FloatingInstructionPopup } from '../ui/SlidingInstructionBubbles';
 import { useApp } from '../../context/AppContext';
 import { tUi } from '../../lib/i18nEngine';
@@ -167,6 +168,7 @@ export const PublicLayout: React.FC = () => {
         {/* Bandeau d'annonce TV sous le header :
             "Conseils &" / "Motivation du Jour" sur 2 lignes dans le coin gauche + annonce défilant et disparaissant en dessous */}
         <TvAnnouncementTicker blurred={isAuthRoute} />
+        <PlatformMaintenanceBanner />
         {!isAuthRoute && <OfflineBanner />}
 
         {/* Menu Mobile Compact et Accessible au toucher */}

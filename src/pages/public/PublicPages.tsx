@@ -29,6 +29,7 @@ import {
 } from '../../lib/securityEngine';
 import { DailyTip, UserProfile } from '../../lib/types';
 import { Modal } from '../../components/ui/Modal';
+import { platformNotice } from '../../lib/platformControls';
 
 // ============================================================================
 // 1. PAGE PUBLIQUE : NOS RESSOURCES (/ressources)
@@ -340,7 +341,7 @@ export const PublicTipsPage: React.FC = () => {
 // 3. PAGE PUBLIQUE : HISTOIRES (/histoires)
 // ============================================================================
 export const PublicStoriesPage: React.FC = () => {
-  const { publicStories, currentUser } = useApp();
+  const { publicStories, currentUser, siteSettings, currentLanguage } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
 
@@ -358,6 +359,19 @@ export const PublicStoriesPage: React.FC = () => {
       s.publicPseudonym.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCat && matchesSearch;
   });
+
+  if (siteSettings.publicStoriesVisible === false) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
+        <div className="p-6 rounded-3xl bg-white dark:bg-nia-surface-dark border border-nia-orange/30 space-y-3">
+          <h1 className="text-2xl font-black text-nia-gray-dark dark:text-white">Histoires</h1>
+          <p className="text-sm text-nia-gray-mid dark:text-gray-300">
+            {platformNotice(currentLanguage, 'storiesHidden')}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
@@ -616,6 +630,8 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     triggerSignupMotivationPush,
     featuredDailyTip,
     openConsentModal,
+    siteSettings,
+    currentLanguage,
   } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1179,9 +1195,16 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
             </div>
           )}
 
+          {mode === 'register' && siteSettings.registrationOpen === false && (
+            <p className="text-xs font-bold text-[#7F1D3F] dark:text-amber-200 bg-nia-bordeaux/10 rounded-xl px-3 py-2">
+              {platformNotice(currentLanguage, 'registrationClosed')}
+            </p>
+          )}
+
           <button
             type="submit"
-            className="nia-tactile-card w-full py-4 rounded-full bg-[#0F9F6E] hover:bg-[#047857] text-white font-black text-sm shadow-lg flex items-center justify-center gap-2"
+            disabled={mode === 'register' && siteSettings.registrationOpen === false}
+            className="nia-tactile-card w-full py-4 rounded-full bg-[#0F9F6E] hover:bg-[#047857] disabled:opacity-50 disabled:pointer-events-none text-white font-black text-sm shadow-lg flex items-center justify-center gap-2"
           >
             <UserPlus className="w-4 h-4" />
             <span>

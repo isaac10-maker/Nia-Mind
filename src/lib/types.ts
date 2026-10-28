@@ -305,6 +305,12 @@ export interface SiteSettings {
   strictRateLimitMax: number;
   strictRateLimitWindowSec: number;
   copyProtectionEnabled: boolean;
+  registrationOpen: boolean;
+  storySubmissionsOpen: boolean;
+  listeningOpen: boolean;
+  publicStoriesVisible: boolean;
+  announcementVisible: boolean;
+  maintenanceMode: boolean;
   updatedAt: string;
 }
 

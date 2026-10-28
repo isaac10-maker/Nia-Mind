@@ -273,6 +273,14 @@ export function migrateSiteSettings(raw: SiteSettings): SiteSettings {
     accentColor: nextPalette.accent,
     themePreset: oldDefault ? DEFAULT_THEME_PRESET : raw.themePreset || DEFAULT_THEME_PRESET,
     palette: nextPalette,
+    registrationOpen: raw.registrationOpen !== false,
+    storySubmissionsOpen: raw.storySubmissionsOpen !== false,
+    listeningOpen: raw.listeningOpen !== false,
+    publicStoriesVisible: raw.publicStoriesVisible !== false,
+    announcementVisible: raw.announcementVisible !== false,
+    maintenanceMode: raw.maintenanceMode === true,
+    copyProtectionEnabled: raw.copyProtectionEnabled !== false,
+    aiAutopilotTipsEnabled: raw.aiAutopilotTipsEnabled !== false,
   };
 }
 

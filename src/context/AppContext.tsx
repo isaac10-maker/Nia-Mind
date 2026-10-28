@@ -45,6 +45,7 @@ import {
   mergePalette,
   migrateSiteSettings,
 } from '../lib/sitePalette';
+import { loadPlatformControls, savePlatformControls, sharedControlsOf } from '../lib/platformControls';
 import {
   canAccessJournalEntry,
   canModifyUserRole,
@@ -256,7 +257,7 @@ interface AppContextValue {
     publicPseudonym: string;
     originalContent: string;
     submitToModeration: boolean;
-  }) => StoryRecord;
+  }) => StoryRecord | null;
   deleteStoryRecord: (storyId: string) => void;
   authorRespondToPublicationRequest: (
     storyId: string,
@@ -362,6 +363,12 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   strictRateLimitMax: 3,
   strictRateLimitWindowSec: 15,
   copyProtectionEnabled: true,
+  registrationOpen: true,
+  storySubmissionsOpen: true,
+  listeningOpen: true,
+  publicStoriesVisible: true,
+  announcementVisible: true,
+  maintenanceMode: false,
   updatedAt: '2026-10-25T08:00:00.000Z',
 };
 
@@ -424,6 +431,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [listeningRequests, setListeningRequests] = useState<ListeningRequest[]>([]);
   const [vaultEpoch, setVaultEpoch] = useState(0);
   const skipCloudPush = useRef(true);
+  const controlsTouched = useRef(false);
   const [dailyTips, setDailyTips] = useState<DailyTip[]>(INITIAL_DAILY_TIPS);
   const [helpResources, setHelpResources] = useState<VerifiedHelpResource[]>(INITIAL_HELP_RESOURCES);
   const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequestRecord[]>([]);
@@ -540,6 +548,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Repli transparent sur les données initiales locales en cas d'indisponibilité réseau
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadPlatformControls().then((controls) => {
+      if (cancelled || !controls || controlsTouched.current) return;
+      setSiteSettings((prev) => migrateSiteSettings({ ...prev, ...controls }));
+    });
     return () => {
       cancelled = true;
     };
@@ -801,6 +820,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         burstCheck.error || 'Limite 3 tentatives / 15s atteinte.'
       );
       return { ok: false, error: burstCheck.error };
+    }
+
+    if (siteSettings.registrationOpen === false) {
+      return {
+        ok: false,
+        error: 'Les inscriptions sont fermées pour le moment. La connexion des comptes existants reste ouverte.',
+      };
     }
 
     if (!params.acceptedTerms) {
@@ -1599,7 +1625,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     publicPseudonym: string;
     originalContent: string;
     submitToModeration: boolean;
-  }) => {
+  }): StoryRecord | null => {
+    if (params.submitToModeration && siteSettings.storySubmissionsOpen === false) {
+      pushToast(
+        'Publication suspendue',
+        'L’envoi de nouvelles histoires à la publication est fermé. Le brouillon privé reste possible.',
+        'bordeaux'
+      );
+      return null;
+    }
+
     const uid = currentUser?.id || 'user-a';
     const now = new Date().toISOString();
     const nextStatus: StoryStatus = params.submitToModeration ? 'Envoyée' : 'Brouillon';
@@ -1925,6 +1960,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const uid = currentUser?.id || 'user-a';
     const uname = currentUser?.displayName || 'Membre Nia-Mind';
     const now = new Date().toISOString();
+    if (siteSettings.listeningOpen === false) {
+      pushToast(
+        'Écoute suspendue',
+        'Les nouvelles demandes d’écoute humaine sont fermées. Les demandes déjà envoyées restent suivies.',
+        'bordeaux'
+      );
+      return {
+        id: 'closed',
+        userId: uid,
+        userDisplayName: uname,
+        topic: '',
+        preferredMode: params.preferredMode,
+        preferredSlot: '',
+        message: '',
+        status: 'Envoyée' as const,
+        listenerReply: null,
+        assignedListener: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
     const check = validateNoteAndWellnessInput({
       textFields: [params.topic, params.preferredSlot, params.message],
     });
@@ -2200,6 +2256,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: new Date().toISOString(),
     };
     setSiteSettings(next);
+    const sharedKeys: Array<keyof SiteSettings> = [
+      'registrationOpen',
+      'storySubmissionsOpen',
+      'listeningOpen',
+      'publicStoriesVisible',
+      'announcementVisible',
+      'maintenanceMode',
+      'copyProtectionEnabled',
+      'aiAutopilotTipsEnabled',
+    ];
+    if (sharedKeys.some((key) => patch[key] !== undefined)) {
+      controlsTouched.current = true;
+      void savePlatformControls(sharedControlsOf(next)).then((saved) => {
+        if (!saved.ok) {
+          pushToast(
+            'Réglage local seulement',
+            saved.error || 'La base n’a pas confirmé ce réglage pour les autres visiteurs.',
+            'bordeaux'
+          );
+        }
+      });
+    }
     if (!options?.quiet) {
       recordAudit(
         'SUPERADMIN_SITE_SETTINGS_UPDATED',
