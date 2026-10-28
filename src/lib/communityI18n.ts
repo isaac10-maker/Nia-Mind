@@ -1,3 +1,4 @@
+import type { CommunityLinkKind } from './communityRules';
 import type { SupportedLanguage } from './i18nEngine';
 import { normalizeLanguageCode, type LanguageCodeInput } from './i18nEngine';
 
@@ -651,6 +652,20 @@ export function statusLabel(lang: LanguageCodeInput, status: string): string {
   return tCommunity(lang, map[status] || 'statusDraft');
 }
 
+export function linkKindLabel(lang: LanguageCodeInput, kind: CommunityLinkKind | null): string {
+  const map: Record<CommunityLinkKind, CommunityExtraKey> = {
+    whatsapp_group: 'kindWhatsappGroup',
+    whatsapp_channel: 'kindWhatsappChannel',
+    facebook_page: 'kindFacebookPage',
+    facebook_group: 'kindFacebookGroup',
+    instagram: 'kindInstagram',
+    messenger: 'kindMessenger',
+    threads: 'kindThreads',
+  };
+  if (!kind) return tCommunity(lang, 'platformOther');
+  return tCommunityExtra(lang, map[kind]);
+}
+
 export function platformLabel(lang: LanguageCodeInput, platform: string): string {
   const map: Record<string, CommunityTextKey> = {
     whatsapp_group: 'platformWhatsappGroup',
@@ -718,11 +733,109 @@ const EXTRA = {
     zh: '我的操作记录',
   },
   invalidUrl: {
-    fr: 'Le lien doit commencer par https et viser une plateforme autorisée. javascript: est refusé.',
-    en: 'The link must start with https and use an allowed platform. javascript: is blocked.',
-    es: 'El enlace debe empezar por https y usar una plataforma permitida. javascript: está bloqueado.',
-    de: 'Der Link muss mit https beginnen und eine erlaubte Plattform nutzen. javascript: ist gesperrt.',
-    zh: '链接必须以 https 开头并指向允许的平台。javascript: 会被拒绝。',
+    fr: 'Le lien doit commencer par https et viser WhatsApp ou Meta. javascript: est refusé.',
+    en: 'The link must start with https and point to WhatsApp or Meta. javascript: is blocked.',
+    es: 'El enlace debe empezar por https y apuntar a WhatsApp o Meta. javascript: está bloqueado.',
+    de: 'Der Link muss mit https beginnen und auf WhatsApp oder Meta zeigen. javascript: ist gesperrt.',
+    zh: '链接必须以 https 开头并指向 WhatsApp 或 Meta。javascript: 会被拒绝。',
+  },
+  familyAll: {
+    fr: 'Tous les liens',
+    en: 'All links',
+    es: 'Todos los enlaces',
+    de: 'Alle Links',
+    zh: '全部链接',
+  },
+  familyWhatsapp: {
+    fr: 'WhatsApp',
+    en: 'WhatsApp',
+    es: 'WhatsApp',
+    de: 'WhatsApp',
+    zh: 'WhatsApp',
+  },
+  familyMeta: {
+    fr: 'Meta',
+    en: 'Meta',
+    es: 'Meta',
+    de: 'Meta',
+    zh: 'Meta',
+  },
+  scopeLinks: {
+    fr: 'Liens acceptés : groupes et chaînes WhatsApp, pages et groupes Facebook, Instagram, Messenger et Threads.',
+    en: 'Accepted links: WhatsApp groups and channels, Facebook pages and groups, Instagram, Messenger and Threads.',
+    es: 'Enlaces aceptados: grupos y canales de WhatsApp, páginas y grupos de Facebook, Instagram, Messenger y Threads.',
+    de: 'Erlaubte Links: WhatsApp-Gruppen und Kanäle, Facebook-Seiten und Gruppen, Instagram, Messenger und Threads.',
+    zh: '接受的链接：WhatsApp 群组和频道、Facebook 主页和群组、Instagram、Messenger 与 Threads。',
+  },
+  openWhatsapp: {
+    fr: 'Ouvrir sur WhatsApp',
+    en: 'Open on WhatsApp',
+    es: 'Abrir en WhatsApp',
+    de: 'In WhatsApp öffnen',
+    zh: '在 WhatsApp 中打开',
+  },
+  openMeta: {
+    fr: 'Ouvrir sur Meta',
+    en: 'Open on Meta',
+    es: 'Abrir en Meta',
+    de: 'In Meta öffnen',
+    zh: '在 Meta 中打开',
+  },
+  linkHint: {
+    fr: 'Colle un lien https://chat.whatsapp.com, wa.me, facebook.com, instagram.com, m.me ou threads.net.',
+    en: 'Paste an https link from chat.whatsapp.com, wa.me, facebook.com, instagram.com, m.me or threads.net.',
+    es: 'Pega un enlace https de chat.whatsapp.com, wa.me, facebook.com, instagram.com, m.me o threads.net.',
+    de: 'Füge einen https-Link von chat.whatsapp.com, wa.me, facebook.com, instagram.com, m.me oder threads.net ein.',
+    zh: '请粘贴 chat.whatsapp.com、wa.me、facebook.com、instagram.com、m.me 或 threads.net 的 https 链接。',
+  },
+  kindWhatsappGroup: {
+    fr: 'Groupe WhatsApp',
+    en: 'WhatsApp group',
+    es: 'Grupo de WhatsApp',
+    de: 'WhatsApp-Gruppe',
+    zh: 'WhatsApp 群组',
+  },
+  kindWhatsappChannel: {
+    fr: 'Chaîne WhatsApp',
+    en: 'WhatsApp channel',
+    es: 'Canal de WhatsApp',
+    de: 'WhatsApp-Kanal',
+    zh: 'WhatsApp 频道',
+  },
+  kindFacebookPage: {
+    fr: 'Page Facebook',
+    en: 'Facebook page',
+    es: 'Página de Facebook',
+    de: 'Facebook-Seite',
+    zh: 'Facebook 主页',
+  },
+  kindFacebookGroup: {
+    fr: 'Groupe Facebook',
+    en: 'Facebook group',
+    es: 'Grupo de Facebook',
+    de: 'Facebook-Gruppe',
+    zh: 'Facebook 群组',
+  },
+  kindInstagram: {
+    fr: 'Instagram',
+    en: 'Instagram',
+    es: 'Instagram',
+    de: 'Instagram',
+    zh: 'Instagram',
+  },
+  kindMessenger: {
+    fr: 'Messenger',
+    en: 'Messenger',
+    es: 'Messenger',
+    de: 'Messenger',
+    zh: 'Messenger',
+  },
+  kindThreads: {
+    fr: 'Threads',
+    en: 'Threads',
+    es: 'Threads',
+    de: 'Threads',
+    zh: 'Threads',
   },
   sensitiveRequired: {
     fr: 'Cette catégorie demande l’engagement responsable avant l’enregistrement.',
@@ -892,6 +1005,174 @@ const EXTRA = {
     de: 'Die Aktion ist nicht gelungen.',
     zh: '操作没有完成。',
   },
+  roomTitle: {
+    fr: 'Espace de discussion Nia-Mind',
+    en: 'Nia-Mind discussion space',
+    es: 'Espacio de conversación Nia-Mind',
+    de: 'Nia-Mind-Gesprächsraum',
+    zh: 'Nia-Mind 讨论空间',
+  },
+  roomLead: {
+    fr: 'Cet espace est distinct du groupe WhatsApp ou Meta. Le lien d’invitation ne crée aucun compte et ne donne aucun droit d’administration.',
+    en: 'This space is separate from the WhatsApp or Meta group. The invite link creates no account and grants no admin rights.',
+    es: 'Este espacio es distinto del grupo de WhatsApp o Meta. El enlace no crea ninguna cuenta ni da derechos de administración.',
+    de: 'Dieser Raum ist von der WhatsApp- oder Meta-Gruppe getrennt. Der Einladungslink erstellt kein Konto und gibt keine Verwaltungsrechte.',
+    zh: '此空间不同于 WhatsApp 或 Meta 群组。邀请链接不会创建账户，也不授予管理权限。',
+  },
+  discussionOpen: {
+    fr: 'Discussion ouverte aux participants',
+    en: 'Discussion open to participants',
+    es: 'Conversación abierta a los participantes',
+    de: 'Gespräch für Teilnehmende geöffnet',
+    zh: '向参与者开放讨论',
+  },
+  discussionClosed: {
+    fr: 'Discussion réservée aux responsables',
+    en: 'Discussion limited to managers',
+    es: 'Conversación reservada a los responsables',
+    de: 'Gespräch nur für Verantwortliche',
+    zh: '讨论仅限负责人',
+  },
+  inviteCreate: {
+    fr: 'Créer un lien d’invitation',
+    en: 'Create an invite link',
+    es: 'Crear un enlace de invitación',
+    de: 'Einladungslink erstellen',
+    zh: '创建邀请链接',
+  },
+  inviteCopied: {
+    fr: 'Lien prêt. Partage-le seulement avec les personnes concernées.',
+    en: 'Link ready. Share it only with the people concerned.',
+    es: 'Enlace listo. Compártelo solo con las personas concernidas.',
+    de: 'Link bereit. Teile ihn nur mit den betreffenden Personen.',
+    zh: '链接已准备好。只分享给相关的人。',
+  },
+  inviteAccept: {
+    fr: 'Rejoindre l’espace',
+    en: 'Join the space',
+    es: 'Unirse al espacio',
+    de: 'Dem Raum beitreten',
+    zh: '加入空间',
+  },
+  inviteInvalid: {
+    fr: 'Ce lien d’invitation n’est plus valable.',
+    en: 'This invite link is no longer valid.',
+    es: 'Este enlace de invitación ya no es válido.',
+    de: 'Dieser Einladungslink ist nicht mehr gültig.',
+    zh: '此邀请链接已失效。',
+  },
+  participantsLabel: {
+    fr: 'Participants de l’espace Nia-Mind',
+    en: 'Participants in the Nia-Mind space',
+    es: 'Participantes del espacio Nia-Mind',
+    de: 'Teilnehmende im Nia-Mind-Raum',
+    zh: 'Nia-Mind 空间参与者',
+  },
+  messagePlaceholder: {
+    fr: 'Écrire aux participants de cet espace',
+    en: 'Write to the participants of this space',
+    es: 'Escribir a los participantes de este espacio',
+    de: 'An die Teilnehmenden dieses Raums schreiben',
+    zh: '写给此空间的参与者',
+  },
+  sendMessage: {
+    fr: 'Envoyer',
+    en: 'Send',
+    es: 'Enviar',
+    de: 'Senden',
+    zh: '发送',
+  },
+  scheduleHint: {
+    fr: 'L’agent publie à l’heure choisie dès qu’une visite ouvre cet espace ou l’annuaire. Il accueille le message sans rester allumé en permanence, et sans rejoindre le groupe externe.',
+    en: 'The agent publishes at the chosen time as soon as a visit opens this space or the directory. It welcomes the message without staying online permanently, and without joining the external group.',
+    es: 'El agente publica a la hora elegida en cuanto una visita abre este espacio o el directorio. Acoge el mensaje sin permanecer conectado de forma permanente y sin unirse al grupo externo.',
+    de: 'Der Agent veröffentlicht zur gewählten Zeit, sobald ein Besuch diesen Raum oder das Verzeichnis öffnet. Er begrüßt die Nachricht, ohne dauerhaft online zu bleiben und ohne der externen Gruppe beizutreten.',
+    zh: '到了选定时间后，只要有人打开此空间或目录，助手就会发布并致欢迎词。它不会一直在线，也不会加入外部群组。',
+  },
+  scheduleTitle: {
+    fr: 'Confier une publication à l’agent d’accueil',
+    en: 'Give a publication to the welcome agent',
+    es: 'Confiar una publicación al agente de acogida',
+    de: 'Eine Veröffentlichung dem Empfangsagenten anvertrauen',
+    zh: '把一条发布交给接待助手',
+  },
+  scheduleAt: {
+    fr: 'Date et heure de publication',
+    en: 'Publication date and time',
+    es: 'Fecha y hora de publicación',
+    de: 'Datum und Uhrzeit der Veröffentlichung',
+    zh: '发布时间',
+  },
+  scheduleSend: {
+    fr: 'Programmer',
+    en: 'Schedule',
+    es: 'Programar',
+    de: 'Planen',
+    zh: '定时发布',
+  },
+  posterTitle: {
+    fr: 'Générer une affiche',
+    en: 'Generate a poster',
+    es: 'Generar un cartel',
+    de: 'Ein Plakat erzeugen',
+    zh: '生成海报',
+  },
+  posterKind: {
+    fr: 'Type',
+    en: 'Type',
+    es: 'Tipo',
+    de: 'Art',
+    zh: '类型',
+  },
+  openRoom: {
+    fr: 'Ouvrir l’espace',
+    en: 'Open the space',
+    es: 'Abrir el espacio',
+    de: 'Raum öffnen',
+    zh: '打开空间',
+  },
+  revokeInvite: {
+    fr: 'Révoquer le lien',
+    en: 'Revoke the link',
+    es: 'Revocar el enlace',
+    de: 'Link widerrufen',
+    zh: '撤销链接',
+  },
+  hideMessage: {
+    fr: 'Masquer',
+    en: 'Hide',
+    es: 'Ocultar',
+    de: 'Ausblenden',
+    zh: '隐藏',
+  },
+  posterProverb: {
+    fr: 'Proverbe',
+    en: 'Proverb',
+    es: 'Proverbio',
+    de: 'Sprichwort',
+    zh: '谚语',
+  },
+  posterAdvice: {
+    fr: 'Conseil',
+    en: 'Advice',
+    es: 'Consejo',
+    de: 'Rat',
+    zh: '建议',
+  },
+  posterMotivation: {
+    fr: 'Motivation',
+    en: 'Motivation',
+    es: 'Motivación',
+    de: 'Motivation',
+    zh: '激励',
+  },
+  posterNone: {
+    fr: 'Sans affiche',
+    en: 'No poster',
+    es: 'Sin cartel',
+    de: 'Ohne Plakat',
+    zh: '无海报',
+  },
 } as const;
 
 export type CommunityExtraKey = keyof typeof EXTRA;
@@ -925,6 +1206,8 @@ export function communityErrorMessage(lang: LanguageCodeInput, raw: string): str
   if (text.includes('COMMUNITY_REASON_REQUIRED')) return tCommunityExtra(lang, 'reasonRequired');
   if (text.includes('COMMUNITY_SENSITIVE_ACK_REQUIRED')) return tCommunityExtra(lang, 'sensitiveRequired');
   if (text.includes('COMMUNITY_UNSAFE_TEXT')) return tCommunityExtra(lang, 'unsafeText');
+  if (text.includes('COMMUNITY_INVITE_INVALID')) return tCommunityExtra(lang, 'inviteInvalid');
+  if (text.includes('COMMUNITY_DISCUSSION_CLOSED')) return tCommunityExtra(lang, 'discussionClosed');
   if (text.includes('COMMUNITY_FORBIDDEN') || text.includes('COMMUNITY_NOT_OWNER') || text.includes('COMMUNITY_NOT_AUTHENTICATED')) {
     return tCommunityExtra(lang, 'forbidden');
   }

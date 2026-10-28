@@ -45,25 +45,52 @@ export const DEFAULT_MANAGER_PERMISSIONS: ManagerPermissions = {
   canModerateAll: false,
 };
 
-const SOCIAL_HOSTS = [
+export const WHATSAPP_HOSTS = [
   'chat.whatsapp.com',
   'whatsapp.com',
   'www.whatsapp.com',
   'wa.me',
+  'api.whatsapp.com',
+];
+
+export const FACEBOOK_HOSTS = [
   'facebook.com',
   'www.facebook.com',
   'm.facebook.com',
+  'mbasic.facebook.com',
+  'web.facebook.com',
+  'business.facebook.com',
+  'touch.facebook.com',
   'fb.com',
+  'www.fb.com',
   'fb.me',
-  'm.me',
-  'instagram.com',
-  'www.instagram.com',
-  'threads.net',
-  'www.threads.net',
+  'www.fb.me',
+  'fb.watch',
+  'www.fb.watch',
 ];
 
-const WHATSAPP_HOSTS = ['chat.whatsapp.com', 'whatsapp.com', 'www.whatsapp.com', 'wa.me'];
-const FACEBOOK_HOSTS = ['facebook.com', 'www.facebook.com', 'm.facebook.com', 'fb.com', 'fb.me', 'm.me'];
+export const INSTAGRAM_HOSTS = ['instagram.com', 'www.instagram.com', 'm.instagram.com'];
+export const MESSENGER_HOSTS = ['messenger.com', 'www.messenger.com', 'm.me'];
+export const THREADS_HOSTS = ['threads.net', 'www.threads.net', 'threads.com', 'www.threads.com'];
+
+const SOCIAL_HOSTS = [
+  ...WHATSAPP_HOSTS,
+  ...FACEBOOK_HOSTS,
+  ...INSTAGRAM_HOSTS,
+  ...MESSENGER_HOSTS,
+  ...THREADS_HOSTS,
+];
+
+export type CommunityLinkKind =
+  | 'whatsapp_group'
+  | 'whatsapp_channel'
+  | 'facebook_page'
+  | 'facebook_group'
+  | 'instagram'
+  | 'messenger'
+  | 'threads';
+
+export type CommunityLinkFamily = 'whatsapp' | 'meta';
 
 export function visitorCanSeeCommunity(status: string): boolean {
   return status === 'published';
@@ -87,6 +114,42 @@ export function isSafeHttpsUrl(raw: string): boolean {
   return Boolean(hostOf(value));
 }
 
+export function communityLinkKind(raw: string): CommunityLinkKind | null {
+  if (!isSafeHttpsUrl(raw)) return null;
+  const host = hostOf(raw);
+  if (!host) return null;
+  let path = '';
+  try {
+    path = new URL(raw.trim()).pathname.toLowerCase();
+  } catch {
+    path = '';
+  }
+  if (WHATSAPP_HOSTS.includes(host)) {
+    return path.includes('/channel') ? 'whatsapp_channel' : 'whatsapp_group';
+  }
+  if (INSTAGRAM_HOSTS.includes(host)) return 'instagram';
+  if (MESSENGER_HOSTS.includes(host)) return 'messenger';
+  if (THREADS_HOSTS.includes(host)) return 'threads';
+  if (FACEBOOK_HOSTS.includes(host)) {
+    return path.includes('/groups') ? 'facebook_group' : 'facebook_page';
+  }
+  return null;
+}
+
+export function communityLinkFamily(raw: string): CommunityLinkFamily | null {
+  const kind = communityLinkKind(raw);
+  if (!kind) return null;
+  return kind.startsWith('whatsapp') ? 'whatsapp' : 'meta';
+}
+
+export function platformFromCommunityLink(raw: string): CommunityPlatform | null {
+  const kind = communityLinkKind(raw);
+  if (kind === 'whatsapp_group' || kind === 'whatsapp_channel') return kind;
+  if (kind === 'facebook_group' || kind === 'facebook_page') return kind;
+  if (kind) return 'other';
+  return null;
+}
+
 export function isAllowedDestination(
   raw: string,
   platform: CommunityPlatform,
@@ -95,14 +158,15 @@ export function isAllowedDestination(
   if (!isSafeHttpsUrl(raw)) return false;
   const host = hostOf(raw);
   if (!host) return false;
+  const family = communityLinkFamily(raw);
   const extras = extraHosts.map((item) => item.toLowerCase());
   if (platform === 'whatsapp_group' || platform === 'whatsapp_channel') {
-    return WHATSAPP_HOSTS.includes(host);
+    return family === 'whatsapp';
   }
   if (platform === 'facebook_page' || platform === 'facebook_group') {
     return FACEBOOK_HOSTS.includes(host);
   }
-  return SOCIAL_HOSTS.includes(host) || extras.includes(host);
+  return family === 'whatsapp' || family === 'meta' || SOCIAL_HOSTS.includes(host) || extras.includes(host);
 }
 
 export function isSafeCoverUrl(raw: string): boolean {

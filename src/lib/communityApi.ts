@@ -201,6 +201,10 @@ export async function loadCommunityCategories(includeInactive = false): Promise<
   }));
 }
 
+export async function releaseDueCommunityPosts(): Promise<void> {
+  await callRpc<number>('release_due_community_posts');
+}
+
 export async function loadPublishedCommunities(query: {
   search?: string;
   platform?: string;
@@ -362,6 +366,89 @@ export async function loadCommunityReports(): Promise<{ rows: CommunityReportRow
 export async function resolveCommunityReport(id: string, status: string, note: string): Promise<string | null> {
   const { error } = await callRpc<void>('resolve_community_report', { p_id: id, p_status: status, p_note: note });
   return error;
+}
+
+export interface CommunityRoom {
+  id: string;
+  name: string;
+  status: string;
+  language: string;
+  discussion_open: boolean;
+  can_manage: boolean;
+  can_post: boolean;
+  is_member: boolean;
+  participants: number;
+  messages: Array<{ id: string; body: string; kind: string; status: string; image_svg: string | null; created_at: string }>;
+  scheduled: Array<{ id: string; body: string; poster_kind: string; publish_at: string; status: string }>;
+  invites: Array<{ id: string; token: string; expires_at: string; max_uses: number; use_count: number; revoked: boolean }>;
+}
+
+export async function loadCommunityRoom(id: string): Promise<{ room: CommunityRoom | null; error: string | null }> {
+  const { data, error } = await callRpc<unknown>('get_community_room', { p_id: id });
+  if (error || !data) return { room: null, error };
+  const row = asRecord(data);
+  return {
+    room: {
+      id: String(row.id || id),
+      name: String(row.name || ''),
+      status: String(row.status || ''),
+      language: String(row.language || 'fr'),
+      discussion_open: row.discussion_open === true,
+      can_manage: row.can_manage === true,
+      can_post: row.can_post === true,
+      is_member: row.is_member === true,
+      participants: Number(row.participants) || 0,
+      messages: asArray(row.messages),
+      scheduled: asArray(row.scheduled),
+      invites: asArray(row.invites),
+    },
+    error: null,
+  };
+}
+
+export async function setCommunityDiscussion(id: string, open: boolean): Promise<string | null> {
+  const { error } = await callRpc<void>('set_community_discussion', { p_id: id, p_open: open });
+  return error;
+}
+
+export async function createCommunityInvite(id: string, hours = 72, maxUses = 40): Promise<{ token: string | null; error: string | null }> {
+  const { data, error } = await callRpc<string>('create_community_invite', { p_id: id, p_hours: hours, p_max_uses: maxUses });
+  return { token: data, error };
+}
+
+export async function revokeCommunityInvite(id: string): Promise<string | null> {
+  const { error } = await callRpc<void>('revoke_community_invite', { p_invite: id });
+  return error;
+}
+
+export async function acceptCommunityInvite(token: string): Promise<{ id: string | null; error: string | null }> {
+  const { data, error } = await callRpc<string>('accept_community_invite', { p_token: token });
+  return { id: data, error };
+}
+
+export async function postCommunityMessage(id: string, body: string): Promise<string | null> {
+  const { error } = await callRpc<string>('post_community_message', { p_id: id, p_body: body });
+  return error;
+}
+
+export async function hideCommunityMessage(id: string, hide: boolean): Promise<string | null> {
+  const { error } = await callRpc<void>('hide_community_message', { p_message: id, p_hide: hide });
+  return error;
+}
+
+export async function scheduleCommunityPost(id: string, body: string, publishAt: string, kind: string): Promise<string | null> {
+  const { error } = await callRpc<string>('schedule_community_post', {
+    p_id: id,
+    p_body: body,
+    p_publish_at: publishAt,
+    p_kind: kind,
+  });
+  return error;
+}
+
+export async function generateCommunityPoster(id: string, text: string, kind: string): Promise<{ svg: string | null; error: string | null }> {
+  const { data, error } = await callRpc<string>('generate_community_poster', { p_id: id, p_text: text, p_kind: kind });
+  return { svg: data, error };
 }
 
 export async function loadCommunityAudit(mine: boolean): Promise<{ rows: CommunityAuditRow[]; error: string | null }> {

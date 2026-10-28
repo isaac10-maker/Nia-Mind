@@ -90,6 +90,12 @@ export function sanitizeInternalRedirect(rawRedirect: string | null | undefined)
   if (ALLOWED_INTERNAL_REDIRECTS.has(clean)) {
     return clean;
   }
+  if (/^\/communautes\/rejoindre\/[a-f0-9]{32}$/.test(clean)) {
+    return clean;
+  }
+  if (/^\/communautes\/espace\/[0-9a-f-]{36}$/i.test(clean)) {
+    return clean;
+  }
   return '/espace/tableau-de-bord';
 }
 

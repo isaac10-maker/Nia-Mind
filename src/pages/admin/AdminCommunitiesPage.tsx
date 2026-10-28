@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   appointCommunityManager,
   explainCommunityError,
@@ -141,9 +142,14 @@ export const AdminCommunitiesPage: React.FC = () => {
                     {statusLabel(currentLanguage, item.status)} · {item.category_name} · {item.platform}
                   </p>
                 </div>
-                <a href={item.destination_url} target="_blank" rel="noopener noreferrer" className="text-xs font-extrabold text-[#0F9F6E]">
-                  {tCommunity(currentLanguage, 'join')}
-                </a>
+                <span className="flex flex-wrap gap-3">
+                  <Link to={`/communautes/espace/${item.id}`} className="text-xs font-extrabold text-[#7F1D3F]">
+                    {tCommunityExtra(currentLanguage, 'openRoom')}
+                  </Link>
+                  <a href={item.destination_url} target="_blank" rel="noopener noreferrer" className="text-xs font-extrabold text-[#0F9F6E]">
+                    {tCommunity(currentLanguage, 'join')}
+                  </a>
+                </span>
               </div>
               <p className="mt-2 text-sm">{item.short_description}</p>
               <div className="mt-3 flex flex-wrap gap-2">

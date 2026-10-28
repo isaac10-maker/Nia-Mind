@@ -161,9 +161,13 @@ declare
   cleaned text;
   host text;
   allowed text[] := array[
-    'chat.whatsapp.com', 'whatsapp.com', 'www.whatsapp.com', 'wa.me',
-    'facebook.com', 'www.facebook.com', 'm.facebook.com', 'fb.com', 'fb.me', 'm.me',
-    'instagram.com', 'www.instagram.com', 'threads.net', 'www.threads.net'
+    'chat.whatsapp.com', 'whatsapp.com', 'www.whatsapp.com', 'wa.me', 'api.whatsapp.com',
+    'facebook.com', 'www.facebook.com', 'm.facebook.com', 'mbasic.facebook.com', 'web.facebook.com',
+    'business.facebook.com', 'touch.facebook.com', 'fb.com', 'www.fb.com', 'fb.me', 'www.fb.me',
+    'fb.watch', 'www.fb.watch',
+    'instagram.com', 'www.instagram.com', 'm.instagram.com',
+    'messenger.com', 'www.messenger.com', 'm.me',
+    'threads.net', 'www.threads.net', 'threads.com', 'www.threads.com'
   ];
   extra text[];
 begin
@@ -181,6 +185,36 @@ begin
 end;
 $$;
 
+create or replace function public.community_link_family(raw text)
+returns text
+language plpgsql
+stable
+set search_path = public
+as $$
+declare
+  host text;
+begin
+  if raw is null or not public.is_safe_community_url(raw) then
+    return 'other';
+  end if;
+  host := lower(substring(btrim(raw) from '^https://([^/:?#]+)'));
+  if host = any(array['chat.whatsapp.com', 'whatsapp.com', 'www.whatsapp.com', 'wa.me', 'api.whatsapp.com']) then
+    return 'whatsapp';
+  end if;
+  if host = any(array[
+    'facebook.com', 'www.facebook.com', 'm.facebook.com', 'mbasic.facebook.com', 'web.facebook.com',
+    'business.facebook.com', 'touch.facebook.com', 'fb.com', 'www.fb.com', 'fb.me', 'www.fb.me',
+    'fb.watch', 'www.fb.watch',
+    'instagram.com', 'www.instagram.com', 'm.instagram.com',
+    'messenger.com', 'www.messenger.com', 'm.me',
+    'threads.net', 'www.threads.net', 'threads.com', 'www.threads.com'
+  ]) then
+    return 'meta';
+  end if;
+  return 'other';
+end;
+$$;
+
 create or replace function public.community_host_matches(p_platform text, p_url text)
 returns boolean
 language plpgsql
@@ -193,10 +227,14 @@ begin
   if not public.is_safe_community_url(p_url) then return false; end if;
   host := lower(substring(btrim(p_url) from '^https://([^/:?#]+)'));
   if p_platform in ('whatsapp_group', 'whatsapp_channel') then
-    return host = any(array['chat.whatsapp.com', 'whatsapp.com', 'www.whatsapp.com', 'wa.me']);
+    return public.community_link_family(p_url) = 'whatsapp';
   end if;
   if p_platform in ('facebook_page', 'facebook_group') then
-    return host = any(array['facebook.com', 'www.facebook.com', 'm.facebook.com', 'fb.com', 'fb.me', 'm.me']);
+    return host = any(array[
+      'facebook.com', 'www.facebook.com', 'm.facebook.com', 'mbasic.facebook.com', 'web.facebook.com',
+      'business.facebook.com', 'touch.facebook.com', 'fb.com', 'www.fb.com', 'fb.me', 'www.fb.me',
+      'fb.watch', 'www.fb.watch'
+    ]);
   end if;
   return public.is_safe_community_url(p_url);
 end;
@@ -308,7 +346,12 @@ begin
       join public.community_categories cat on cat.id = c.primary_category_id
       where c.status = 'published'
         and cat.is_active
-        and (p_platform = '' or c.platform = p_platform)
+        and (
+          p_platform = ''
+          or (p_platform = 'whatsapp' and public.community_link_family(c.destination_url) = 'whatsapp')
+          or (p_platform = 'meta' and public.community_link_family(c.destination_url) = 'meta')
+          or c.platform = p_platform
+        )
         and (p_language = '' or c.language = p_language)
         and (
           p_category is null
@@ -980,6 +1023,7 @@ revoke all on function public.community_audit(text, text, text, text) from publi
 revoke all on function public.is_safe_community_url(text) from public, anon, authenticated;
 revoke all on function public.community_host_matches(text, text) from public, anon, authenticated;
 revoke all on function public.active_community_manager(uuid) from public, anon, authenticated;
+revoke all on function public.community_link_family(text) from public, anon, authenticated;
 revoke all on function public.my_community_access() from public;
 revoke all on function public.list_community_categories(boolean) from public;
 revoke all on function public.list_published_communities(text, text, uuid, text, text, integer, integer) from public;

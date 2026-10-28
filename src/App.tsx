@@ -18,6 +18,7 @@ import {
 } from './pages/public/PublicPages';
 import { LeisurePage } from './pages/public/LeisurePage';
 import { CommunitiesPage } from './pages/public/CommunitiesPage';
+import { CommunityInvitePage, CommunityRoomPage } from './pages/public/CommunityRoomPage';
 import { ManageCommunitiesPage } from './pages/public/ManageCommunitiesPage';
 import {
   AssistantPage,
@@ -135,6 +136,8 @@ export const App: React.FC = () => {
             <Route path="/a-propos" element={<AboutPage />} />
             <Route path="/loisir" element={<LeisurePage />} />
             <Route path="/communautes" element={<CommunitiesPage />} />
+            <Route path="/communautes/rejoindre/:token" element={<CommunityInvitePage />} />
+            <Route path="/communautes/espace/:id" element={<CommunityRoomPage />} />
             <Route path="/gerer" element={<ManageCommunitiesPage />} />
             <Route path="/connexion" element={<AuthPage mode="login" />} />
             <Route path="/inscription" element={<AuthPage mode="register" />} />

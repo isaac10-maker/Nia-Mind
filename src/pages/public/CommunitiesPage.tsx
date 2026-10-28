@@ -8,6 +8,7 @@ import {
   explainCommunityError,
   loadCommunityCategories,
   loadPublishedCommunities,
+  releaseDueCommunityPosts,
   reportCommunity,
   type CommunityCategory,
   type PublicCommunity,
@@ -16,6 +17,7 @@ import {
   displayCategoryName,
   platformLabel,
   tCommunity,
+  tCommunityExtra,
 } from '../../lib/communityI18n';
 import { COMMUNITY_LANGUAGES, COMMUNITY_PLATFORMS } from '../../lib/communityRules';
 import { OFFICIAL_SLOGAN } from '../../lib/securityEngine';
@@ -42,6 +44,7 @@ export const CommunitiesPage: React.FC = () => {
 
   useEffect(() => {
     void loadCommunityCategories(false).then(setCategories);
+    void releaseDueCommunityPosts();
   }, []);
 
   useEffect(() => {
@@ -93,6 +96,9 @@ export const CommunitiesPage: React.FC = () => {
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-nia-gray-mid dark:text-gray-200 sm:text-base">
           {tCommunity(currentLanguage, 'lead')}
         </p>
+        <p className="mt-3 max-w-3xl text-sm font-semibold leading-relaxed text-[#0F6E4C] dark:text-emerald-200">
+          {tCommunityExtra(currentLanguage, 'scopeLinks')}
+        </p>
         <p className="mt-4 text-xs font-extrabold uppercase tracking-wider text-[#7F1D3F] dark:text-rose-200">
           {OFFICIAL_SLOGAN} · Écouter • Comprendre • Avancer
         </p>
@@ -117,6 +123,36 @@ export const CommunitiesPage: React.FC = () => {
           ) : null}
         </div>
       </section>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {([
+          ['', tCommunityExtra(currentLanguage, 'familyAll')],
+          ['whatsapp', tCommunityExtra(currentLanguage, 'familyWhatsapp')],
+          ['meta', tCommunityExtra(currentLanguage, 'familyMeta')],
+        ] as const).map(([value, label]) => {
+          const isOn = platform === value;
+          return (
+            <button
+              key={value || 'all'}
+              type="button"
+              onClick={() => {
+                setOffset(0);
+                setPlatform(value);
+              }}
+              className={`rounded-3xl border px-4 py-4 text-left ${isOn ? 'border-[#0F9F6E] bg-[#0F9F6E] text-white' : 'border-[#0F9F6E]/25 bg-white dark:bg-[#13201B]'}`}
+            >
+              <span className="block text-base font-extrabold">{label}</span>
+              <span className={`mt-1 block text-xs ${isOn ? 'text-white/85' : 'text-nia-gray-mid'}`}>
+                {value === 'whatsapp'
+                  ? 'chat.whatsapp.com · wa.me'
+                  : value === 'meta'
+                    ? 'Facebook · Instagram · Messenger · Threads'
+                    : tCommunity(currentLanguage, 'allPlatforms')}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       <section className="grid gap-3 rounded-3xl border border-black/5 bg-white/80 p-4 dark:border-white/10 dark:bg-black/20 md:grid-cols-2 xl:grid-cols-5">
         <label className="xl:col-span-2">
@@ -156,7 +192,9 @@ export const CommunitiesPage: React.FC = () => {
           }}
           className="rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm dark:bg-[#13201B]"
         >
-          <option value="">{tCommunity(currentLanguage, 'allPlatforms')}</option>
+          <option value="">{tCommunityExtra(currentLanguage, 'familyAll')}</option>
+          <option value="whatsapp">{tCommunityExtra(currentLanguage, 'familyWhatsapp')}</option>
+          <option value="meta">{tCommunityExtra(currentLanguage, 'familyMeta')}</option>
           {COMMUNITY_PLATFORMS.map((item) => (
             <option key={item} value={item}>
               {platformLabel(currentLanguage, item)}

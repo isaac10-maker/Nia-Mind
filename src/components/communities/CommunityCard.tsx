@@ -2,12 +2,12 @@ import React from 'react';
 import { BadgeCheck, ExternalLink, Flag, ShieldAlert } from 'lucide-react';
 import {
   displayCategoryName,
-  platformLabel,
+  linkKindLabel,
   tCommunity,
   tCommunityExtra,
 } from '../../lib/communityI18n';
 import type { PublicCommunity } from '../../lib/communityApi';
-import { isAllowedDestination } from '../../lib/communityRules';
+import { communityLinkFamily, communityLinkKind, hostOf, isSafeHttpsUrl } from '../../lib/communityRules';
 import type { LanguageCodeInput } from '../../lib/i18nEngine';
 
 const LANGUAGE_SHORT: Record<string, string> = {
@@ -28,8 +28,15 @@ export const CommunityCard: React.FC<{
   onReport?: () => void;
   preview?: boolean;
 }> = ({ item, lang, onReport, preview }) => {
-  const href = isAllowedDestination(item.destination_url, item.platform) ? item.destination_url : '';
-  const accent = safeColor(item.category_color);
+  const family = communityLinkFamily(item.destination_url);
+  const kind = communityLinkKind(item.destination_url);
+  const href = family && isSafeHttpsUrl(item.destination_url) ? item.destination_url : '';
+  const accent = family === 'whatsapp' ? '#0F9F6E' : family === 'meta' ? '#7F1D3F' : safeColor(item.category_color);
+  const joinLabel = family === 'whatsapp'
+    ? tCommunityExtra(lang, 'openWhatsapp')
+    : family === 'meta'
+      ? tCommunityExtra(lang, 'openMeta')
+      : tCommunity(lang, 'join');
   return (
     <article className="min-w-0 overflow-hidden rounded-3xl border border-[#0F9F6E]/20 bg-white/90 shadow-sm dark:border-white/10 dark:bg-[#13201B]">
       <div className="relative h-36 overflow-hidden" style={{ background: `linear-gradient(135deg, ${accent}, #7F1D3F)` }}>
@@ -43,7 +50,7 @@ export const CommunityCard: React.FC<{
         ) : null}
         <div className="absolute inset-x-0 bottom-0 flex flex-wrap gap-1.5 p-3">
           <span className="rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-extrabold text-[#7F1D3F]">
-            {platformLabel(lang, item.platform)}
+            {linkKindLabel(lang, kind)}
           </span>
           <span className="rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-extrabold text-white">
             {LANGUAGE_SHORT[item.language] || item.language}
@@ -102,17 +109,17 @@ export const CommunityCard: React.FC<{
           {preview || !href ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-black/10 px-4 py-2 text-xs font-extrabold text-nia-gray-mid">
               <ExternalLink className="h-3.5 w-3.5" />
-              {preview ? tCommunityExtra(lang, 'notPublic') : tCommunity(lang, 'join')}
+              {preview ? tCommunityExtra(lang, 'notPublic') : joinLabel}
             </span>
           ) : (
             <a
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#0F9F6E] px-4 py-2 text-xs font-extrabold text-white shadow-sm"
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-extrabold text-white shadow-sm ${family === 'meta' ? 'bg-[#7F1D3F]' : 'bg-[#0F9F6E]'}`}
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              {tCommunity(lang, 'join')}
+              {joinLabel}
             </a>
           )}
           {onReport ? (
@@ -126,7 +133,10 @@ export const CommunityCard: React.FC<{
             </button>
           ) : null}
         </div>
-        <p className="text-[11px] text-nia-gray-mid dark:text-gray-400">{tCommunity(lang, 'openExternal')}</p>
+        <p className="text-[11px] text-nia-gray-mid dark:text-gray-400">
+          {tCommunity(lang, 'openExternal')}
+          {hostOf(item.destination_url) ? ` · ${hostOf(item.destination_url)}` : ''}
+        </p>
       </div>
     </article>
   );

@@ -35,6 +35,7 @@ import {
   isAllowedDestination,
   isSafeCoverUrl,
   isSafeHttpsUrl,
+  platformFromCommunityLink,
   sensitiveCategoryNeedsAck,
   statusAfterSubmit,
   type CommunityPlatform,
@@ -294,6 +295,9 @@ export const ManageCommunitiesPage: React.FC = () => {
             >
               <span className="block font-extrabold">{item.name}</span>
               <span className="text-xs font-bold text-[#7F1D3F]">{statusLabel(currentLanguage, item.status)}</span>
+              <Link to={`/communautes/espace/${item.id}`} className="mt-1 block text-xs font-extrabold text-[#0F9F6E]" onClick={(event) => event.stopPropagation()}>
+                {tCommunityExtra(currentLanguage, 'openRoom')}
+              </Link>
               {item.rejection_reason ? (
                 <span className="mt-1 block text-xs leading-relaxed">
                   {tCommunityExtra(currentLanguage, 'rejectionLabel')} : {item.rejection_reason}
@@ -342,7 +346,17 @@ export const ManageCommunitiesPage: React.FC = () => {
           </div>
           <label className="block text-xs font-extrabold">
             {tCommunity(currentLanguage, 'link')}
-            <input value={draft.destination_url} onChange={(event) => setDraft({ ...draft, destination_url: event.target.value })} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm font-medium" />
+            <input
+              value={draft.destination_url}
+              placeholder="https://chat.whatsapp.com/… ou https://facebook.com/…"
+              onChange={(event) => {
+                const destination_url = event.target.value;
+                const detected = platformFromCommunityLink(destination_url);
+                setDraft({ ...draft, destination_url, platform: detected || draft.platform });
+              }}
+              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm font-medium"
+            />
+            <span className="mt-1 block font-medium text-nia-gray-mid">{tCommunityExtra(currentLanguage, 'linkHint')}</span>
           </label>
           <label className="block text-xs font-extrabold">
             {tCommunity(currentLanguage, 'category')}
