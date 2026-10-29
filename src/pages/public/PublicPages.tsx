@@ -6,7 +6,6 @@ import {
   BookOpen,
   CheckCircle2,
   Compass,
-  Cookie,
   Feather,
   HeartHandshake,
   Lock,
@@ -615,20 +614,15 @@ export const AboutPage: React.FC = () => {
   );
 };
 
-// ============================================================================
-// 5. PAGES PUBLIQUES : CONNEXION (/connexion) & INSCRIPTION (/inscription)
-//    Avec E-mail / Gmail, Politique de confidentialité & Cookies
-// ============================================================================
+// ===========================================================================
+//    Fenêtre courte : e-mail ou Gmail, mot de passe, pseudonyme
+// ===========================================================================
 export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => {
   const {
     loginWithEmail,
     resendEmailVerification,
     registerAccount,
-    requestGmailPushVerification,
     requestPasswordRecoveryPush,
-
-    triggerSignupMotivationPush,
-    featuredDailyTip,
     openConsentModal,
     siteSettings,
     currentLanguage,
@@ -639,47 +633,19 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
   const searchParams = new URLSearchParams(location.search);
   const redirectTarget = sanitizeInternalRedirect(searchParams.get('redirect'));
   const fromAssistant = searchParams.get('from') === 'assistant';
+  const isRegister = mode === 'register';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [pseudonym, setPseudonym] = useState('');
-  const [countryCode, setCountryCode] = useState<UserProfile['countryCode']>('BF');
-  const [acceptedPrivacyAndTerms, setAcceptedPrivacyAndTerms] = useState(false);
-  const [acceptedCookies, setAcceptedCookies] = useState(false);
-  const [optionalWellness, setOptionalWellness] = useState(true);
+  const [accepted, setAccepted] = useState(false);
   const [websiteHoneypot, setWebsiteHoneypot] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [redirectBannerOpen, setRedirectBannerOpen] = useState<boolean>(
     Boolean(searchParams.get('redirect') || fromAssistant)
   );
-  const [edgePushBannerOpen, setEdgePushBannerOpen] = useState<boolean>(mode === 'register');
-
-  // Déclenchement automatique de l'Edge Function de notification Push sur la page d'inscription
-  React.useEffect(() => {
-    if (mode === 'register') {
-      setEdgePushBannerOpen(true);
-      void triggerSignupMotivationPush();
-    }
-  }, [mode]);
-
-  // Modale / Étape « Continuer avec Gmail / Google » avec Vérification Push Gmail + Mot de passe 6+ caractères
-  const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
-  const [gmailAddress, setGmailAddress] = useState('');
-  const [gmailName, setGmailName] = useState('');
-  const [gmailPassword, setGmailPassword] = useState('');
-  const [gmailPushSent, setGmailPushSent] = useState(false);
-  const [gmailExpectedCode, setGmailExpectedCode] = useState('');
-  const [gmailEnteredCode, setGmailEnteredCode] = useState('');
-  const [gmailPrivacyAccepted, setGmailPrivacyAccepted] = useState(true);
-  const [gmailCookiesAccepted, setGmailCookiesAccepted] = useState(true);
-
-  // Coin « Mot de passe oublié ? » pour récupération de compte
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSentCode, setForgotSentCode] = useState<string | null>(null);
-  const [forgotEnteredCode, setForgotEnteredCode] = useState('');
-  const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotStatusMsg, setForgotStatusMsg] = useState<string | null>(null);
   const [awaitingEmailLink, setAwaitingEmailLink] = useState(false);
 
@@ -687,7 +653,7 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     e.preventDefault();
     setErrorMsg(null);
 
-    if (mode === 'login') {
+    if (!isRegister) {
       const res = await loginWithEmail(email, password, websiteHoneypot);
       if (!res.ok) {
         if (res.needsVerification) setAwaitingEmailLink(true);
@@ -695,120 +661,38 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         return;
       }
       navigate(redirectTarget);
-    } else {
-      if (!acceptedPrivacyAndTerms || !acceptedCookies) {
-        setErrorMsg(
-          'Veuillez accepter la Politique de confidentialité et la réception des cookies essentiels pour continuer.'
-        );
-        return;
-      }
-      if (password.trim().length < 6) {
-        setErrorMsg('Veuillez choisir un mot de passe d’au moins 6 caractères.');
-        return;
-      }
-      const chosenPseudo = pseudonym.trim() || displayName.trim() || 'PlumeSincere';
-      const res = await registerAccount({
-        displayName: displayName.trim() || chosenPseudo,
-        email,
-        password,
-        publicPseudonym: chosenPseudo,
-        countryCode,
-        acceptedTerms: acceptedPrivacyAndTerms,
-        cookiesAccepted: acceptedCookies,
-        optionalWellnessConsent: optionalWellness,
-        honeypot: websiteHoneypot,
-      });
-      if (res.pending) {
-        setAwaitingEmailLink(true);
-        setErrorMsg(null);
-        return;
-      }
-      if (!res.ok) {
-        setErrorMsg(res.error || 'Erreur lors de la création du compte.');
-        return;
-      }
-      navigate(redirectTarget);
-    }
-  };
-
-  const handleSendGmailPush = async () => {
-    setErrorMsg(null);
-    const clean = gmailAddress.trim().toLowerCase();
-    const res = await requestGmailPushVerification(clean);
-    if (!res.ok) {
-      setErrorMsg(res.error || 'Adresse Gmail non valide.');
-      return;
-    }
-    setGmailPushSent(true);
-    setGmailExpectedCode(res.verificationCode || '');
-    setGmailEnteredCode(res.verificationCode || '');
-  };
-
-  const handleGmailContinue = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    const clean = gmailAddress.trim().toLowerCase();
-    if (!clean || (!clean.endsWith('@gmail.com') && !clean.endsWith('@googlemail.com'))) {
-      setErrorMsg('Veuillez saisir une adresse Gmail réelle se terminant par @gmail.com.');
-      return;
-    }
-    if (gmailPassword.trim().length < 6) {
-      setErrorMsg('Le mot de passe associé à votre compte Gmail doit contenir au moins 6 caractères.');
-      return;
-    }
-    if (!gmailPrivacyAccepted || !gmailCookiesAccepted) {
-      setErrorMsg('Veuillez accepter la politique de confidentialité et les cookies.');
       return;
     }
 
-    const loginTry = await loginWithEmail(clean, gmailPassword.trim());
-    if (loginTry.needsVerification) {
-      setEmail(clean);
-      setAwaitingEmailLink(true);
-      setIsGmailModalOpen(false);
-      setErrorMsg('Ouvrez le message reçu : le lien ouvre l’accueil. Il n’y a pas de code à saisir.');
+    if (!accepted) {
+      setErrorMsg('Veuillez accepter la Politique de confidentialité et la réception des cookies essentiels pour continuer.');
       return;
     }
-    if (loginTry.ok) {
-      setIsGmailModalOpen(false);
-      navigate(redirectTarget);
+    if (password.trim().length < 6) {
+      setErrorMsg('Veuillez choisir un mot de passe d’au moins 6 caractères.');
       return;
     }
-
-    // Sinon inscrire le compte Gmail vérifié par Push avec mot de passe (6+ caractères) et pseudonyme
-    const chosenGmailPseudo =
-      gmailName.trim() ||
-      clean
-        .split('@')[0]
-        .replace(/[._-]+/g, '')
-        .slice(0, 18) ||
-      'PlumeGmail';
-
-    const regTry = await registerAccount({
-      displayName: chosenGmailPseudo,
-      email: clean,
-      password: gmailPassword.trim(),
-      publicPseudonym: chosenGmailPseudo,
-      countryCode,
-      acceptedTerms: gmailPrivacyAccepted,
-      cookiesAccepted: gmailCookiesAccepted,
+    const chosenPseudo = pseudonym.trim() || 'PlumeSincere';
+    const res = await registerAccount({
+      displayName: chosenPseudo,
+      email,
+      password,
+      publicPseudonym: chosenPseudo,
+      countryCode: 'INT',
+      acceptedTerms: true,
+      cookiesAccepted: true,
       optionalWellnessConsent: true,
+      honeypot: websiteHoneypot,
     });
-
-    if (regTry.pending) {
-      setEmail(clean);
-      setPseudonym(chosenGmailPseudo);
+    if (res.pending) {
       setAwaitingEmailLink(true);
-      setIsGmailModalOpen(false);
       setErrorMsg(null);
       return;
     }
-    if (!regTry.ok) {
-      setErrorMsg(regTry.error || 'Impossible de finaliser l’inscription Gmail.');
+    if (!res.ok) {
+      setErrorMsg(res.error || 'Erreur lors de la création du compte.');
       return;
     }
-
-    setIsGmailModalOpen(false);
     navigate(redirectTarget);
   };
 
@@ -816,159 +700,69 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
     e.preventDefault();
     setForgotStatusMsg(null);
     const res = await requestPasswordRecoveryPush(forgotEmail);
-    if (!res.ok) {
-      setForgotStatusMsg(res.error || 'Impossible d’envoyer la récupération.');
-      return;
-    }
-    setForgotSentCode(null);
     setForgotStatusMsg(
-      'Si un compte existe pour cette adresse, un lien de réinitialisation vient d’être envoyé. Le nouveau mot de passe se choisit dans ce lien, jamais sur cette page.'
+      res.ok
+        ? 'Si un compte existe pour cette adresse, un lien de réinitialisation vient d’être envoyé. Le nouveau mot de passe se choisit dans ce lien, jamais sur cette page.'
+        : res.error || 'Impossible d’envoyer la récupération.'
     );
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10 space-y-6">
-      {/* Bandeau "Motivation & Conseils" avec le message du jour défilant de la droite vers la gauche à vitesse moyenne sous le titre */}
-      {mode === 'register' && edgePushBannerOpen && (
-        <div className="rounded-3xl bg-gradient-to-r from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep text-white p-4 sm:p-5 shadow-xl border border-white/25 space-y-2 animate-nia-slide-in">
-          <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/15 text-xs font-extrabold uppercase tracking-wider text-amber-200">
-              <Sparkles className="w-3.5 h-3.5 text-nia-orange" />
-              Motivation & Conseils
-            </span>
-            <button
-              type="button"
-              onClick={() => setEdgePushBannerOpen(false)}
-              aria-label="Fermer le bandeau Motivation & Conseils"
-              className="w-7 h-7 rounded-full inline-flex items-center justify-center bg-white/15 hover:bg-white/30 text-white shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="relative w-full overflow-hidden border-t border-white/15 pt-2">
-            <div className="animate-nia-rtl-scroll text-xs sm:text-sm font-bold text-white/95">
-              ✺ {featuredDailyTip?.title || 'Conseil du jour'} —{' '}
-              {featuredDailyTip?.summary ||
-                'Tu n’as pas besoin de porter toutes les attentes du monde en même temps. Respire et avance à ton rythme.'}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bannière d'information si le visiteur a cliqué sur l'Assistance ou un onglet personnel */}
+    <div className="mx-auto max-w-md px-4 py-8 sm:py-12">
       {redirectBannerOpen && (
-        <div className="rounded-3xl bg-gradient-to-r from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep text-white p-4 sm:p-5 shadow-lg flex items-start justify-between gap-3 animate-nia-slide-in">
-          <div className="space-y-1">
-            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-amber-200">
-              <Sparkles className="w-3.5 h-3.5 text-nia-orange" />
-              Accès à l’Assistance & aux Onglets Personnels
-            </span>
-            <p className="text-xs sm:text-sm font-medium text-white/95">
+        <div className="mb-4 rounded-3xl bg-gradient-to-r from-nia-bordeaux-dark via-nia-bordeaux to-nia-orange-deep p-4 text-white shadow-lg">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-xs font-medium leading-relaxed">
               En mode visiteur, vous pouvez parcourir les pages publiques. Pour dialoguer avec l’Assistant Nia-Mind, tenir votre journal ou suivre votre bien-être, connectez-vous ou inscrivez-vous gratuitement avec votre e-mail ou Gmail.
             </p>
+            <button
+              type="button"
+              onClick={() => setRedirectBannerOpen(false)}
+              aria-label="Fermer ce message"
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/15"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setRedirectBannerOpen(false)}
-            aria-label="Fermer ce message"
-            className="w-7 h-7 rounded-full inline-flex items-center justify-center bg-white/15 hover:bg-white/30 text-white shrink-0"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
       )}
 
-      <div className="rounded-3xl nia-auth-card border-2 border-[#0F9F6E]/35 p-6 sm:p-10 shadow-2xl space-y-6">
-        {/* Sélecteur d'onglet Connexion / Inscription */}
-        <div className="grid grid-cols-2 gap-2 p-1.5 rounded-full bg-nia-bordeaux/10 dark:bg-black/30 border border-nia-orange/25">
+      <div className="space-y-4 rounded-3xl border-2 border-[#0F9F6E]/35 p-5 shadow-xl nia-auth-card sm:p-6">
+        <div className="grid grid-cols-2 gap-2 rounded-full border border-nia-orange/25 bg-nia-bordeaux/10 p-1.5 dark:bg-black/30">
           <Link
             to={`/connexion${location.search}`}
-            className={`text-center py-2.5 rounded-full text-xs sm:text-sm font-extrabold transition-all ${
-              mode === 'login'
-                ? 'bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white shadow-sm'
-                : 'text-nia-gray-dark dark:text-gray-300 hover:text-nia-orange'
+            className={`rounded-full py-2 text-center text-xs font-extrabold ${
+              !isRegister
+                ? 'bg-[#0F9F6E] text-white'
+                : 'text-nia-gray-dark dark:text-gray-300'
             }`}
           >
             Se connecter
           </Link>
           <Link
             to={`/inscription${location.search}`}
-            className={`text-center py-2.5 rounded-full text-xs sm:text-sm font-extrabold transition-all ${
-              mode === 'register'
-                ? 'bg-gradient-to-r from-nia-orange to-nia-bordeaux text-white shadow-sm'
-                : 'text-nia-gray-dark dark:text-gray-300 hover:text-nia-orange'
+            className={`rounded-full py-2 text-center text-xs font-extrabold ${
+              isRegister
+                ? 'bg-[#7F1D3F] text-white'
+                : 'text-nia-gray-dark dark:text-gray-300'
             }`}
           >
             Créer un compte
           </Link>
         </div>
 
-        <div className="space-y-2 text-center">
-          <div className="flex justify-center mb-2">
-            <img
-              src="/images/nia-mind-logo.png"
-              alt="Logo Nia-Mind"
-              className="w-16 h-16 rounded-2xl object-cover ring-2 ring-nia-orange/50 shadow-lg"
-            />
-          </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-nia-orange/15 text-nia-orange-deep dark:text-nia-orange text-xs font-extrabold">
-            <Sparkles className="w-3.5 h-3.5" />
-            Écouter • Comprendre • Avancer
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-nia-gray-dark dark:text-white">
-            {mode === 'login'
-              ? 'Bon retour dans ton espace sincère'
-              : 'Rejoins Nia-Mind — « Tu n’es pas seul(e) »'}
+        <div className="space-y-1 text-center">
+          <h1 className="text-2xl font-black text-nia-gray-dark dark:text-white">
+            {isRegister ? 'Rejoins Nia-Mind — « Tu n’es pas seul(e) »' : 'Bon retour dans ton espace sincère'}
           </h1>
-          <p className="text-xs sm:text-sm text-nia-gray-mid dark:text-gray-300">
-            {mode === 'login'
-              ? 'Connecte-toi avec ton adresse e-mail inscrite ou ton compte Gmail.'
-              : 'Inscris-toi en quelques secondes avec ton e-mail ou Gmail pour débloquer tous les onglets personnels.'}
+          <p className="text-sm font-bold text-[#0F9F6E]">Une seule fenêtre pour l’e-mail ou Gmail.</p>
+          <p className="text-xs leading-relaxed text-nia-gray-mid dark:text-gray-300">
+            Pseudonyme, e-mail et mot de passe. Tes écrits restent liés à ce compte.
           </p>
         </div>
 
-        {/* Bouton Continuer avec Gmail / Google */}
-        <div>
-          <button
-            type="button"
-            onClick={() => {
-              setErrorMsg(null);
-              setIsGmailModalOpen(true);
-            }}
-            className="nia-tactile-opt w-full py-3.5 px-5 rounded-2xl bg-white dark:bg-nia-surface-dark border-2 border-nia-bordeaux/40 hover:border-nia-orange flex items-center justify-center gap-3 text-sm font-extrabold text-nia-gray-dark dark:text-white"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="#EA4335"
-                d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
-              />
-              <path
-                fill="#4285F4"
-                d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 21.4 7.4 24 12 24z"
-              />
-            </svg>
-            <span>Continuer avec Gmail / Google</span>
-          </button>
-        </div>
-
-        <div className="relative flex py-1 items-center">
-          <div className="flex-grow border-t border-nia-orange/25 dark:border-white/10" />
-          <span className="flex-shrink mx-3 text-xs font-bold uppercase tracking-wider text-nia-gray-mid dark:text-gray-400">
-            ou avec ton adresse e-mail
-          </span>
-          <div className="flex-grow border-t border-nia-orange/25 dark:border-white/10" />
-        </div>
-
         {awaitingEmailLink && (
-          <div className="space-y-3 rounded-2xl border-2 border-[#0F9F6E] bg-white p-4">
+          <div className="space-y-2 rounded-2xl border-2 border-[#0F9F6E] bg-white p-3">
             <p className="text-sm font-bold text-[#1F2937]">
               Un message de confirmation a été envoyé à {email.trim().toLowerCase()}. Ouvrez-le : le lien ouvre l’accueil automatiquement. Il n’y a pas de code à saisir.
             </p>
@@ -976,13 +770,9 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
               type="button"
               onClick={async () => {
                 const sent = await resendEmailVerification(email);
-                setErrorMsg(
-                  sent.ok
-                    ? 'Un nouveau message de confirmation a été envoyé.'
-                    : sent.error || 'Impossible de renvoyer le message.'
-                );
+                setErrorMsg(sent.ok ? 'Un nouveau message de confirmation a été envoyé.' : sent.error || 'Impossible de renvoyer le message.');
               }}
-              className="px-4 py-2.5 rounded-full border-2 border-[#7F1D3F] text-[#7F1D3F] text-xs font-extrabold"
+              className="rounded-full border-2 border-[#7F1D3F] px-4 py-2 text-xs font-extrabold text-[#7F1D3F]"
             >
               Renvoyer le message
             </button>
@@ -990,21 +780,15 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
         )}
 
         {errorMsg && (
-          <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/40 flex items-start justify-between gap-2 text-xs font-bold text-rose-800 dark:text-rose-200">
+          <div className="flex items-start justify-between gap-2 rounded-2xl border border-rose-500/40 bg-rose-500/15 p-3 text-xs font-bold text-rose-800 dark:text-rose-200">
             <span>{errorMsg}</span>
-            <button
-              type="button"
-              onClick={() => setErrorMsg(null)}
-              aria-label="Fermer l’alerte"
-              className="p-0.5 rounded hover:bg-rose-500/20"
-            >
-              <X className="w-4 h-4" />
+            <button type="button" onClick={() => setErrorMsg(null)} aria-label="Fermer l’alerte">
+              <X className="h-4 w-4" />
             </button>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Champ Honeypot invisible contre les robots de spam */}
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="hidden" aria-hidden="true">
             <label htmlFor="website_url_hp">Ne pas remplir ce champ</label>
             <input
@@ -1018,112 +802,40 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
             />
           </div>
 
-          {mode === 'register' && (
-            <>
-              <div className="p-3.5 rounded-2xl bg-nia-orange/10 border border-nia-orange/30 space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200">
-                    Ton pseudonyme recommandé (seul affiché sur le site)
-                  </label>
-                  <span className="text-[11px] font-bold text-nia-bordeaux dark:text-amber-300">
-                    Anonymat garanti — évite ton vrai prénom
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  required
-                  value={pseudonym}
-                  onChange={(e) => setPseudonym(e.target.value)}
-                  placeholder="Ex. : PlumeSincere, HorizonCalme, SouffleLibre…"
-                  className="w-full px-4 py-3 rounded-2xl bg-white/95 dark:bg-nia-bg-dark border-2 border-nia-orange/40 focus:border-nia-orange focus:outline-none text-sm font-semibold"
-                />
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[11px] font-bold text-nia-gray-mid dark:text-gray-400">
-                    Suggestions de pseudos :
-                  </span>
-                  {['PlumeSincere', 'HorizonCalme', 'SouffleLibre', 'ClarteDouce'].map((sug) => (
-                    <button
-                      key={sug}
-                      type="button"
-                      onClick={() => setPseudonym(sug)}
-                      className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-white dark:bg-nia-surface-dark border border-nia-orange/35 hover:border-nia-orange text-nia-bordeaux dark:text-amber-300 transition-colors"
-                    >
-                      @{sug}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200 mb-1.5">
-                    Nom complet (facultatif • visible uniquement par l’Admin)
-                  </label>
-                  <input
-                    type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Confidentiel (masqué au public)"
-                    className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-nia-bg-dark border-2 border-nia-orange/35 focus:border-nia-orange focus:outline-none text-sm font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200 mb-1.5">
-                    Pays (Ressources d’aide)
-                  </label>
-                  <select
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value as UserProfile['countryCode'])}
-                    className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-nia-bg-dark border-2 border-nia-orange/35 focus:border-nia-orange focus:outline-none text-sm font-semibold"
-                  >
-                    <option value="BF">Burkina Faso (BF)</option>
-                    <option value="FR">France (FR)</option>
-                    <option value="SN">Sénégal (SN)</option>
-                    <option value="CI">Côte d’Ivoire (CI)</option>
-                    <option value="BE">Belgique (BE)</option>
-                    <option value="CA">Canada (CA)</option>
-                    <option value="INT">International</option>
-                  </select>
-                </div>
-              </div>
-            </>
+          {isRegister && (
+            <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200">
+              Ton pseudonyme recommandé (seul affiché sur le site)
+              <input
+                type="text"
+                required
+                value={pseudonym}
+                onChange={(e) => setPseudonym(e.target.value)}
+                placeholder="Ex. : PlumeSincere"
+                className="mt-1 w-full rounded-2xl border-2 border-[#0F9F6E]/35 px-4 py-3 text-sm font-semibold"
+              />
+              <span className="mt-1 block text-[11px] normal-case tracking-normal text-[#7F1D3F] dark:text-amber-300">
+                Anonymat garanti — évite ton vrai prénom
+              </span>
+            </label>
           )}
 
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200 mb-1.5">
-              Adresse e-mail ou Gmail
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-nia-orange absolute left-4 top-1/2 -translate-y-1/2" />
+          <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200">
+            Adresse e-mail ou Gmail
+            <span className="relative mt-1 block">
+              <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#0F9F6E]" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="votre.nom@gmail.com"
-                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white/90 dark:bg-nia-bg-dark border-2 border-nia-orange/35 focus:border-nia-orange focus:outline-none text-sm font-semibold"
+                className="w-full rounded-2xl border-2 border-[#0F9F6E]/35 py-3 pl-11 pr-4 text-sm font-semibold"
               />
-            </div>
-          </div>
+            </span>
+          </label>
 
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200">
-                Mot de passe (min. 6 caractères)
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  setForgotEmail(email);
-                  setForgotSentCode(null);
-                  setForgotStatusMsg(null);
-                  setIsForgotModalOpen(true);
-                }}
-                className="text-xs font-extrabold text-nia-bordeaux dark:text-amber-300 hover:text-nia-orange underline"
-              >
-                Mot de passe oublié ?
-              </button>
-            </div>
+          <label className="block text-xs font-extrabold uppercase tracking-wider text-nia-gray-dark dark:text-gray-200">
+            Mot de passe (min. 6 caractères)
             <input
               type="password"
               required
@@ -1131,198 +843,58 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimum 6 caractères"
-              className="w-full px-4 py-3 rounded-2xl bg-white/90 dark:bg-nia-bg-dark border-2 border-nia-orange/35 focus:border-nia-orange focus:outline-none text-sm font-semibold"
+              className="mt-1 w-full rounded-2xl border-2 border-[#0F9F6E]/35 px-4 py-3 text-sm font-semibold"
             />
-          </div>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setForgotEmail(email);
+              setForgotStatusMsg(null);
+              setIsForgotModalOpen(true);
+            }}
+            className="text-xs font-extrabold text-[#7F1D3F] underline dark:text-amber-300"
+          >
+            Mot de passe oublié ?
+          </button>
 
-          <div className="px-3.5 py-2.5 rounded-2xl bg-nia-bordeaux/10 dark:bg-white/5 border border-nia-bordeaux/25 flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-nia-bordeaux dark:text-amber-200">
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-nia-orange shrink-0" />
-              Restriction : accessible uniquement aux e-mails réels
-            </span>
+          <p className="text-[11px] font-bold text-[#7F1D3F] dark:text-amber-200">
+            Gmail utilise les mêmes champs. Il n’y a pas de code à saisir.
+          </p>
 
-          </div>
-
-          {mode === 'register' && (
-            <div className="space-y-2.5 pt-2">
-              <label className="flex items-start gap-3 p-3 rounded-2xl bg-nia-orange/10 border border-nia-orange/30 text-xs text-nia-gray-dark dark:text-gray-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acceptedPrivacyAndTerms}
-                  onChange={(e) => setAcceptedPrivacyAndTerms(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded text-nia-orange"
-                />
-                <span>
-                  <strong>Politique de confidentialité (Obligatoire) :</strong> J’accepte la{' '}
-                  <button
-                    type="button"
-                    onClick={openConsentModal}
-                    className="underline font-extrabold text-nia-bordeaux dark:text-amber-300"
-                  >
-                    politique de confidentialité
-                  </button>{' '}
-                  et les conditions d’utilisation de Nia-Mind.
-                </span>
-              </label>
-
-              <label className="flex items-start gap-3 p-3 rounded-2xl bg-nia-bordeaux/10 border border-nia-bordeaux/30 text-xs text-nia-gray-dark dark:text-gray-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acceptedCookies}
-                  onChange={(e) => setAcceptedCookies(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded text-nia-orange"
-                />
-                <span>
-                  <strong className="inline-flex items-center gap-1">
-                    <Cookie className="w-3.5 h-3.5 text-nia-orange" />
-                    Réception des cookies (Obligatoire) :
-                  </strong>{' '}
-                  J’accepte la réception des cookies essentiels et de confort pour sécuriser ma session et mémoriser mes préférences.
-                </span>
-              </label>
-
-              <label className="flex items-start gap-3 px-3 py-2 text-xs text-nia-gray-mid dark:text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={optionalWellness}
-                  onChange={(e) => setOptionalWellness(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded text-nia-orange"
-                />
-                <span>
-                  <strong>Facultatif :</strong> Activer mes courbes d’évolution bien-être (humeur, stress, sommeil).
-                </span>
-              </label>
-            </div>
+          {isRegister && (
+            <label className="flex items-start gap-2 text-xs text-nia-gray-dark dark:text-gray-200">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                <button type="button" onClick={openConsentModal} className="font-extrabold text-[#7F1D3F] underline dark:text-amber-300">
+                  J’accepte la politique de confidentialité, les conditions et les cookies essentiels.
+                </button>
+              </span>
+            </label>
           )}
 
-          {mode === 'register' && siteSettings.registrationOpen === false && (
-            <p className="text-xs font-bold text-[#7F1D3F] dark:text-amber-200 bg-nia-bordeaux/10 rounded-xl px-3 py-2">
+          {isRegister && siteSettings.registrationOpen === false && (
+            <p className="rounded-xl bg-[#7F1D3F]/10 px-3 py-2 text-xs font-bold text-[#7F1D3F] dark:text-amber-200">
               {platformNotice(currentLanguage, 'registrationClosed')}
             </p>
           )}
 
           <button
             type="submit"
-            disabled={mode === 'register' && siteSettings.registrationOpen === false}
-            className="nia-tactile-card w-full py-4 rounded-full bg-[#0F9F6E] hover:bg-[#047857] disabled:opacity-50 disabled:pointer-events-none text-white font-black text-sm shadow-lg flex items-center justify-center gap-2"
+            disabled={isRegister && siteSettings.registrationOpen === false}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#0F9F6E] py-3.5 text-sm font-black text-white disabled:pointer-events-none disabled:opacity-50"
           >
-            <UserPlus className="w-4 h-4" />
-            <span>
-              {mode === 'login'
-                ? 'Se connecter à mon espace'
-                : 'S’inscrire & continuer →'}
-            </span>
+            <UserPlus className="h-4 w-4" />
+            <span>{isRegister ? 'S’inscrire & continuer →' : 'Se connecter à mon espace'}</span>
           </button>
         </form>
       </div>
 
-      {/* ====================================================================
-          MODALE GMAIL / GOOGLE AVEC VÉRIFICATION PUSH GMAIL & MOT DE PASSE 6+ CARACTÈRES
-          ==================================================================== */}
-      <Modal
-        isOpen={isGmailModalOpen}
-        onClose={() => setIsGmailModalOpen(false)}
-        badgeText="Vérification par e-mail"
-        title="Continuer avec votre adresse Gmail"
-        subtitle="Un message de confirmation est envoyé à cette adresse. Le lien ouvre l’accueil. Il n’y a pas de code à saisir."
-        accent="orange"
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setIsGmailModalOpen(false)}
-              className="px-4 py-2 rounded-xl border border-nia-gray-light dark:border-nia-border-dark text-xs font-bold"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              form="gmail-auth-form"
-              className="px-5 py-2.5 rounded-full bg-[#0F9F6E] text-white text-xs font-extrabold shadow-sm"
-            >
-              Envoyer le code et continuer
-            </button>
-          </>
-        }
-      >
-        <form id="gmail-auth-form" onSubmit={handleGmailContinue} className="space-y-4">
-          <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-              Votre adresse Gmail réelle (@gmail.com)
-            </label>
-            <input
-              type="email"
-              required
-              value={gmailAddress}
-              onChange={(e) => {
-                setGmailAddress(e.target.value);
-                setGmailPushSent(false);
-              }}
-              placeholder="prenom.nom@gmail.com"
-              className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-semibold"
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-                Mot de passe (min. 6 caractères)
-              </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={gmailPassword}
-                onChange={(e) => setGmailPassword(e.target.value)}
-                placeholder="Min. 6 caractères"
-                className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-semibold"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-                Pseudonyme recommandé (affiché)
-              </label>
-              <input
-                type="text"
-                value={gmailName}
-                onChange={(e) => setGmailName(e.target.value)}
-                placeholder="Ex. : PlumeSincere"
-                className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border border-nia-orange/30 text-sm"
-              />
-            </div>
-          </div>
-
-          {gmailPushSent && (
-            <div className="p-3.5 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40">
-              <p className="text-xs font-extrabold text-emerald-800 dark:text-emerald-200">
-                Le mot de passe est vérifié par le serveur. Aucun code n’est affiché dans le navigateur.
-              </p>
-            </div>
-          )}
-
-          <label className="flex items-start gap-2.5 text-xs cursor-pointer">
-            <input
-              type="checkbox"
-              checked={gmailPrivacyAccepted}
-              onChange={(e) => setGmailPrivacyAccepted(e.target.checked)}
-              className="mt-0.5 rounded text-nia-orange"
-            />
-            <span>J’accepte la Politique de confidentialité et les Conditions d’utilisation.</span>
-          </label>
-          <label className="flex items-start gap-2.5 text-xs cursor-pointer">
-            <input
-              type="checkbox"
-              checked={gmailCookiesAccepted}
-              onChange={(e) => setGmailCookiesAccepted(e.target.checked)}
-              className="mt-0.5 rounded text-nia-orange"
-            />
-            <span>J’accepte la réception des cookies essentiels et de préférences.</span>
-          </label>
-        </form>
-      </Modal>
-
-      {/* ====================================================================
-          MODALE COIN « MOT DE PASSE OUBLIÉ ? » (RÉCUPÉRATION DE COMPTE)
-          ==================================================================== */}
       <Modal
         isOpen={isForgotModalOpen}
         onClose={() => setIsForgotModalOpen(false)}
@@ -1334,43 +906,33 @@ export const AuthPage: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => 
           <button
             type="button"
             onClick={() => setIsForgotModalOpen(false)}
-            className="px-4 py-2 rounded-xl border border-nia-gray-light dark:border-nia-border-dark text-xs font-bold"
+            className="rounded-xl border px-4 py-2 text-xs font-bold"
           >
             Fermer
           </button>
         }
       >
-        <div className="space-y-4">
+        <form onSubmit={handleRequestPasswordRecovery} className="space-y-3">
           {forgotStatusMsg && (
-            <div className="p-3 rounded-2xl bg-nia-orange/15 border border-nia-orange/40 text-xs font-bold text-nia-gray-dark dark:text-white">
+            <p className="rounded-2xl border border-[#0F9F6E]/40 bg-[#0F9F6E]/10 p-3 text-xs font-bold">
               {forgotStatusMsg}
-            </div>
+            </p>
           )}
-
-          <form onSubmit={handleRequestPasswordRecovery} className="space-y-3">
-            <div>
-              <label className="block text-xs font-extrabold uppercase tracking-wider mb-1">
-                Adresse e-mail réelle de votre compte
-              </label>
-              <input
-                type="email"
-                required
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                placeholder="votre.nom@gmail.com"
-                className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-nia-bg-dark border-2 border-nia-orange/40 text-sm font-semibold"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full py-2.5 rounded-full bg-nia-bordeaux text-white text-xs font-extrabold shadow-sm"
-            >
-              Envoyer le lien de réinitialisation
-            </button>
-          </form>
-
-
-        </div>
+          <label className="block text-xs font-extrabold uppercase tracking-wider">
+            Adresse e-mail réelle de votre compte
+            <input
+              type="email"
+              required
+              value={forgotEmail}
+              onChange={(e) => setForgotEmail(e.target.value)}
+              placeholder="votre.nom@gmail.com"
+              className="mt-1 w-full rounded-2xl border-2 border-[#0F9F6E]/40 px-4 py-2.5 text-sm font-semibold"
+            />
+          </label>
+          <button type="submit" className="w-full rounded-full bg-[#7F1D3F] py-2.5 text-xs font-extrabold text-white">
+            Envoyer le lien de réinitialisation
+          </button>
+        </form>
       </Modal>
     </div>
   );

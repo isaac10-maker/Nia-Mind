@@ -191,6 +191,13 @@ export const deLocale = {
     'Adresse e-mail ou Gmail': 'E-Mail- oder Gmail-Adresse',
     'Mot de passe (min. 6 caractères)': 'Passwort (mind. 6 Zeichen)',
     'Mot de passe oublié ?': 'Passwort vergessen?',
+    'Une seule fenêtre pour l’e-mail ou Gmail.': 'Ein kurzes Fenster für E-Mail oder Gmail.',
+    'Pseudonyme, e-mail et mot de passe. Tes écrits restent liés à ce compte.':
+      'Pseudonym, E-Mail und Passwort. Deine Texte bleiben mit diesem Konto verbunden.',
+    'J’accepte la politique de confidentialité, les conditions et les cookies essentiels.':
+      'Ich akzeptiere die Datenschutzrichtlinie, die Bedingungen und die notwendigen Cookies.',
+    'Gmail utilise les mêmes champs. Il n’y a pas de code à saisir.':
+      'Gmail nutzt dieselben Felder. Es gibt keinen Code einzugeben.',
     'Restriction : accessible uniquement aux e-mails réels':
       'Einschränkung: nur für echte E-Mail-Adressen zugänglich',
     'Limite sécurité : max 3 essais / 15 secondes':

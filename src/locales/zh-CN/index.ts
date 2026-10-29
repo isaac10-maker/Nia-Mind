@@ -191,6 +191,13 @@ export const zhCNLocale = {
     'Adresse e-mail ou Gmail': '电子邮箱或 Gmail 地址',
     'Mot de passe (min. 6 caractères)': '密码（至少 6 个字符）',
     'Mot de passe oublié ?': '忘记密码？',
+    'Une seule fenêtre pour l’e-mail ou Gmail.': '邮箱或 Gmail 共用一个简短窗口。',
+    'Pseudonyme, e-mail et mot de passe. Tes écrits restent liés à ce compte.':
+      '昵称、邮箱和密码。你的文字保存在这个账户里。',
+    'J’accepte la politique de confidentialité, les conditions et les cookies essentiels.':
+      '我接受隐私政策、使用条款和必要的 Cookie。',
+    'Gmail utilise les mêmes champs. Il n’y a pas de code à saisir.':
+      'Gmail 使用相同的字段。无需输入验证码。',
     'Restriction : accessible uniquement aux e-mails réels':
       '限制：仅限真实电子邮箱注册与登录',
     'Limite sécurité : max 3 essais / 15 secondes':

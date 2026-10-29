@@ -207,6 +207,13 @@ export const esLocale = {
     'Adresse e-mail ou Gmail': 'Correo electrónico o Gmail',
     'Mot de passe (min. 6 caractères)': 'Contraseña (mín. 6 caracteres)',
     'Mot de passe oublié ?': '¿Olvidaste tu contraseña?',
+    'Une seule fenêtre pour l’e-mail ou Gmail.': 'Una sola ventana para el correo o Gmail.',
+    'Pseudonyme, e-mail et mot de passe. Tes écrits restent liés à ce compte.':
+      'Seudónimo, correo y contraseña. Tus escritos quedan ligados a esta cuenta.',
+    'J’accepte la politique de confidentialité, les conditions et les cookies essentiels.':
+      'Acepto la política de privacidad, las condiciones y las cookies esenciales.',
+    'Gmail utilise les mêmes champs. Il n’y a pas de code à saisir.':
+      'Gmail usa los mismos campos. No hay ningún código que introducir.',
     'Restriction : accessible uniquement aux e-mails réels':
       'Restricción: accesible solo para correos electrónicos reales',
     'Limite sécurité : max 3 essais / 15 secondes':

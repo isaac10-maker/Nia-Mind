@@ -256,6 +256,13 @@ export const enLocale = {
     'Adresse e-mail ou Gmail': 'Email or Gmail address',
     'Mot de passe (min. 6 caractères)': 'Password (min. 6 characters)',
     'Mot de passe oublié ?': 'Forgot password?',
+    'Une seule fenêtre pour l’e-mail ou Gmail.': 'One short window for email or Gmail.',
+    'Pseudonyme, e-mail et mot de passe. Tes écrits restent liés à ce compte.':
+      'Pseudonym, email and password. Your writing stays linked to this account.',
+    'J’accepte la politique de confidentialité, les conditions et les cookies essentiels.':
+      'I accept the privacy policy, the terms and the essential cookies.',
+    'Gmail utilise les mêmes champs. Il n’y a pas de code à saisir.':
+      'Gmail uses the same fields. There is no code to enter.',
     'Restriction : accessible uniquement aux e-mails réels':
       'Restriction: accessible only to real email addresses',
     'Limite sécurité : max 3 essais / 15 secondes':
