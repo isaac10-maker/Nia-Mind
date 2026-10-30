@@ -655,3 +655,81 @@ html.reduce-motion .nia-glitch::before,
 html.reduce-motion .nia-glitch::after {
   display: none !important;
 }
+
+/* ============================================================================\n   D. ADAPTATION MOBILE, TABLETTE ET GRAND ÉCRAN
+   ============================================================================ */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img,
+video,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+p,
+h1,
+h2,
+h3,
+li,
+td,
+th,
+label,
+button,
+a {
+  overflow-wrap: break-word;
+}
+
+.nia-header-bar,
+.nia-announce-bar,
+footer {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.nia-header-tools {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nia-header-tools::-webkit-scrollbar {
+  display: none;
+}
+
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  body,
+  html.dark body {
+    background-attachment: scroll;
+  }
+
+  .nia-tactile-card:hover,
+  .nia-tactile-opt:hover {
+    transform: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .nia-lang-code {
+    min-width: 1.7rem;
+    min-height: 1.7rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

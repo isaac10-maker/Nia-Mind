@@ -59,9 +59,9 @@ export const PublicLayout: React.FC = () => {
 
       {/* En-tête Orange unifié en haut (cadrage plein écran sans marge perdue dans les angles) + Bandeau d'annonce TV en dessous */}
       <header className="nia-header-bar sticky top-0 z-50 w-full text-white shadow-lg border-b border-white/15">
-        <div className="w-full px-2 sm:px-4 py-1.5 flex flex-wrap items-start sm:items-center justify-between gap-x-2 gap-y-1">
+        <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 px-2 py-1.5 sm:px-4">
           {/* Gauche : Logo Nia-Mind + Slogan en dessous + Sigles Langue (FR, EN, ES, DE, ZH) & Icône Lune/Soleil seule */}
-          <div className="relative z-50 flex flex-col items-start shrink-0 max-w-full">
+          <div className="relative z-50 flex min-w-0 max-w-full flex-col items-start">
             <BrandLogo showSlogan={true} size="sm" />
             <div
               className={`transition-all duration-300 ${
@@ -72,46 +72,8 @@ export const PublicLayout: React.FC = () => {
             </div>
           </div>
 
-          {/* Centre : Onglets de navigation dans le header orange (floutés si /connexion ou /inscription est ouvert) */}
-          <nav
-            className={`hidden lg:flex items-center gap-1 xl:gap-1.5 transition-all duration-300 ${
-              isAuthRoute ? 'blur-[6px] opacity-25 pointer-events-none select-none' : ''
-            }`}
-            aria-label="Navigation principale"
-          >
-            {PUBLIC_NAV_ITEMS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                className={({ isActive }) =>
-                  `px-3 py-1.5 rounded-full text-xs xl:text-sm font-extrabold transition-all whitespace-nowrap ${
-                    item.to === '/loisir'
-                      ? isActive
-                        ? 'bg-amber-100 text-[#7F1D3F] shadow-md'
-                        : 'bg-[#0F9F6E] text-white shadow-sm'
-                      : isActive
-                        ? 'bg-white text-nia-bordeaux shadow-md'
-                        : 'text-white/95 hover:text-white hover:bg-white/15'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-
-            {/* Onglet Assistance & Espace avec icône cerveau + puce clignotante bleu/vert */}
-            <Link
-              to={currentUser ? '/espace/assistant' : '/inscription?from=assistant'}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs xl:text-sm font-extrabold bg-black/25 hover:bg-black/40 text-white transition-all border border-white/25 whitespace-nowrap shadow-sm"
-            >
-              <NeuralChipIcon className="w-4 h-4 shrink-0" />
-              <span>{tUi(currentLanguage, 'navAssistant')}</span>
-            </Link>
-          </nav>
-
           {/* Droite aérée : Superadmin + bouton sur 2 lignes « Mon espace / (@Pseudo) » */}
-          <div className="relative z-50 flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="relative z-50 flex items-center justify-end gap-1.5 sm:gap-2">
             {!isAuthRoute && isSuperAdmin && (
               <Link
                 to="/admin/vue-ensemble"
@@ -157,7 +119,7 @@ export const PublicLayout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen((v) => !v)}
-                className="lg:hidden p-2 rounded-2xl border border-white/30 bg-black/20 text-white hover:bg-black/35"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/30 bg-black/20 text-white hover:bg-black/35 xl:hidden"
                 aria-expanded={mobileMenuOpen}
                 aria-label="Ouvrir ou fermer le menu de navigation"
               >
@@ -167,6 +129,41 @@ export const PublicLayout: React.FC = () => {
           </div>
         </div>
 
+        <nav
+          className={`mx-auto hidden w-full max-w-7xl flex-wrap items-center justify-center gap-1.5 px-3 pb-2 transition-all duration-300 xl:flex ${
+            isAuthRoute ? 'blur-[6px] opacity-25 pointer-events-none select-none' : ''
+          }`}
+          aria-label="Navigation principale"
+        >
+          {PUBLIC_NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              className={({ isActive }) =>
+                `rounded-full px-3 py-1.5 text-sm font-extrabold transition-all ${
+                  item.to === '/loisir'
+                    ? isActive
+                      ? 'bg-amber-100 text-[#7F1D3F] shadow-md'
+                      : 'bg-[#0F9F6E] text-white shadow-sm'
+                    : isActive
+                      ? 'bg-white text-nia-bordeaux shadow-md'
+                      : 'text-white/95 hover:bg-white/15 hover:text-white'
+                }`
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+          <Link
+            to={currentUser ? '/espace/assistant' : '/inscription?from=assistant'}
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/25 px-3 py-1.5 text-sm font-extrabold text-white shadow-sm transition-all hover:bg-black/40"
+          >
+            <NeuralChipIcon className="h-4 w-4 shrink-0" />
+            <span>{tUi(currentLanguage, 'navAssistant')}</span>
+          </Link>
+        </nav>
+
         {/* Bandeau d'annonce TV sous le header :
             "Conseils &" / "Motivation du Jour" sur 2 lignes dans le coin gauche + annonce défilant et disparaissant en dessous */}
         <TvAnnouncementTicker blurred={isAuthRoute} />
@@ -175,7 +172,7 @@ export const PublicLayout: React.FC = () => {
 
         {/* Menu Mobile Compact et Accessible au toucher */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-white/20 bg-nia-bordeaux-dark/95 backdrop-blur-md text-white px-4 pt-3 pb-6 space-y-2 animate-nia-page">
+          <div className="max-h-[70vh] space-y-2 overflow-y-auto border-t border-white/20 bg-nia-bordeaux-dark/95 px-4 pb-6 pt-3 text-white backdrop-blur-md animate-nia-page xl:hidden">
             {PUBLIC_NAV_ITEMS.map((item, index) => {
               const showGroup = index === 0 || item.group !== PUBLIC_NAV_ITEMS[index - 1].group;
               return (
@@ -243,7 +240,7 @@ export const PublicLayout: React.FC = () => {
       </header>
 
       {/* Contenu de la page : si /connexion ou /inscription est ouvert, le site reste en arrière-plan flouté derrière la carte */}
-      <main className="relative z-10 flex-1">
+      <main className="relative z-10 flex-1 pb-16 sm:pb-0">
         {isAuthRoute ? (
           <div className="relative min-h-[calc(100vh-5rem)]">
             {/* Arrière-plan du site flouté */}

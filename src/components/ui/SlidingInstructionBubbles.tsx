@@ -164,7 +164,7 @@ export const FloatingInstructionPopup: React.FC = () => {
 
   if (dismissed) {
     return (
-      <div className="fixed bottom-5 right-5 z-40">
+      <div className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] z-40">
         <button
           type="button"
           onClick={() => setDismissed(false)}
@@ -181,7 +181,7 @@ export const FloatingInstructionPopup: React.FC = () => {
   return (
     <aside
       aria-label="Bulle flottante d’instructions des onglets"
-      className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 w-[calc(100vw-2rem)] sm:w-96 rounded-3xl nia-glass-card border-2 border-nia-orange/40 dark:border-nia-orange/50 shadow-2xl p-4 sm:p-5 transition-all duration-300"
+      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-40 rounded-3xl border-2 border-nia-orange/40 nia-glass-card p-4 shadow-2xl transition-all duration-300 dark:border-nia-orange/50 sm:bottom-6 sm:left-auto sm:right-6 sm:w-96 sm:p-5"
     >
       {/* En-tête de la pop-up avec bouton croix (X) explicite */}
       <div className="flex items-center justify-between gap-2 mb-2.5">

@@ -216,7 +216,7 @@ export const HomePage: React.FC = () => {
                 ))}
               </div>
 
-              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2 xl:grid-cols-3">
                 <Link
                   to={resolveToolLink('/espace/assistant')}
                   className="nia-tactile-card inline-flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3.5 sm:py-4 rounded-full bg-gradient-to-r from-nia-orange via-nia-orange-deep to-nia-bordeaux text-white font-extrabold text-sm sm:text-base shadow-lg"
@@ -311,7 +311,7 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 {/* Les 5 points (01 à 05) parfaitement adaptés sur Mobile, Tablette et PC sans inclinaison ni débordement */}
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-3 lg:grid-cols-5">
                   {[
                     {
                       label: 'Écoute',

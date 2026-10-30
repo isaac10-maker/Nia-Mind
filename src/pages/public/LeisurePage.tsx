@@ -415,9 +415,9 @@ export const LeisurePage: React.FC = () => {
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#0F9F6E]/15">
             <div className="h-full rounded-full bg-[#0F9F6E] transition-all" style={{ width: `${((step + (answer ? 1 : 0.08)) / lot.length) * 100}%` }} />
           </div>
-          <div className="mt-5 flex items-start gap-4">
+          <div className="mt-5 flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
             <TimerRing elapsed={revealed ? REFLECT_MS : held ?? elapsed} />
-            <h2 className="pt-2 text-xl font-black leading-snug text-[#1F2937] dark:text-white sm:text-3xl">{item.prompt}</h2>
+            <h2 className="min-w-0 text-lg font-black leading-snug text-[#1F2937] dark:text-white sm:pt-2 sm:text-3xl">{item.prompt}</h2>
           </div>
           <div className="mt-5" aria-live="polite">
             {answer ? (
@@ -464,7 +464,7 @@ export const LeisurePage: React.FC = () => {
                 <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${correct ? 'bg-white/20' : 'bg-[#0F9F6E]/10 text-[#047857] dark:text-emerald-200'}`}>
                   {LETTERS[index]}
                 </span>
-                <span>{choice}</span>
+                <span className="min-w-0 break-words">{choice}</span>
               </button>
             );
           })}

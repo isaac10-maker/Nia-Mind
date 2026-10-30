@@ -30,7 +30,7 @@ export const HeaderLangAndThemeControls: React.FC = () => {
   const languages = Object.keys(LANGUAGE_META) as SupportedLanguage[];
 
   return (
-    <div className="nia-header-tools inline-flex items-center gap-1 pt-0.5 max-w-full">
+    <div className="nia-header-tools inline-flex max-w-full items-center gap-1 overflow-x-auto pt-0.5">
       {/* Sigles seuls : pas de menu natif, sinon Windows peint un cadre blanc par-dessus. */}
       <div
         className="inline-flex items-center gap-0.5 rounded-full bg-black/30 border border-white/25 px-1 py-0.5 max-w-full"
@@ -89,7 +89,7 @@ export const UserSpaceCompactButton: React.FC = () => {
   return (
     <Link
       to="/espace/tableau-de-bord"
-      className="inline-flex items-center gap-2 px-3 py-1 rounded-2xl bg-nia-bordeaux-dark/90 hover:bg-nia-bordeaux-dark border border-white/25 text-white shadow-md transition-all"
+      className="inline-flex max-w-full items-center gap-1.5 rounded-2xl border border-white/25 bg-nia-bordeaux-dark/90 px-2.5 py-1 text-white shadow-md transition-all hover:bg-nia-bordeaux-dark sm:gap-2 sm:px-3"
     >
       <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
       <span className="flex flex-col items-start leading-[1.1] text-left">
@@ -150,12 +150,12 @@ export const TvAnnouncementTicker: React.FC<{ blurred?: boolean }> = ({
         blurred ? 'blur-[6px] opacity-25 pointer-events-none select-none' : ''
       }`}
     >
-      <div className="w-full flex items-stretch">
+      <div className="flex w-full flex-col sm:flex-row sm:items-stretch">
         {/* Coin gauche fixe sur 2 lignes (police réduite) : l'annonce défilante disparaît en dessous */}
         <button
           type="button"
           onClick={openDailyTipModal}
-          className="relative z-10 shrink-0 inline-flex items-center gap-1.5 pl-2.5 sm:pl-4 pr-2.5 sm:pr-3.5 py-1 bg-nia-bordeaux-dark hover:bg-black/65 text-amber-200 hover:text-white border-r border-amber-300/30 shadow-[10px_0_18px_rgba(0,0,0,0.55)] transition-colors text-left"
+          className="relative z-10 inline-flex shrink-0 items-center gap-1.5 border-b border-amber-300/30 bg-nia-bordeaux-dark py-1.5 pl-2.5 pr-2.5 text-left text-amber-200 shadow-[10px_0_18px_rgba(0,0,0,0.55)] transition-colors hover:bg-black/65 hover:text-white sm:border-b-0 sm:border-r sm:py-1 sm:pl-4 sm:pr-3.5"
         >
           <Sparkles className="w-3 h-3 text-nia-orange shrink-0" />
           <span
@@ -264,7 +264,7 @@ export const RoleSwitcherBar: React.FC<{
           isAuthPage ? 'blur-md opacity-35 pointer-events-none select-none' : ''
         }`}
       >
-        <div className="w-full px-2 sm:px-4 py-1.5 flex flex-wrap items-start sm:items-center justify-between gap-x-2 gap-y-1">
+        <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 px-2 py-1.5 sm:px-4">
           {/* Gauche : Logo Nia-Mind ramené en haut + Slogan + Sigle Langue & Icône Lune/Soleil en dessous */}
           <div className="relative z-20 flex flex-col items-start shrink-0 max-w-full">
             <BrandLogo showSlogan={true} size="sm" />
@@ -272,7 +272,7 @@ export const RoleSwitcherBar: React.FC<{
           </div>
 
           {/* Droite : Accueil, Superadmin et Mon espace / (@Pseudo) sur 2 lignes */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center justify-end gap-1.5 sm:gap-2">
             <Link
               to="/"
               className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full bg-black/25 hover:bg-black/40 border border-white/20 text-white text-xs font-extrabold transition-colors"
@@ -283,10 +283,10 @@ export const RoleSwitcherBar: React.FC<{
             {isSuperAdmin && !location.pathname.startsWith('/admin') && (
               <Link
                 to="/admin/vue-ensemble"
-                className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full bg-black/30 hover:bg-black/45 border border-white/25 text-white text-[11px] sm:text-xs font-extrabold shadow-sm transition-colors"
+                className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/30 px-2 py-1.5 text-[11px] font-extrabold text-white shadow-sm transition-colors hover:bg-black/45 sm:px-3 sm:text-xs"
               >
                 <Crown className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                <span>Superadmin</span>
+                <span className="hidden sm:inline">Superadmin</span>
               </Link>
             )}
 

@@ -603,7 +603,7 @@ export const AssistantPage: React.FC = () => {
   );
 
   return (
-    <div data-nia-zone="assistant" className="flex flex-col min-h-0 h-[calc(100dvh-10.75rem)] sm:h-[calc(100dvh-10.25rem)] lg:h-[calc(100dvh-9.6rem)]">
+    <div data-nia-zone="assistant" className="flex min-h-0 flex-col h-[calc(100dvh-13.5rem)] sm:h-[calc(100dvh-10.25rem)] lg:h-[calc(100dvh-9.6rem)]">
       {/* Bannière de sécurité en cas de mots-clés de détresse détectés */}
       {distressAlert && (
         <div

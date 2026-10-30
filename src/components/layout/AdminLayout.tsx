@@ -64,7 +64,7 @@ export const AdminLayout: React.FC = () => {
       />
 
       {mobileOpen && (
-        <div className="lg:hidden relative z-30 nia-glass-card border-b border-nia-orange/25 px-3 py-3 space-y-1">
+        <div className="relative z-30 max-h-[70vh] space-y-1 overflow-y-auto border-b border-nia-orange/25 px-3 py-3 nia-glass-card lg:hidden">
           {ADMIN_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (

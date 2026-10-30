@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { proxyBackendRequest } from '../api/backendProxy';
-import { AUTH_LIMIT_ERROR, consultDurableAuthRate, sha256Hex } from '../api/requestGate';
+import { consultDurableAuthRate, sha256Hex } from '../api/authRate';
+import { AUTH_LIMIT_ERROR } from '../api/requestGate';
 
 const sql = readFileSync('supabase/migrations/20261030120000_harden_rate_listening_traffic.sql', 'utf8');
 

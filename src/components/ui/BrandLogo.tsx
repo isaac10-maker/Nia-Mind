@@ -22,7 +22,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   return (
     <Link
       to={to}
-      className="group inline-flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-2xl"
+      className="group flex max-w-full min-w-0 items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-2xl sm:gap-2.5"
       aria-label="Nia-Mind — Le vrai sans le masque"
     >
       {/* Logo officiel PNG Nia-Mind (Œil lumineux & cerveau) */}
@@ -37,7 +37,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
         />
       </div>
 
-      <div className="flex flex-col leading-tight">
+      <div className="flex min-w-0 flex-col leading-tight">
         <div className="inline-flex items-center px-2.5 py-0.5 rounded-xl bg-white/95 dark:bg-slate-900/95 shadow-sm w-fit">
           <div className={`font-black tracking-tight ${titleSize} flex items-center`}>
             <span style={{ color: 'var(--nia-brand-word-nia, #0284C7)' }}>
@@ -52,7 +52,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           </div>
         </div>
         {showSlogan && (
-          <span className="text-[10px] sm:text-[11px] font-extrabold tracking-wide text-amber-100 drop-shadow-sm mt-0.5">
+          <span className="mt-0.5 max-w-full text-[10px] font-extrabold leading-tight tracking-wide text-amber-100 drop-shadow-sm sm:text-[11px]">
             <GlitchText text={`« ${OFFICIAL_SLOGAN} »`} occasionalIntervalMs={14000} />
           </span>
         )}

@@ -57,7 +57,7 @@ export const Modal: React.FC<ModalProps> = ({
         />
 
         {/* En-tête fixe avec bouton croix (X) toujours visible */}
-        <div className="px-6 pt-5 pb-3 flex items-start justify-between gap-4 border-b border-nia-orange/15 dark:border-white/10 shrink-0">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-nia-orange/15 px-4 pb-3 pt-4 dark:border-white/10 sm:gap-4 sm:px-6 sm:pt-5">
           <div className="pr-2">
             {badgeText && (
               <span

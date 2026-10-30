@@ -1,7 +1,7 @@
+import { consultDurableAuthRate, sha256Hex } from './authRate.js';
 import {
   AUTH_LIMIT_ERROR,
   clientIpFromHeaders,
-  consultDurableAuthRate,
   consumeRateLimit,
   extractEmailHint,
   fingerprint,
@@ -9,7 +9,6 @@ import {
   releaseSlot,
   sanitizeBackendPath,
   sanitizeSearch,
-  sha256Hex,
   tryAcquireSlot,
   type GateDecision,
 } from './requestGate.js';

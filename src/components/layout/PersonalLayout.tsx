@@ -92,7 +92,17 @@ export const PersonalLayout: React.FC = () => {
 
       {/* Tiroir mobile de navigation personnelle */}
       {mobileDrawerOpen && (
-        <div className="lg:hidden relative z-30 nia-glass-card border-b border-nia-orange/25 px-3 py-3 space-y-1.5 animate-nia-page">
+        <div className="relative z-30 max-h-[70vh] space-y-1.5 overflow-y-auto border-b border-nia-orange/25 px-3 py-3 nia-glass-card animate-nia-page lg:hidden">
+          {isSuperAdmin && (
+            <Link
+              to="/admin/vue-ensemble"
+              onClick={() => setMobileDrawerOpen(false)}
+              className="flex items-center gap-3 rounded-2xl bg-black/5 px-3.5 py-2.5 text-sm font-extrabold text-nia-bordeaux dark:bg-white/5 dark:text-amber-200"
+            >
+              <Crown className="h-4 w-4 shrink-0" />
+              <span>Superadmin</span>
+            </Link>
+          )}
           {PERSONAL_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
