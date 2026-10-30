@@ -67,6 +67,9 @@ function clientIp(req) {
     .slice(0, 80);
 }
 
+const AUTH_LIMIT_ERROR =
+  'LIMITE DE SÉCURITÉ (3 essais / 15s) : trop de tentatives d’identification. Patientez avant de réessayer.';
+
 function limited(key, max, windowMs) {
   const now = Date.now();
   const bucket = buckets.get(key);
@@ -77,6 +80,65 @@ function limited(key, max, windowMs) {
   bucket.count += 1;
   if (bucket.count > max) return Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
   return null;
+}
+
+async function sha256Hex(value) {
+  const subtle = globalThis.crypto && globalThis.crypto.subtle;
+  const text = String(value || '');
+  if (!subtle) {
+    let hash = 2166136261;
+    for (let i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0').repeat(8).slice(0, 64);
+  }
+  const digest = await subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function isCredentialPath(path, search) {
+  if (path.startsWith('auth/v1/signup')) return true;
+  if (path.startsWith('auth/v1/recover')) return true;
+  if (path.startsWith('auth/v1/otp')) return true;
+  if (path.startsWith('auth/v1/verify')) return true;
+  if (path.startsWith('auth/v1/token') && !String(search || '').includes('grant_type=refresh_token')) return true;
+  return false;
+}
+
+function emailFromBody(body) {
+  if (!body || !body.length || body.length > 8000) return '';
+  const text = body.toString('utf8');
+  try {
+    const parsed = JSON.parse(text);
+    if (typeof parsed.email === 'string') return parsed.email.trim().toLowerCase().slice(0, 180);
+  } catch {
+    const fromForm = new URLSearchParams(text).get('email');
+    if (fromForm) return fromForm.trim().toLowerCase().slice(0, 180);
+  }
+  return '';
+}
+
+async function durableCredentialRetry(ip, email) {
+  const keys = email
+    ? [`id:${await sha256Hex(email)}`, `ip:${await sha256Hex(ip || 'anonymous')}`]
+    : [`id:${await sha256Hex(`ip:${ip || 'anonymous'}`)}`];
+  for (const key of keys) {
+    const response = await fetch(`${ORIGIN}/rest/v1/rpc/consume_auth_rate`, {
+      method: 'POST',
+      headers: {
+        apikey: PUBLIC_ANON_KEY,
+        authorization: `Bearer ${PUBLIC_ANON_KEY}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ p_key: key }),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data && data.allowed === false) return Math.max(1, Number(data.retry_after_sec) || 15);
+  }
+  return 0;
 }
 
 function readBody(req) {
@@ -155,24 +217,62 @@ export default async function handler(req, res) {
       return;
     }
 
-    const ip = clientIp(req);
-    const authCall = target.path.startsWith('auth/v1/') && method === 'POST';
-    const retry = limited(`all:${ip}`, 120, 10_000) || (authCall ? limited(`auth:${ip}`, 8, 15_000) : null);
-    if (retry) {
-      res.statusCode = 429;
-      res.setHeader('content-type', 'application/json; charset=utf-8');
-      res.setHeader('retry-after', String(retry));
-      res.setHeader('cache-control', 'private, no-store');
-      res.end(JSON.stringify({ error: 'Trop de requêtes. Réessayez dans un instant.' }));
-      return;
-    }
-
     const hasBody = method !== 'GET' && method !== 'HEAD';
     const body = hasBody ? await readBody(req) : null;
     if (body === 'too-large') {
       res.statusCode = 413;
       res.setHeader('content-type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'Requête trop volumineuse.' }));
+      return;
+    }
+
+    const ip = clientIp(req);
+    const authCall = target.path.startsWith('auth/v1/') && ['POST', 'PUT', 'PATCH'].includes(method);
+    const credential = authCall && isCredentialPath(target.path, target.search);
+    if (credential) {
+      let retry = null;
+      try {
+        retry = await durableCredentialRetry(ip, emailFromBody(body));
+      } catch {
+        retry = null;
+      }
+      if (retry === null) {
+        const email = emailFromBody(body);
+        retry = limited(`auth-id:${await sha256Hex(email || ip)}`, 3, 15_000)
+          || limited(`auth-ip:${ip}`, 15, 15_000);
+      } else if (retry === 0) {
+        retry = null;
+      }
+      if (retry) {
+        res.statusCode = 429;
+        res.setHeader('content-type', 'application/json; charset=utf-8');
+        res.setHeader('retry-after', String(retry));
+        res.setHeader('cache-control', 'private, no-store');
+        res.end(JSON.stringify({
+          error: AUTH_LIMIT_ERROR,
+          msg: AUTH_LIMIT_ERROR,
+          error_description: AUTH_LIMIT_ERROR,
+        }));
+        return;
+      }
+    } else if (authCall) {
+      const retry = limited(`auth:${ip}`, 8, 15_000);
+      if (retry) {
+        res.statusCode = 429;
+        res.setHeader('content-type', 'application/json; charset=utf-8');
+        res.setHeader('retry-after', String(retry));
+        res.setHeader('cache-control', 'private, no-store');
+        res.end(JSON.stringify({ error: 'Trop de requêtes. Réessayez dans un instant.' }));
+        return;
+      }
+    }
+    const general = limited(`all:${ip}`, 120, 10_000);
+    if (general) {
+      res.statusCode = 429;
+      res.setHeader('content-type', 'application/json; charset=utf-8');
+      res.setHeader('retry-after', String(general));
+      res.setHeader('cache-control', 'private, no-store');
+      res.end(JSON.stringify({ error: 'Trop de requêtes. Réessayez dans un instant.' }));
       return;
     }
 

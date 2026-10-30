@@ -1,5 +1,5 @@
 import type { SupportedLanguage } from './i18nEngine';
-import { supabase } from './supabase';
+import { supabase, supabaseProjectUrl, supabasePublicKey } from './supabase';
 import type { SiteSettings } from './types';
 
 export const PUBLIC_TRAFFIC_PATHS = [
@@ -138,16 +138,27 @@ export function sharedControlsOf(settings: SiteSettings): SharedControls {
 
 export async function recordPageView(pathname: string): Promise<void> {
   const path = normalizeTrafficPath(pathname);
-  if (!path || !supabase) return;
+  if (!path || !supabaseProjectUrl || !supabasePublicKey) return;
   const key = `nia-traffic-${path}-${new Date().toISOString().slice(0, 10)}`;
   try {
     if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, '1');
   } catch {
-    // Le compteur peut quand même être tenté une fois.
+    // Le rappel local évite un appel inutile. Le serveur décide vraiment.
   }
   try {
-    await supabase.rpc('record_page_view', { p_path: path });
+    // Appel direct : la base voit le réseau du visiteur et compte une fois.
+    await fetch(`${supabaseProjectUrl}/rest/v1/rpc/record_page_view`, {
+      method: 'POST',
+      headers: {
+        apikey: supabasePublicKey,
+        authorization: `Bearer ${supabasePublicKey}`,
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({ p_path: path }),
+      keepalive: true,
+    });
   } catch {
     // Le trafic ne doit jamais bloquer la navigation.
   }

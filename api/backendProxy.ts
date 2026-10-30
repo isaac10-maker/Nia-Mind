@@ -1,5 +1,7 @@
 import {
+  AUTH_LIMIT_ERROR,
   clientIpFromHeaders,
+  consultDurableAuthRate,
   consumeRateLimit,
   extractEmailHint,
   fingerprint,
@@ -7,6 +9,7 @@ import {
   releaseSlot,
   sanitizeBackendPath,
   sanitizeSearch,
+  sha256Hex,
   tryAcquireSlot,
   type GateDecision,
 } from './requestGate.js';
@@ -34,6 +37,7 @@ const FORWARDED_HEADERS = [
 
 export interface ProxyDeps {
   fetchImpl?: typeof fetch;
+  rateFetch?: typeof fetch;
   env?: Record<string, string | undefined>;
   now?: number;
 }
@@ -182,10 +186,33 @@ export async function proxyBackendRequest(request: Request, deps: ProxyDeps = {}
 
   if (isCredentialRequest(pathname, method, search)) {
     const email = extractEmailHint(body, search);
-    const byId = consumeRateLimit(email ? fingerprint(email) : `ip:${ip}`, 'auth-id', now);
-    if (!byId.allowed) return denied(byId);
-    const byIp = consumeRateLimit(ip, 'auth-ip', now);
-    if (!byIp.allowed) return denied(byIp);
+    const rateFetch = deps.rateFetch || (deps.fetchImpl ? undefined : fetch);
+    const apiKey = cleanHeaderValue(request.headers.get('apikey') || '');
+    const durable = rateFetch && apiKey
+      ? await consultDurableAuthRate(
+          rateFetch,
+          resolveSupabaseOrigin(deps.env),
+          apiKey,
+          email
+            ? [`id:${sha256Hex(email)}`, `ip:${sha256Hex(ip || 'anonymous')}`]
+            : [`id:${sha256Hex(`ip:${ip || 'anonymous'}`)}`]
+        )
+      : null;
+    if (durable && !durable.allowed) {
+      return denied({
+        allowed: false,
+        retryAfterSec: durable.retryAfterSec,
+        limit: 3,
+        remaining: 0,
+        error: AUTH_LIMIT_ERROR,
+      });
+    }
+    if (!durable) {
+      const byId = consumeRateLimit(email ? fingerprint(email) : `ip:${ip}`, 'auth-id', now);
+      if (!byId.allowed) return denied(byId);
+      const byIp = consumeRateLimit(ip, 'auth-ip', now);
+      if (!byIp.allowed) return denied(byIp);
+    }
   }
 
   const scoped = consumeRateLimit(ip, scopeForPath(pathname), now);

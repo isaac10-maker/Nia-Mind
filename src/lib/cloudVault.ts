@@ -154,6 +154,9 @@ function frenchAuthError(message: string): string {
   if (text.includes('password')) {
     return 'Le mot de passe doit contenir au moins 6 caractères.';
   }
+  if (text.includes('limite de sécurité') || text.includes('3 essais / 15')) {
+    return message;
+  }
   if (text.includes('rate limit') || text.includes('too many') || text.includes('email rate limit')) {
     return 'Trop de messages envoyés. Patientez un moment avant de redemander un code.';
   }

@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { notifyRateLimit } from './rateLimitNotice';
 
-const configuredUrl = 'https://wyiiyfjvicwwbcbswdac.supabase.co';
+export const supabaseProjectUrl = 'https://wyiiyfjvicwwbcbswdac.supabase.co';
+const configuredUrl = supabaseProjectUrl;
 // Clé publique anon. Ne pas lire VITE_SUPABASE_ANON_KEY : le build Vercel
 // a déjà figé une clé périmée, et chaque appel Auth devenait un 401.
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5aWl5Zmp2aWN3d2JjYnN3ZGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MDUzOTYsImV4cCI6MjEwODI4MTM5Nn0.eNQZagTUKFzGHMEXHkDV13B8fsNm9ImbjrLZ09eoabA';
+export const supabasePublicKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5aWl5Zmp2aWN3d2JjYnN3ZGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MDUzOTYsImV4cCI6MjEwODI4MTM5Nn0.eNQZagTUKFzGHMEXHkDV13B8fsNm9ImbjrLZ09eoabA';
+const supabaseAnonKey = supabasePublicKey;
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(
